@@ -7,14 +7,37 @@ import {
 import {
   createOperationAddedFinding,
   createOperationRemovedFinding,
-  diffOperationsForPath,
+  diffOperationDetails,
+  diffOperationMetadata,
 } from "@/features/openapi-diff/engine/diff-operations";
 import type {
   DiffFinding,
   NormalizedOpenApiModel,
+  OpenApiHttpMethod,
 } from "@/features/openapi-diff/types";
 
+const HTTP_METHODS: readonly OpenApiHttpMethod[] = [
+  "delete",
+  "get",
+  "head",
+  "options",
+  "patch",
+  "post",
+  "put",
+  "trace",
+] as const;
+
 export function diffPaths(
+  baseModel: NormalizedOpenApiModel,
+  revisionModel: NormalizedOpenApiModel,
+): DiffFinding[] {
+  return [
+    ...diffPathsAndOperations(baseModel, revisionModel),
+    ...diffOperationDetailsAcrossPaths(baseModel, revisionModel),
+  ];
+}
+
+export function diffPathsAndOperations(
   baseModel: NormalizedOpenApiModel,
   revisionModel: NormalizedOpenApiModel,
 ): DiffFinding[] {
@@ -76,9 +99,68 @@ export function diffPaths(
       continue;
     }
 
-    if (basePathItem && revisionPathItem) {
+    if (!basePathItem || !revisionPathItem) {
+      continue;
+    }
+
+    for (const method of HTTP_METHODS) {
+      const baseOperation = basePathItem.operations[method];
+      const revisionOperation = revisionPathItem.operations[method];
+
+      if (!baseOperation && revisionOperation) {
+        findings.push(createOperationAddedFinding(revisionOperation));
+        continue;
+      }
+
+      if (baseOperation && !revisionOperation) {
+        findings.push(createOperationRemovedFinding(baseOperation));
+        continue;
+      }
+
+      if (!baseOperation || !revisionOperation) {
+        continue;
+      }
+
+      findings.push(...diffOperationMetadata(baseOperation, revisionOperation));
+    }
+  }
+
+  return findings;
+}
+
+export function diffOperationDetailsAcrossPaths(
+  baseModel: NormalizedOpenApiModel,
+  revisionModel: NormalizedOpenApiModel,
+): DiffFinding[] {
+  const findings: DiffFinding[] = [];
+  const sharedPaths = [...new Set([
+    ...Object.keys(baseModel.paths),
+    ...Object.keys(revisionModel.paths),
+  ])].sort((left, right) => left.localeCompare(right));
+
+  for (const path of sharedPaths) {
+    const basePathItem = baseModel.paths[path];
+    const revisionPathItem = revisionModel.paths[path];
+
+    if (!basePathItem || !revisionPathItem) {
+      continue;
+    }
+
+    for (const method of HTTP_METHODS) {
+      const baseOperation = basePathItem.operations[method];
+      const revisionOperation = revisionPathItem.operations[method];
+
+      if (!baseOperation || !revisionOperation) {
+        continue;
+      }
+
       findings.push(
-        ...diffOperationsForPath(baseModel, revisionModel, path, basePathItem, revisionPathItem),
+        ...diffOperationDetails(
+          baseModel,
+          revisionModel,
+          baseOperation,
+          revisionOperation,
+        ),
       );
     }
   }

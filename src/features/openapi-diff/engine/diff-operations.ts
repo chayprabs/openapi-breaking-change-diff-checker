@@ -95,17 +95,14 @@ export function diffOperationsForPath(
 
     findings.push(
       ...diffOperationMetadata(baseOperation, revisionOperation),
-      ...diffOperationParameters(baseOperation, revisionOperation),
-      ...diffOperationRequestBody(baseOperation, revisionOperation),
-      ...diffOperationResponses(baseOperation, revisionOperation),
-      ...diffOperationSecurity(baseModel, revisionModel, baseOperation, revisionOperation),
+      ...diffOperationDetails(baseModel, revisionModel, baseOperation, revisionOperation),
     );
   }
 
   return findings;
 }
 
-function diffOperationMetadata(
+export function diffOperationMetadata(
   baseOperation: NormalizedOperation,
   revisionOperation: NormalizedOperation,
 ): DiffFinding[] {
@@ -268,4 +265,18 @@ function diffOperationMetadata(
   }
 
   return findings;
+}
+
+export function diffOperationDetails(
+  baseModel: NormalizedOpenApiModel,
+  revisionModel: NormalizedOpenApiModel,
+  baseOperation: NormalizedOperation,
+  revisionOperation: NormalizedOperation,
+): DiffFinding[] {
+  return [
+    ...diffOperationParameters(baseOperation, revisionOperation),
+    ...diffOperationRequestBody(baseOperation, revisionOperation),
+    ...diffOperationResponses(baseOperation, revisionOperation),
+    ...diffOperationSecurity(baseModel, revisionModel, baseOperation, revisionOperation),
+  ];
 }

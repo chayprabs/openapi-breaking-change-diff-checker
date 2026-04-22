@@ -12,6 +12,7 @@ import CodeMirror from "@uiw/react-codemirror";
 import type { ChangeEvent, DragEvent } from "react";
 import {
   useCallback,
+  useDeferredValue,
   useEffect,
   useEffectEvent,
   useMemo,
@@ -26,7 +27,6 @@ import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { EmptyState } from "@/components/ui/empty-state";
 import { KeyboardShortcut } from "@/components/ui/keyboard-shortcut";
 import { ProgressSteps, type ProgressStep } from "@/components/ui/progress-steps";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -50,6 +50,12 @@ import {
   formatConsumerProfileLabel,
 } from "@/features/openapi-diff/lib/analysis-settings";
 import {
+  createTooManyFindingsWarning,
+  MAX_RENDERED_REPORT_ENDPOINTS,
+  MAX_RENDERED_REPORT_FINDINGS,
+  MAX_RENDERED_REPORT_SCHEMAS,
+} from "@/features/openapi-diff/lib/report-display";
+import {
   countSpecCharacters,
   countSpecLines,
   formatBytes,
@@ -61,6 +67,7 @@ import {
   SPEC_SIZE_HARD_LIMIT_BYTES,
   SPEC_SIZE_WARNING_BYTES,
 } from "@/features/openapi-diff/lib/workspace";
+import { analysisProgressLabels } from "@/features/openapi-diff/types";
 import type {
   ConsumerProfile,
   DiffFinding,
@@ -128,11 +135,22 @@ const DEFAULT_SETTINGS: WorkspaceSettings = {
   selectedSampleId: null,
 };
 
-const ANALYSIS_PROGRESS_LABELS = [
-  "Parsing specs",
-  "Validating OpenAPI",
-  "Resolving references",
-] as const;
+const ANALYSIS_PROGRESS_DESCRIPTIONS: Record<
+  (typeof analysisProgressLabels)[number],
+  string
+> = {
+  "Building report": "Turning normalized findings into the final contract risk report.",
+  "Classifying impact": "Applying the selected compatibility profile and rule catalog.",
+  "Comparing parameters, responses, and schemas":
+    "Inspecting nested contract details for semantic compatibility changes.",
+  "Comparing paths and operations":
+    "Checking paths, operations, and route-level contract structure.",
+  "Parsing base spec": "Reading the current or production contract into the worker pipeline.",
+  "Parsing revision spec": "Reading the proposed contract into the worker pipeline.",
+  "Resolving references": "Normalizing local references before semantic comparison.",
+  "Validating OpenAPI documents":
+    "Running structural and OpenAPI-specific validation checks.",
+};
 
 const FINDING_SEVERITY_ORDER = [
   "breaking",
@@ -347,6 +365,81 @@ function formatIssueMessage(issue: SpecParserIssue) {
   return location ? `${location}: ${issue.message}` : issue.message;
 }
 
+function formatMissingSpecTitle(missingPanels: readonly WorkspacePanelId[]) {
+  if (missingPanels.length === 2) {
+    return "Both specs are required";
+  }
+
+  return missingPanels[0] === "revision"
+    ? "Revision spec is required"
+    : "Base spec is required";
+}
+
+function formatMissingSpecMessage(
+  missingPanels: readonly WorkspacePanelId[],
+  hasPreviousReport: boolean,
+) {
+  const missingLabels = missingPanels.map((panelId) =>
+    panelId === "revision" ? "revision spec" : "base spec",
+  );
+  const joinedLabels =
+    missingLabels.length === 2 ? "base and revision specs" : missingLabels[0];
+
+  if (hasPreviousReport) {
+    return `Add the ${joinedLabels} back in and rerun analysis. The previous successful report stays visible until a newer valid run completes.`;
+  }
+
+  return `Paste or upload the ${joinedLabels} to run the worker-based OpenAPI analysis.`;
+}
+
+function getMissingSpecPanels(baseSpec: SpecInput, revisionSpec: SpecInput) {
+  const missingPanels: WorkspacePanelId[] = [];
+
+  if (!baseSpec.content.trim().length) {
+    missingPanels.push("base");
+  }
+
+  if (!revisionSpec.content.trim().length) {
+    missingPanels.push("revision");
+  }
+
+  return missingPanels;
+}
+
+function getAnalysisErrorVariant(errors: readonly SpecParserError[]) {
+  return errors.some((error) =>
+    [
+      "analysis-timeout",
+      "worker-crash",
+      "worker-init",
+      "worker-message-error",
+      "worker-unavailable",
+    ].includes(error.code),
+  )
+    ? "error"
+    : "warning";
+}
+
+function getWorkerStatusLabel(
+  progress: WorkerProgressState,
+  analysisState: AnalysisWorkerState,
+  editorStates: Record<WorkspacePanelId, EditorWorkerState>,
+) {
+  if (analysisState.status === "running") {
+    return progress?.action === "analyze" ? progress.label : "Parsing base spec";
+  }
+
+  if (editorStates.base.status === "running") {
+    return "Parsing base spec";
+  }
+
+  if (editorStates.revision.status === "running") {
+    return "Parsing revision spec";
+  }
+
+  return "Idle";
+}
+
 function getLineRange(content: string, offset: number) {
   const boundedOffset = Math.max(0, Math.min(offset, Math.max(content.length - 1, 0)));
   let from = boundedOffset;
@@ -437,14 +530,19 @@ function buildProgressSteps(
 ): ProgressStep[] {
   const activeLabel = progress?.action === "analyze" ? progress.label : null;
   const activeIndex = activeLabel
-    ? ANALYSIS_PROGRESS_LABELS.findIndex((label) => label === activeLabel)
+    ? analysisProgressLabels.findIndex((label) => label === activeLabel)
     : -1;
 
-  return ANALYSIS_PROGRESS_LABELS.map((label, index) => {
+  return analysisProgressLabels.map((label, index) => {
+    const baseStep = {
+      description: ANALYSIS_PROGRESS_DESCRIPTIONS[label],
+      id: label,
+      label,
+    };
+
     if (status === "success") {
       return {
-        id: label,
-        label,
+        ...baseStep,
         status: "complete" as const,
       };
     }
@@ -452,31 +550,27 @@ function buildProgressSteps(
     if (status === "error") {
       if (activeIndex === -1) {
         return {
-          id: label,
-          label,
+          ...baseStep,
           status: index === 0 ? "error" : "upcoming",
         };
       }
 
       if (index < activeIndex) {
         return {
-          id: label,
-          label,
+          ...baseStep,
           status: "complete",
         };
       }
 
       if (index === activeIndex) {
         return {
-          id: label,
-          label,
+          ...baseStep,
           status: "error",
         };
       }
 
       return {
-        id: label,
-        label,
+        ...baseStep,
         status: "upcoming",
       };
     }
@@ -484,38 +578,33 @@ function buildProgressSteps(
     if (status === "running") {
       if (activeIndex === -1) {
         return {
-          id: label,
-          label,
+          ...baseStep,
           status: index === 0 ? "current" : "upcoming",
         };
       }
 
       if (index < activeIndex) {
         return {
-          id: label,
-          label,
+          ...baseStep,
           status: "complete",
         };
       }
 
       if (index === activeIndex) {
         return {
-          id: label,
-          label,
+          ...baseStep,
           status: "current",
         };
       }
 
       return {
-        id: label,
-        label,
+        ...baseStep,
         status: "upcoming",
       };
     }
 
     return {
-      id: label,
-      label,
+      ...baseStep,
       status: "upcoming",
     };
   });
@@ -527,6 +616,18 @@ function renderIssueList(issues: SpecParserIssue[]) {
       {issues.map((issue, index) => (
         <p key={`${issue.code}-${issue.message}-${index}`} className="leading-6">
           {formatIssueMessage(issue)}
+        </p>
+      ))}
+    </div>
+  );
+}
+
+function renderStringList(values: readonly string[]) {
+  return (
+    <div className="space-y-2">
+      {values.map((value, index) => (
+        <p key={`${value}-${index}`} className="leading-6">
+          {value}
         </p>
       ))}
     </div>
@@ -923,38 +1024,59 @@ function WorkspaceResultsPanel({
   const selectedSample = selectedSampleId
     ? getWorkspaceSample(selectedSampleId)
     : null;
-  const hasBothSpecs = Boolean(
-    baseSpec.content.trim().length && revisionSpec.content.trim().length,
-  );
+  const missingPanels = getMissingSpecPanels(baseSpec, revisionSpec);
+  const hasBothSpecs = missingPanels.length === 0;
   const baseStatus = getParseStatusSummary(editorStates.base);
   const revisionStatus = getParseStatusSummary(editorStates.revision);
   const analysisSteps = buildProgressSteps(progress, analysisState.status);
   const analysisProgressLabel =
-    progress?.action === "analyze" ? progress.label : "Parsing specs";
+    progress?.action === "analyze" ? progress.label : "Parsing base spec";
   const globalAnalysisErrors = analysisState.errors.filter((error) => !error.editorId);
+  const tooManyFindingsWarning = report
+    ? createTooManyFindingsWarning(report.summary.totalFindings)
+    : null;
+  const visibleFindings = report
+    ? report.findings.slice(0, MAX_RENDERED_REPORT_FINDINGS)
+    : [];
+  const visibleAffectedEndpoints = report
+    ? report.affectedEndpoints.slice(0, MAX_RENDERED_REPORT_ENDPOINTS)
+    : [];
+  const visibleAffectedSchemas = report
+    ? report.affectedSchemas.slice(0, MAX_RENDERED_REPORT_SCHEMAS)
+    : [];
+  const reportWarnings = report
+    ? [...new Set([
+        ...report.warnings,
+        ...(tooManyFindingsWarning ? [tooManyFindingsWarning] : []),
+      ])]
+    : [];
 
-  if (!hasBothSpecs) {
+  if (!hasBothSpecs && !analysisState.result) {
     return (
       <Card>
         <CardHeader>
           <CardTitle>Results</CardTitle>
         </CardHeader>
-        <CardContent>
-          <EmptyState
-            action={
-              <div className="flex flex-wrap items-center gap-3">
-                <Button onClick={onAnalyze}>Analyze specs</Button>
-                <span className="text-muted inline-flex items-center gap-2 text-sm">
-                  <KeyboardShortcut keys={["Ctrl", "Enter"]} />
-                  or
-                  <KeyboardShortcut keys={["Cmd", "Enter"]} />
-                </span>
-              </div>
-            }
-            description="Paste or upload both the base and revision specs to run the worker-based parser and validation flow. Spec content still stays local to the browser."
-            eyebrow="Results"
-            title="Add both specs to continue"
-          />
+        <CardContent className="space-y-4">
+          <Alert title={formatMissingSpecTitle(missingPanels)} variant="warning">
+            {formatMissingSpecMessage(missingPanels, false)}
+          </Alert>
+          {globalAnalysisErrors.length ? (
+            <Alert
+              title="Worker error"
+              variant={getAnalysisErrorVariant(globalAnalysisErrors)}
+            >
+              {renderIssueList(globalAnalysisErrors)}
+            </Alert>
+          ) : null}
+          <div className="flex flex-wrap items-center gap-3">
+            <Button onClick={onAnalyze}>Analyze specs</Button>
+            <span className="text-muted inline-flex items-center gap-2 text-sm">
+              <KeyboardShortcut keys={["Ctrl", "Enter"]} />
+              or
+              <KeyboardShortcut keys={["Cmd", "Enter"]} />
+            </span>
+          </div>
         </CardContent>
       </Card>
     );
@@ -978,6 +1100,12 @@ function WorkspaceResultsPanel({
         </div>
       </CardHeader>
       <CardContent className="space-y-6">
+        {!hasBothSpecs ? (
+          <Alert title={formatMissingSpecTitle(missingPanels)} variant="warning">
+            {formatMissingSpecMessage(missingPanels, true)}
+          </Alert>
+        ) : null}
+
         {analysisState.status === "running" ? (
           <Alert title={analysisProgressLabel} variant="info">
             <div className="space-y-4">
@@ -997,7 +1125,7 @@ function WorkspaceResultsPanel({
                 ? "Showing the previous valid analysis"
                 : "Analysis is blocked until the errors are fixed"
             }
-            variant="warning"
+            variant={getAnalysisErrorVariant(globalAnalysisErrors)}
           >
             <div className="space-y-4">
               {globalAnalysisErrors.length ? (
@@ -1013,6 +1141,12 @@ function WorkspaceResultsPanel({
         {selectedSample ? (
           <Alert title={`${selectedSample.label} loaded`} variant="success">
             {selectedSample.description}
+          </Alert>
+        ) : null}
+
+        {reportWarnings.length ? (
+          <Alert title={`Report warnings (${reportWarnings.length})`} variant="warning">
+            {renderStringList(reportWarnings)}
           </Alert>
         ) : null}
 
@@ -1237,7 +1371,13 @@ function WorkspaceResultsPanel({
                   <CardContent>
                     {report.affectedEndpoints.length ? (
                       <div className="space-y-3">
-                        {report.affectedEndpoints.map((endpoint) => (
+                        {report.affectedEndpoints.length > visibleAffectedEndpoints.length ? (
+                          <Alert title="Endpoint list trimmed" variant="info">
+                            Showing the first {visibleAffectedEndpoints.length} affected endpoints
+                            to keep the browser responsive.
+                          </Alert>
+                        ) : null}
+                        {visibleAffectedEndpoints.map((endpoint) => (
                           <div
                             key={endpoint.key}
                             className="border-line bg-panel-muted rounded-2xl border p-4"
@@ -1273,7 +1413,13 @@ function WorkspaceResultsPanel({
                   <CardContent>
                     {report.affectedSchemas.length ? (
                       <div className="space-y-3">
-                        {report.affectedSchemas.map((schema) => (
+                        {report.affectedSchemas.length > visibleAffectedSchemas.length ? (
+                          <Alert title="Schema list trimmed" variant="info">
+                            Showing the first {visibleAffectedSchemas.length} affected schemas to
+                            keep the browser responsive.
+                          </Alert>
+                        ) : null}
+                        {visibleAffectedSchemas.map((schema) => (
                           <div
                             key={schema.key}
                             className="border-line bg-panel-muted rounded-2xl border p-4"
@@ -1318,7 +1464,13 @@ function WorkspaceResultsPanel({
                     Findings are based on the normalized OpenAPI model, not a raw text diff, and are currently classified for the{" "}
                     {formatConsumerProfileLabel(report.settings.consumerProfile)} profile.
                   </p>
-                  {renderFindingList(report.findings)}
+                  {report.findings.length > visibleFindings.length ? (
+                    <Alert title="Findings list trimmed" variant="info">
+                      Showing the first {visibleFindings.length} findings to keep the page
+                      responsive.
+                    </Alert>
+                  ) : null}
+                  {renderFindingList(visibleFindings)}
                 </div>
               ) : (
                 <p>
@@ -1384,12 +1536,13 @@ export function OpenApiDiffWorkbench() {
     () => createAnalysisSettings({ consumerProfile }),
     [consumerProfile],
   );
+  const deferredAnalysisResult = useDeferredValue(analysisState.result);
   const displayReport = useMemo(
     () =>
-      analysisState.result
-        ? reclassifyDiffReport(analysisState.result.report, analysisSettings)
+      deferredAnalysisResult
+        ? reclassifyDiffReport(deferredAnalysisResult.report, analysisSettings)
         : null,
-    [analysisSettings, analysisState.result],
+    [analysisSettings, deferredAnalysisResult],
   );
 
   const readClipboardSupported =
@@ -1498,13 +1651,16 @@ export function OpenApiDiffWorkbench() {
   );
 
   const handleAnalyze = useCallback(() => {
-    if (
-      !workspaceSpecs.base.content.trim().length ||
-      !workspaceSpecs.revision.content.trim().length
-    ) {
+    const missingPanels = getMissingSpecPanels(
+      workspaceSpecs.base,
+      workspaceSpecs.revision,
+    );
+
+    if (missingPanels.length > 0) {
+      setActiveMobileTab("results");
       notify({
-        description: "Add content to both editors before running analysis.",
-        title: "Both specs are required",
+        description: formatMissingSpecMessage(missingPanels, Boolean(analysisState.result)),
+        title: formatMissingSpecTitle(missingPanels),
         variant: "warning",
       });
       return;
@@ -1516,6 +1672,7 @@ export function OpenApiDiffWorkbench() {
     setActiveMobileTab("results");
   }, [
     analysisSettings,
+    analysisState.result,
     clearClientPanelErrors,
     notify,
     requestAnalyze,
@@ -1728,6 +1885,7 @@ export function OpenApiDiffWorkbench() {
     getSpecContentBytes(workspaceSpecs.revision.content) > SPEC_SIZE_WARNING_BYTES
       ? "This editor is holding more than 5 MB of content. The worker keeps parsing off the main thread, but validation may feel slower."
       : undefined;
+  const workerStatusLabel = getWorkerStatusLabel(progress, analysisState, editorStates);
 
   const renderEditorPanel = (
     panelId: WorkspacePanelId,
@@ -1846,7 +2004,7 @@ export function OpenApiDiffWorkbench() {
         <span className="text-muted inline-flex items-center gap-2 text-sm">
           Worker status:
           <span className="font-medium text-foreground">
-            {progress?.label ?? "Idle"}
+            {workerStatusLabel}
           </span>
         </span>
       </Toolbar>

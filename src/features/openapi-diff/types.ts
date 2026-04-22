@@ -19,10 +19,18 @@ export type ParserImplementation = "lightweight" | "scalar";
 
 export type WorkerAction = "analyze" | "parse";
 
-export type WorkerProgressLabel =
-  | "Parsing specs"
-  | "Resolving references"
-  | "Validating OpenAPI";
+export const analysisProgressLabels = [
+  "Parsing base spec",
+  "Parsing revision spec",
+  "Validating OpenAPI documents",
+  "Resolving references",
+  "Comparing paths and operations",
+  "Comparing parameters, responses, and schemas",
+  "Classifying impact",
+  "Building report",
+] as const;
+
+export type WorkerProgressLabel = (typeof analysisProgressLabels)[number];
 
 export type SpecInputSource = "paste" | "sample" | "upload" | "url";
 

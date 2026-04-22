@@ -25,7 +25,14 @@ async function handleWorkerRequest(request: OpenApiDiffWorkerRequest) {
   try {
     if (request.type === "parse") {
       workerScope.postMessage(
-        createWorkerProgressMessage("parse", request.requestId, "Parsing specs", request.editorId),
+        createWorkerProgressMessage(
+          "parse",
+          request.requestId,
+          request.editorId === "revision"
+            ? "Parsing revision spec"
+            : "Parsing base spec",
+          request.editorId,
+        ),
       );
 
       const result = await parseOpenApiSpec(request.spec);

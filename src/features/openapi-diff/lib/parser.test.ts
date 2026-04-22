@@ -10,7 +10,11 @@ import {
   parseOpenApiSpec,
 } from "@/features/openapi-diff/lib/parser";
 import { createAnalysisSettings } from "@/features/openapi-diff/lib/analysis-settings";
-import type { SpecInput } from "@/features/openapi-diff/types";
+import {
+  analysisProgressLabels,
+  type SpecInput,
+  type WorkerProgressLabel,
+} from "@/features/openapi-diff/types";
 
 function createSpecInput(
   id: SpecInput["id"],
@@ -132,5 +136,22 @@ paths: {}`;
         "path.removed",
       ]),
     );
+  });
+
+  it("emits the full analysis progress sequence in order", async () => {
+    const progressLabels: WorkerProgressLabel[] = [];
+
+    const result = await analyzeOpenApiSpecs(
+      createSpecInput("base", baseSampleOpenApi31),
+      createSpecInput("revision", revisionSampleOpenApi31),
+      {
+        onProgress: (label) => {
+          progressLabels.push(label);
+        },
+      },
+    );
+
+    expect(result.ok).toBe(true);
+    expect(progressLabels).toEqual([...analysisProgressLabels]);
   });
 });

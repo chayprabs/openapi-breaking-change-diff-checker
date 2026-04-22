@@ -11,8 +11,16 @@ import {
   getSpecContentBytes,
   inferSpecFormat,
 } from "@/features/openapi-diff/lib/workspace";
-import { buildOpenApiDiffReport } from "@/features/openapi-diff/engine/diff";
+import {
+  classifyOpenApiDiffFindings,
+} from "@/features/openapi-diff/engine/diff";
+import {
+  diffOperationDetailsAcrossPaths,
+  diffPathsAndOperations,
+} from "@/features/openapi-diff/engine/diff-paths";
+import { getDiffReportWarnings } from "@/features/openapi-diff/engine/diff-support";
 import { normalizeOpenApiDocument } from "@/features/openapi-diff/engine/normalize";
+import { buildReport } from "@/features/openapi-diff/engine/report";
 import { createAnalysisSettings } from "@/features/openapi-diff/lib/analysis-settings";
 import type {
   AnalysisSettings,
@@ -285,9 +293,10 @@ export async function analyzeOpenApiSpecs(
   options: AnalyzeOpenApiSpecsOptions = {},
 ): Promise<AnalyzeOpenApiSpecsResult> {
   const analysisSettings = createAnalysisSettings(options.settings);
-  options.onProgress?.("Parsing specs");
+  options.onProgress?.("Parsing base spec");
 
   const baseResult = await parseOpenApiSpec(base);
+  options.onProgress?.("Parsing revision spec");
   const revisionResult = await parseOpenApiSpec(revision);
   const combinedWarnings = [
     ...baseResult.warnings,
@@ -314,7 +323,7 @@ export async function analyzeOpenApiSpecs(
   let analysisWarnings = [...combinedWarnings];
   let validationSource: ParserImplementation = "lightweight";
 
-  options.onProgress?.("Validating OpenAPI");
+  options.onProgress?.("Validating OpenAPI documents");
 
   const baseAdvancedChecks = await runAdvancedValidation(base, nextBase);
   const revisionAdvancedChecks = await runAdvancedValidation(revision, nextRevision);
@@ -396,17 +405,21 @@ export async function analyzeOpenApiSpecs(
     ...revisionDereferenceWarnings,
   ]);
   const generatedAt = new Date().toISOString();
+  let rawFindings;
+  let classifiedFindings;
   let report;
 
   try {
-    report = buildOpenApiDiffReport({
-      baseModel: normalizedBase.model,
-      baseline: nextBase,
-      candidate: nextRevision,
-      generatedAt,
-      revisionModel: normalizedRevision.model,
-      settings: analysisSettings,
-    });
+    options.onProgress?.("Comparing paths and operations");
+    rawFindings = diffPathsAndOperations(
+      normalizedBase.model,
+      normalizedRevision.model,
+    );
+    options.onProgress?.("Comparing parameters, responses, and schemas");
+    rawFindings = [
+      ...rawFindings,
+      ...diffOperationDetailsAcrossPaths(normalizedBase.model, normalizedRevision.model),
+    ];
   } catch (error) {
     return {
       ok: false,
@@ -414,6 +427,43 @@ export async function analyzeOpenApiSpecs(
         {
           code: "diff-failed",
           message: `Semantic diff failed: ${getErrorMessage(error)}`,
+          source: "diff",
+        },
+      ],
+      warnings: dedupeIssues(analysisWarnings),
+    };
+  }
+
+  try {
+    options.onProgress?.("Classifying impact");
+    classifiedFindings = classifyOpenApiDiffFindings(rawFindings, analysisSettings);
+  } catch (error) {
+    return {
+      ok: false,
+      errors: [
+        {
+          code: "classification-failed",
+          message: `Impact classification failed: ${getErrorMessage(error)}`,
+          source: "diff",
+        },
+      ],
+      warnings: dedupeIssues(analysisWarnings),
+    };
+  }
+
+  try {
+    options.onProgress?.("Building report");
+    report = buildReport(nextBase, nextRevision, classifiedFindings, analysisSettings, {
+      generatedAt,
+      warnings: getDiffReportWarnings(normalizedBase.model, normalizedRevision.model),
+    });
+  } catch (error) {
+    return {
+      ok: false,
+      errors: [
+        {
+          code: "report-build-failed",
+          message: `Report build failed: ${getErrorMessage(error)}`,
           source: "diff",
         },
       ],
