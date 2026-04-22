@@ -1,26 +1,172 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  color-scheme: light;
+  --background: #f3f5f8;
+  --foreground: #101216;
+  --muted: #5f6878;
+  --line: rgba(16, 18, 22, 0.12);
+  --panel: rgba(255, 255, 255, 0.74);
+  --panel-strong: rgba(255, 255, 255, 0.9);
+  --panel-muted: rgba(246, 248, 251, 0.9);
+  --header: rgba(243, 245, 248, 0.82);
+  --accent: #111827;
+  --accent-foreground: #f8fafc;
+  --glow: rgba(96, 165, 250, 0.15);
+  --grid: rgba(15, 23, 42, 0.05);
+  --shadow-soft: 0 24px 80px rgba(15, 23, 42, 0.08);
+  --shadow-card: 0 18px 44px rgba(15, 23, 42, 0.06);
+  --overlay: rgba(15, 23, 42, 0.46);
+  --breaking-surface: rgba(239, 68, 68, 0.12);
+  --breaking-border: rgba(239, 68, 68, 0.28);
+  --breaking-foreground: #991b1b;
+  --breaking-solid: #dc2626;
+  --breaking-contrast: #ffffff;
+  --dangerous-surface: rgba(245, 158, 11, 0.14);
+  --dangerous-border: rgba(245, 158, 11, 0.3);
+  --dangerous-foreground: #92400e;
+  --safe-surface: rgba(16, 185, 129, 0.12);
+  --safe-border: rgba(16, 185, 129, 0.26);
+  --safe-foreground: #166534;
+  --info-surface: rgba(14, 165, 233, 0.12);
+  --info-border: rgba(14, 165, 233, 0.26);
+  --info-foreground: #0c4a6e;
+  --neutral-surface: rgba(100, 116, 139, 0.12);
+  --neutral-border: rgba(100, 116, 139, 0.24);
+  --neutral-foreground: #334155;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --background: #0b1117;
+    --foreground: #edf2f7;
+    --muted: #9aa7bb;
+    --line: rgba(226, 232, 240, 0.14);
+    --panel: rgba(15, 23, 42, 0.68);
+    --panel-strong: rgba(10, 15, 22, 0.86);
+    --panel-muted: rgba(20, 30, 44, 0.88);
+    --header: rgba(11, 17, 23, 0.8);
+    --accent: #e2e8f0;
+    --accent-foreground: #0b1117;
+    --glow: rgba(59, 130, 246, 0.16);
+    --grid: rgba(148, 163, 184, 0.08);
+    --shadow-soft: 0 24px 80px rgba(0, 0, 0, 0.34);
+    --shadow-card: 0 18px 44px rgba(0, 0, 0, 0.24);
+    --overlay: rgba(2, 6, 23, 0.68);
+    --breaking-surface: rgba(248, 113, 113, 0.18);
+    --breaking-border: rgba(248, 113, 113, 0.3);
+    --breaking-foreground: #fecaca;
+    --breaking-solid: #f87171;
+    --breaking-contrast: #0b1117;
+    --dangerous-surface: rgba(251, 191, 36, 0.16);
+    --dangerous-border: rgba(251, 191, 36, 0.28);
+    --dangerous-foreground: #fde68a;
+    --safe-surface: rgba(52, 211, 153, 0.16);
+    --safe-border: rgba(52, 211, 153, 0.28);
+    --safe-foreground: #bbf7d0;
+    --info-surface: rgba(56, 189, 248, 0.16);
+    --info-border: rgba(56, 189, 248, 0.28);
+    --info-foreground: #bae6fd;
+    --neutral-surface: rgba(148, 163, 184, 0.18);
+    --neutral-border: rgba(148, 163, 184, 0.24);
+    --neutral-foreground: #e2e8f0;
+  }
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-panel: var(--panel);
+  --color-panel-strong: var(--panel-strong);
+  --color-panel-muted: var(--panel-muted);
+  --color-header: var(--header);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-overlay: var(--overlay);
+  --color-breaking-surface: var(--breaking-surface);
+  --color-breaking-border: var(--breaking-border);
+  --color-breaking-foreground: var(--breaking-foreground);
+  --color-breaking-solid: var(--breaking-solid);
+  --color-breaking-contrast: var(--breaking-contrast);
+  --color-dangerous-surface: var(--dangerous-surface);
+  --color-dangerous-border: var(--dangerous-border);
+  --color-dangerous-foreground: var(--dangerous-foreground);
+  --color-safe-surface: var(--safe-surface);
+  --color-safe-border: var(--safe-border);
+  --color-safe-foreground: var(--safe-foreground);
+  --color-info-surface: var(--info-surface);
+  --color-info-border: var(--info-border);
+  --color-info-foreground: var(--info-foreground);
+  --color-neutral-surface: var(--neutral-surface);
+  --color-neutral-border: var(--neutral-border);
+  --color-neutral-foreground: var(--neutral-foreground);
+  --font-sans: var(--font-plex-sans);
+  --font-mono: var(--font-plex-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-image:
+    radial-gradient(circle at top, var(--glow), transparent 36%),
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--background) 92%, white 8%) 0%,
+      var(--background) 100%
+    );
+  font-family: var(--font-plex-sans), sans-serif;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background-image:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 30px 30px;
+  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.65), transparent 88%);
+  pointer-events: none;
+}
+
+a {
+  color: inherit;
+  text-underline-offset: 0.2em;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+button:not(:disabled),
+[role="button"]:not([aria-disabled="true"]) {
+  cursor: pointer;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 52%, transparent);
+  outline-offset: 2px;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--foreground) 18%, transparent);
 }
