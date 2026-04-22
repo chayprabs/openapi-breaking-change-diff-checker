@@ -332,6 +332,17 @@ export type DiffCategory =
   | "docs"
   | "metadata";
 
+export type DiffReportCategory =
+  | "paths"
+  | "operations"
+  | "parameters"
+  | "schemas"
+  | "responses"
+  | "security"
+  | "docs";
+
+export type DiffReportCategoryCounts = Record<DiffReportCategory, number>;
+
 export const ruleIds = [
   "path.added",
   "path.removed",
@@ -465,19 +476,82 @@ export type DiffFinding = {
   whyItMatters: string;
 };
 
+export type DiffReportRecommendationCode =
+  | "blockRelease"
+  | "reviewBeforeRelease"
+  | "likelySafe";
+
+export type DiffReportRecommendationLabel =
+  | "Block release"
+  | "Review before release"
+  | "Likely safe";
+
+export type DiffReportRecommendation = {
+  code: DiffReportRecommendationCode;
+  label: DiffReportRecommendationLabel;
+  reason: string;
+};
+
+export type DiffReportSuccessState = {
+  emphasis: "info" | "success";
+  message: string;
+  title: "No breaking changes found";
+};
+
+export type DiffReportAffectedEndpoint = {
+  findingCount: number;
+  highestSeverity: DiffSeverity;
+  key: string;
+  method: OpenApiHttpMethod | null;
+  path: string;
+  ruleIds: RuleId[];
+};
+
+export type DiffReportAffectedSchema = {
+  findingCount: number;
+  highestSeverity: DiffSeverity;
+  humanPaths: string[];
+  jsonPointers: string[];
+  key: string;
+  label: string;
+  ruleIds: RuleId[];
+};
+
+export type DiffReportReviewItem = {
+  id: string;
+  jsonPointer: string;
+  message: string;
+  method: OpenApiHttpMethod | null;
+  path: string | null;
+  severity: DiffSeverity;
+  title: string;
+};
+
+export type DiffReportSummary = {
+  byCategory: DiffReportCategoryCounts;
+  bySeverity: Record<DiffSeverity, number>;
+  ignoredFindings: number;
+  totalFindings: number;
+};
+
 export type DiffReport = {
+  affectedEndpoints: DiffReportAffectedEndpoint[];
+  affectedSchemas: DiffReportAffectedSchema[];
   baseline: ParsedSpec;
   candidate: ParsedSpec;
+  executiveSummary: string;
   findings: DiffFinding[];
   generatedAt: string;
+  migrationNotes: string[];
   redaction?: RedactionResult;
+  recommendation: DiffReportRecommendation;
+  riskScore: number;
+  sdkImpactSummary: string;
+  securitySummary: string;
   settings: AnalysisSettings;
-  summary: {
-    byCategory: Partial<Record<DiffCategory, number>>;
-    bySeverity: Record<DiffSeverity, number>;
-    ignoredFindings: number;
-    totalFindings: number;
-  };
+  successState: DiffReportSuccessState | null;
+  summary: DiffReportSummary;
+  topReviewItems: DiffReportReviewItem[];
   warnings: string[];
 };
 

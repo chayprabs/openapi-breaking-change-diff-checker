@@ -1,10 +1,7 @@
 import { ruleCatalog } from "@/features/openapi-diff/data/rule-catalog";
+import { sortDiffFindings } from "@/features/openapi-diff/engine/diff-support";
+import { buildReport } from "@/features/openapi-diff/engine/report";
 import {
-  buildDiffSummary,
-  sortDiffFindings,
-} from "@/features/openapi-diff/engine/diff-support";
-import {
-  cloneAnalysisSettings,
   createAnalysisSettings,
   formatConsumerProfileLabel,
 } from "@/features/openapi-diff/lib/analysis-settings";
@@ -82,12 +79,11 @@ export function reclassifyDiffReport(
     applyAnalysisSettingsToFindings(report.findings, normalizedSettings),
   );
 
-  return {
-    ...report,
-    findings,
-    settings: cloneAnalysisSettings(normalizedSettings),
-    summary: buildDiffSummary(findings),
-  };
+  return buildReport(report.baseline, report.candidate, findings, normalizedSettings, {
+    generatedAt: report.generatedAt,
+    ...(report.redaction ? { redaction: report.redaction } : {}),
+    warnings: report.warnings,
+  });
 }
 
 function classifyByProfile(

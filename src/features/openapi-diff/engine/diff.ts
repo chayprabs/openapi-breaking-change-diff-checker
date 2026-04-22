@@ -1,12 +1,8 @@
-import { reclassifyDiffReport } from "@/features/openapi-diff/engine/classify";
+import { applyAnalysisSettingsToFindings } from "@/features/openapi-diff/engine/classify";
 import { diffPaths } from "@/features/openapi-diff/engine/diff-paths";
+import { getDiffReportWarnings, sortDiffFindings } from "@/features/openapi-diff/engine/diff-support";
+import { buildReport } from "@/features/openapi-diff/engine/report";
 import {
-  buildDiffSummary,
-  getDiffReportWarnings,
-  sortDiffFindings,
-} from "@/features/openapi-diff/engine/diff-support";
-import {
-  cloneAnalysisSettings,
   createAnalysisSettings,
 } from "@/features/openapi-diff/lib/analysis-settings";
 import type {
@@ -29,16 +25,13 @@ export function buildOpenApiDiffReport(
   options: BuildOpenApiDiffReportOptions,
 ): DiffReport {
   const settings = createAnalysisSettings(options.settings);
-  const rawFindings = sortDiffFindings(diffPaths(options.baseModel, options.revisionModel));
-  const rawReport: DiffReport = {
-    baseline: options.baseline,
-    candidate: options.candidate,
-    findings: rawFindings,
-    generatedAt: options.generatedAt ?? new Date().toISOString(),
-    settings: cloneAnalysisSettings(settings),
-    summary: buildDiffSummary(rawFindings),
-    warnings: getDiffReportWarnings(options.baseModel, options.revisionModel),
-  };
+  const rawFindings = diffPaths(options.baseModel, options.revisionModel);
+  const classifiedFindings = sortDiffFindings(
+    applyAnalysisSettingsToFindings(rawFindings, settings),
+  );
 
-  return reclassifyDiffReport(rawReport, settings);
+  return buildReport(options.baseline, options.candidate, classifiedFindings, settings, {
+    generatedAt: options.generatedAt ?? new Date().toISOString(),
+    warnings: getDiffReportWarnings(options.baseModel, options.revisionModel),
+  });
 }

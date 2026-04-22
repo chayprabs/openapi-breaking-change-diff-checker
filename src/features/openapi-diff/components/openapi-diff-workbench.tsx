@@ -141,6 +141,16 @@ const FINDING_SEVERITY_ORDER = [
   "info",
 ] as const satisfies readonly DiffSeverity[];
 
+const REPORT_CATEGORY_ORDER = [
+  "paths",
+  "operations",
+  "parameters",
+  "schemas",
+  "responses",
+  "security",
+  "docs",
+] as const;
+
 const cmTheme = EditorView.theme({
   "&": {
     backgroundColor: "transparent",
@@ -607,6 +617,50 @@ function getFindingsAlertVariant(findings: readonly DiffFinding[]) {
   return "success" as const;
 }
 
+function getRecommendationAlertVariant(report: DiffReport) {
+  if (report.recommendation.code === "blockRelease") {
+    return "warning" as const;
+  }
+
+  if (report.recommendation.code === "reviewBeforeRelease") {
+    return "info" as const;
+  }
+
+  return "success" as const;
+}
+
+function getRecommendationSeverity(report: DiffReport) {
+  if (report.recommendation.code === "blockRelease") {
+    return "breaking" as const;
+  }
+
+  if (report.recommendation.code === "reviewBeforeRelease") {
+    return "dangerous" as const;
+  }
+
+  return "safe" as const;
+}
+
+function getRiskScoreSeverity(riskScore: number) {
+  if (riskScore >= 75) {
+    return "breaking" as const;
+  }
+
+  if (riskScore >= 40) {
+    return "dangerous" as const;
+  }
+
+  if (riskScore > 0) {
+    return "info" as const;
+  }
+
+  return "safe" as const;
+}
+
+function formatReportCategoryLabel(category: (typeof REPORT_CATEGORY_ORDER)[number]) {
+  return `${category[0]?.toUpperCase()}${category.slice(1)}`;
+}
+
 function renderFindingList(findings: readonly DiffFinding[]) {
   return (
     <div className="space-y-4">
@@ -1039,20 +1093,218 @@ function WorkspaceResultsPanel({
           </div>
 
           {report ? (
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-              <MetricCard
-                description="Selected compatibility profile for severity classification"
-                label="Consumer profile"
-                severity="info"
-                value={formatConsumerProfileLabel(report.settings.consumerProfile)}
-              />
-            </div>
+            <>
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+                <MetricCard
+                  description={report.recommendation.reason}
+                  label="Recommendation"
+                  severity={getRecommendationSeverity(report)}
+                  value={report.recommendation.label}
+                />
+                <MetricCard
+                  description="0 means minimal contract risk. 100 means the report is saturated with release risk."
+                  label="Risk score"
+                  severity={getRiskScoreSeverity(report.riskScore)}
+                  value={report.riskScore}
+                />
+                <MetricCard
+                  description="Selected compatibility profile for severity classification"
+                  label="Consumer profile"
+                  severity="info"
+                  value={formatConsumerProfileLabel(report.settings.consumerProfile)}
+                />
+                <MetricCard
+                  description="Distinct paths and operations touched by current findings"
+                  label="Affected endpoints"
+                  severity={report.affectedEndpoints.length ? "dangerous" : "safe"}
+                  value={report.affectedEndpoints.length}
+                />
+                <MetricCard
+                  description="Distinct schemas or schema surfaces touched by current findings"
+                  label="Affected schemas"
+                  severity={report.affectedSchemas.length ? "info" : "safe"}
+                  value={report.affectedSchemas.length}
+                />
+              </div>
+
+              <Alert
+                title={report.recommendation.label}
+                variant={getRecommendationAlertVariant(report)}
+              >
+                <div className="space-y-3">
+                  <p>{report.executiveSummary}</p>
+                  <p>{report.securitySummary}</p>
+                  <p>{report.sdkImpactSummary}</p>
+                </div>
+              </Alert>
+
+              {report.successState ? (
+                <Alert
+                  title={report.successState.title}
+                  variant={
+                    report.successState.emphasis === "success" ? "success" : "info"
+                  }
+                >
+                  {report.successState.message}
+                </Alert>
+              ) : null}
+
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                {REPORT_CATEGORY_ORDER.map((category) => (
+                  <MetricCard
+                    key={category}
+                    description="Current semantic diff findings grouped by report category"
+                    label={`${formatReportCategoryLabel(category)} count`}
+                    severity={
+                      category === "security" && report.summary.byCategory[category] > 0
+                        ? "dangerous"
+                        : report.summary.byCategory[category] > 0
+                          ? "info"
+                          : "safe"
+                    }
+                    value={report.summary.byCategory[category]}
+                  />
+                ))}
+              </div>
+            </>
           ) : null}
 
           <div className="grid gap-6 lg:grid-cols-2">
             {renderParsedSpecCard("Base spec summary", analysisState.result.base)}
             {renderParsedSpecCard("Revision spec summary", analysisState.result.revision)}
           </div>
+
+          {report ? (
+            <>
+              <div className="grid gap-6 xl:grid-cols-2">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Top 5 things to review</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {report.topReviewItems.length ? (
+                      <ol className="space-y-3">
+                        {report.topReviewItems.map((item, index) => (
+                          <li key={item.id} className="border-line bg-panel-muted rounded-2xl border p-4">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <Badge variant="neutral">#{index + 1}</Badge>
+                              <Badge variant={item.severity}>{item.severity}</Badge>
+                              {item.method && item.path ? (
+                                <Badge variant="neutral">
+                                  {item.method.toUpperCase()} {item.path}
+                                </Badge>
+                              ) : item.path ? (
+                                <Badge variant="neutral">{item.path}</Badge>
+                              ) : null}
+                            </div>
+                            <p className="mt-3 text-sm font-semibold">{item.title}</p>
+                            <p className="text-muted mt-1 text-sm leading-6">{item.message}</p>
+                            <p className="text-muted mt-2 text-xs leading-5">
+                              Spec path: {item.jsonPointer}
+                            </p>
+                          </li>
+                        ))}
+                      </ol>
+                    ) : (
+                      <p className="text-muted text-sm leading-6">
+                        No review queue is active because the current report did not produce any findings.
+                      </p>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Migration notes</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <ul className="space-y-3">
+                      {report.migrationNotes.map((note, index) => (
+                        <li key={`${note}-${index}`} className="border-line bg-panel-muted rounded-2xl border p-4 text-sm leading-6">
+                          {note}
+                        </li>
+                      ))}
+                    </ul>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <div className="grid gap-6 xl:grid-cols-2">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Affected endpoints</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {report.affectedEndpoints.length ? (
+                      <div className="space-y-3">
+                        {report.affectedEndpoints.map((endpoint) => (
+                          <div
+                            key={endpoint.key}
+                            className="border-line bg-panel-muted rounded-2xl border p-4"
+                          >
+                            <div className="flex flex-wrap items-center gap-2">
+                              <Badge variant={endpoint.highestSeverity}>
+                                {endpoint.highestSeverity}
+                              </Badge>
+                              <Badge variant="neutral">
+                                {endpoint.method
+                                  ? `${endpoint.method.toUpperCase()} ${endpoint.path}`
+                                  : endpoint.path}
+                              </Badge>
+                            </div>
+                            <p className="text-muted mt-3 text-sm leading-6">
+                              {endpoint.findingCount} findings touching this endpoint surface.
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-muted text-sm leading-6">
+                        No endpoint-specific findings were recorded in the current report.
+                      </p>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Affected schemas</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {report.affectedSchemas.length ? (
+                      <div className="space-y-3">
+                        {report.affectedSchemas.map((schema) => (
+                          <div
+                            key={schema.key}
+                            className="border-line bg-panel-muted rounded-2xl border p-4"
+                          >
+                            <div className="flex flex-wrap items-center gap-2">
+                              <Badge variant={schema.highestSeverity}>
+                                {schema.highestSeverity}
+                              </Badge>
+                              <Badge variant="neutral">{schema.label}</Badge>
+                            </div>
+                            <p className="text-muted mt-3 text-sm leading-6">
+                              {schema.findingCount} findings touching this schema surface.
+                            </p>
+                            {schema.humanPaths[0] ? (
+                              <p className="text-muted mt-2 text-xs leading-5">
+                                Example path: {schema.humanPaths[0]}
+                              </p>
+                            ) : null}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-muted text-sm leading-6">
+                        No schema-specific findings were recorded in the current report.
+                      </p>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            </>
+          ) : null}
 
           <Alert
               title={`Semantic findings (${report?.summary.totalFindings ?? 0})`}

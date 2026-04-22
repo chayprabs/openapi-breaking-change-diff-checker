@@ -1,9 +1,16 @@
 import { describe, expect, it } from "vitest";
+import { reclassifyDiffReport } from "@/features/openapi-diff/engine/classify";
 import { buildOpenApiDiffReport } from "@/features/openapi-diff/engine/diff";
 import { normalizeOpenApiDocument } from "@/features/openapi-diff/engine/normalize";
 import { createAnalysisSettings } from "@/features/openapi-diff/lib/analysis-settings";
 import { parseOpenApiSpec } from "@/features/openapi-diff/lib/parser";
-import type { ConsumerProfile, SpecInput } from "@/features/openapi-diff/types";
+import type {
+  ConsumerProfile,
+  DiffFinding,
+  DiffReport,
+  RuleId,
+  SpecInput,
+} from "@/features/openapi-diff/types";
 
 function createSpecInput(
   id: SpecInput["id"],
@@ -22,12 +29,10 @@ function createSpecInput(
 async function buildReport(
   baseContent: string,
   revisionContent: string,
-  consumerProfile: ConsumerProfile,
-) {
-  const [baseParsed, revisionParsed] = await Promise.all([
-    parseOpenApiSpec(createSpecInput("base", baseContent)),
-    parseOpenApiSpec(createSpecInput("revision", revisionContent)),
-  ]);
+  consumerProfile: ConsumerProfile = "publicApi",
+): Promise<DiffReport> {
+  const baseParsed = await parseOpenApiSpec(createSpecInput("base", baseContent));
+  const revisionParsed = await parseOpenApiSpec(createSpecInput("revision", revisionContent));
 
   expect(baseParsed.ok).toBe(true);
   expect(revisionParsed.ok).toBe(true);
@@ -46,11 +51,23 @@ async function buildReport(
   });
 }
 
-describe("compatibility profiles", () => {
-  it("classifies an added response enum value differently across profiles", async () => {
-    const base = `openapi: 3.1.0
+function getFinding(report: DiffReport, ruleId: RuleId): DiffFinding {
+  const finding = report.findings.find((entry) => entry.ruleId === ruleId);
+
+  expect(finding).toBeDefined();
+
+  if (!finding) {
+    throw new Error(`Expected finding ${ruleId} to exist.`);
+  }
+
+  return finding;
+}
+
+describe("compatibility profile classification", () => {
+  it("classifies response enum additions differently per consumer profile", async () => {
+    const baseSpec = `openapi: 3.1.0
 info:
-  title: Enum Profile Test
+  title: Base
   version: 1.0.0
 paths:
   /users:
@@ -68,10 +85,10 @@ paths:
                     enum:
                       - active
 `;
-    const revision = `openapi: 3.1.0
+    const revisionSpec = `openapi: 3.1.0
 info:
-  title: Enum Profile Test
-  version: 1.1.0
+  title: Revision
+  version: 1.0.1
 paths:
   /users:
     get:
@@ -87,39 +104,30 @@ paths:
                     type: string
                     enum:
                       - active
-                      - archived
+                      - paused
 `;
 
-    const [publicReport, sdkReport, tolerantReport] = await Promise.all([
-      buildReport(base, revision, "publicApi"),
-      buildReport(base, revision, "sdkStrict"),
-      buildReport(base, revision, "tolerantClient"),
-    ]);
+    const publicReport = await buildReport(baseSpec, revisionSpec, "publicApi");
+    const sdkStrictReport = await buildReport(baseSpec, revisionSpec, "sdkStrict");
+    const tolerantReport = await buildReport(baseSpec, revisionSpec, "tolerantClient");
 
-    const publicFinding = publicReport.findings.find(
-      (finding) => finding.ruleId === "schema.enum.value.added",
-    );
-    const sdkFinding = sdkReport.findings.find(
-      (finding) => finding.ruleId === "schema.enum.value.added",
-    );
-    const tolerantFinding = tolerantReport.findings.find(
-      (finding) => finding.ruleId === "schema.enum.value.added",
-    );
+    const publicFinding = getFinding(publicReport, "schema.enum.value.added");
+    const sdkStrictFinding = getFinding(sdkStrictReport, "schema.enum.value.added");
+    const tolerantFinding = getFinding(tolerantReport, "schema.enum.value.added");
 
-    expect(publicFinding?.severity).toBe("dangerous");
-    expect(sdkFinding?.severity).toBe("breaking");
-    expect(tolerantFinding?.severity).toBe("safe");
-    expect(sdkFinding?.severityReason).toContain("SDK strict");
-    expect(publicReport.settings.consumerProfile).toBe("publicApi");
-    expect(publicReport.findings.map((finding) => finding.id)).toEqual(
-      sdkReport.findings.map((finding) => finding.id),
-    );
+    expect(publicFinding.id).toBe(sdkStrictFinding.id);
+    expect(publicFinding.id).toBe(tolerantFinding.id);
+    expect(publicFinding.severity).toBe("dangerous");
+    expect(sdkStrictFinding.severity).toBe("breaking");
+    expect(tolerantFinding.severity).toBe("safe");
+    expect(sdkStrictFinding.severityReason).toContain("SDK strict");
+    expect(publicFinding.severityReason).not.toBe(sdkStrictFinding.severityReason);
   });
 
-  it("downgrades operationId changes for internal APIs but keeps SDK strict conservative", async () => {
-    const base = `openapi: 3.1.0
+  it("changes operationId severity and explanation by profile", async () => {
+    const baseSpec = `openapi: 3.1.0
 info:
-  title: Operation Id Test
+  title: Base
   version: 1.0.0
 paths:
   /users:
@@ -129,10 +137,10 @@ paths:
         "200":
           description: ok
 `;
-    const revision = `openapi: 3.1.0
+    const revisionSpec = `openapi: 3.1.0
 info:
-  title: Operation Id Test
-  version: 1.1.0
+  title: Revision
+  version: 1.0.1
 paths:
   /users:
     get:
@@ -142,30 +150,134 @@ paths:
           description: ok
 `;
 
-    const [publicReport, internalReport, sdkReport] = await Promise.all([
-      buildReport(base, revision, "publicApi"),
-      buildReport(base, revision, "internalApi"),
-      buildReport(base, revision, "sdkStrict"),
-    ]);
+    const publicReport = await buildReport(baseSpec, revisionSpec, "publicApi");
+    const internalReport = await buildReport(baseSpec, revisionSpec, "internalApi");
+    const sdkStrictReport = await buildReport(baseSpec, revisionSpec, "sdkStrict");
 
-    expect(
-      publicReport.findings.find((finding) => finding.ruleId === "operationId.changed")
-        ?.severity,
-    ).toBe("dangerous");
-    expect(
-      internalReport.findings.find((finding) => finding.ruleId === "operationId.changed")
-        ?.severity,
-    ).toBe("info");
-    expect(
-      sdkReport.findings.find((finding) => finding.ruleId === "operationId.changed")
-        ?.severity,
-    ).toBe("dangerous");
+    const publicFinding = getFinding(publicReport, "operationId.changed");
+    const internalFinding = getFinding(internalReport, "operationId.changed");
+    const sdkStrictFinding = getFinding(sdkStrictReport, "operationId.changed");
+
+    expect(publicFinding.id).toBe(internalFinding.id);
+    expect(publicFinding.id).toBe(sdkStrictFinding.id);
+    expect(publicFinding.severity).toBe("dangerous");
+    expect(internalFinding.severity).toBe("info");
+    expect(sdkStrictFinding.severity).toBe("dangerous");
+    expect(internalFinding.severityReason).toContain("Internal API");
+    expect(sdkStrictFinding.severityReason).toContain("SDK strict");
+    expect(publicFinding.severityReason).not.toBe(internalFinding.severityReason);
   });
 
-  it("treats additive response properties as more serious for strict SDK consumers", async () => {
-    const base = `openapi: 3.1.0
+  it("raises additive response fields for stricter decoders", async () => {
+    const baseSpec = `openapi: 3.1.0
 info:
-  title: Response Shape Test
+  title: Base
+  version: 1.0.0
+paths:
+  /users:
+    get:
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - id
+                properties:
+                  id:
+                    type: string
+`;
+    const revisionSpec = `openapi: 3.1.0
+info:
+  title: Revision
+  version: 1.0.1
+paths:
+  /users:
+    get:
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - id
+                properties:
+                  id:
+                    type: string
+                  nickname:
+                    type: string
+`;
+
+    const publicReport = await buildReport(baseSpec, revisionSpec, "publicApi");
+    const sdkStrictReport = await buildReport(baseSpec, revisionSpec, "sdkStrict");
+    const tolerantReport = await buildReport(baseSpec, revisionSpec, "tolerantClient");
+
+    const publicFinding = getFinding(publicReport, "schema.property.added.optional");
+    const sdkStrictFinding = getFinding(sdkStrictReport, "schema.property.added.optional");
+    const tolerantFinding = getFinding(tolerantReport, "schema.property.added.optional");
+
+    expect(publicFinding.severity).toBe("safe");
+    expect(sdkStrictFinding.severity).toBe("dangerous");
+    expect(tolerantFinding.severity).toBe("info");
+    expect(tolerantFinding.severityReason).toContain("tolerant client profile");
+  });
+
+  it("keeps added required query parameters breaking for every profile", async () => {
+    const baseSpec = `openapi: 3.1.0
+info:
+  title: Base
+  version: 1.0.0
+paths:
+  /users:
+    get:
+      responses:
+        "200":
+          description: ok
+`;
+    const revisionSpec = `openapi: 3.1.0
+info:
+  title: Revision
+  version: 1.0.1
+paths:
+  /users:
+    get:
+      parameters:
+        - in: query
+          name: region
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ok
+`;
+
+    const profiles: ConsumerProfile[] = [
+      "publicApi",
+      "internalApi",
+      "sdkStrict",
+      "mobileClient",
+      "tolerantClient",
+    ];
+
+    for (const consumerProfile of profiles) {
+      const report = await buildReport(baseSpec, revisionSpec, consumerProfile);
+      const finding = getFinding(report, "parameter.required.added");
+
+      expect(report.settings.consumerProfile).toBe(consumerProfile);
+      expect(finding.severity).toBe("breaking");
+      expect(finding.severityReason).toContain("All profiles keep this at breaking");
+    }
+  });
+
+  it("reclassifies reports deterministically without mutating the original report", async () => {
+    const baseSpec = `openapi: 3.1.0
+info:
+  title: Base
   version: 1.0.0
 paths:
   /users:
@@ -181,10 +293,10 @@ paths:
                   id:
                     type: string
 `;
-    const revision = `openapi: 3.1.0
+    const revisionSpec = `openapi: 3.1.0
 info:
-  title: Response Shape Test
-  version: 1.1.0
+  title: Revision
+  version: 1.0.1
 paths:
   /users:
     get:
@@ -202,102 +314,20 @@ paths:
                     type: string
 `;
 
-    const [publicReport, sdkReport] = await Promise.all([
-      buildReport(base, revision, "publicApi"),
-      buildReport(base, revision, "sdkStrict"),
-    ]);
+    const publicReport = await buildReport(baseSpec, revisionSpec, "publicApi");
+    const sdkStrictSettings = createAnalysisSettings({ consumerProfile: "sdkStrict" });
+    const firstSdkStrictReport = reclassifyDiffReport(publicReport, sdkStrictSettings);
+    const secondSdkStrictReport = reclassifyDiffReport(publicReport, sdkStrictSettings);
 
-    expect(
-      publicReport.findings.find(
-        (finding) => finding.ruleId === "schema.property.added.optional",
-      )?.severity,
-    ).toBe("safe");
-    expect(
-      sdkReport.findings.find(
-        (finding) => finding.ruleId === "schema.property.added.optional",
-      )?.severity,
-    ).toBe("dangerous");
-  });
-
-  it("keeps required query parameter additions breaking for every profile", async () => {
-    const base = `openapi: 3.1.0
-info:
-  title: Required Parameter Test
-  version: 1.0.0
-paths:
-  /users:
-    get:
-      responses:
-        "200":
-          description: ok
-`;
-    const revision = `openapi: 3.1.0
-info:
-  title: Required Parameter Test
-  version: 1.1.0
-paths:
-  /users:
-    get:
-      parameters:
-        - in: query
-          name: region
-          required: true
-          schema:
-            type: string
-      responses:
-        "200":
-          description: ok
-`;
-
-    for (const profile of [
-      "publicApi",
-      "internalApi",
-      "sdkStrict",
-      "mobileClient",
-      "tolerantClient",
-    ] as const satisfies readonly ConsumerProfile[]) {
-      const report = await buildReport(base, revision, profile);
-      const finding = report.findings.find(
-        (entry) => entry.ruleId === "parameter.required.added",
-      );
-
-      expect(finding?.severity).toBe("breaking");
-      expect(finding?.severityReason).toContain("breaking");
-    }
-  });
-
-  it("adds a severity reason to every finding", async () => {
-    const report = await buildReport(
-      `openapi: 3.1.0
-info:
-  title: Mixed Finding Test
-  version: 1.0.0
-paths:
-  /users:
-    get:
-      operationId: listUsers
-      responses:
-        "200":
-          description: ok
-`,
-      `openapi: 3.1.0
-info:
-  title: Mixed Finding Test
-  version: 1.1.0
-paths:
-  /users:
-    get:
-      operationId: fetchUsers
-      responses:
-        "200":
-          description: ok
-`,
-      "internalApi",
+    expect(firstSdkStrictReport).toEqual(secondSdkStrictReport);
+    expect(publicReport.settings.consumerProfile).toBe("publicApi");
+    expect(firstSdkStrictReport.settings.consumerProfile).toBe("sdkStrict");
+    expect(firstSdkStrictReport.findings.map((finding) => finding.id)).toEqual(
+      publicReport.findings.map((finding) => finding.id),
     );
-
-    expect(report.findings.length).toBeGreaterThan(0);
-    expect(report.findings.every((finding) => finding.severityReason.trim().length > 0)).toBe(
-      true,
+    expect(getFinding(publicReport, "schema.property.added.optional").severity).toBe("safe");
+    expect(getFinding(firstSdkStrictReport, "schema.property.added.optional").severity).toBe(
+      "dangerous",
     );
   });
 });

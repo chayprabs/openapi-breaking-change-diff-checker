@@ -9,6 +9,7 @@ import {
   analyzeOpenApiSpecs,
   parseOpenApiSpec,
 } from "@/features/openapi-diff/lib/parser";
+import { createAnalysisSettings } from "@/features/openapi-diff/lib/analysis-settings";
 import type { SpecInput } from "@/features/openapi-diff/types";
 
 function createSpecInput(
@@ -103,6 +104,9 @@ paths: {}`;
     const result = await analyzeOpenApiSpecs(
       createSpecInput("base", baseSampleOpenApi31),
       createSpecInput("revision", revisionSampleOpenApi31),
+      {
+        settings: createAnalysisSettings({ consumerProfile: "sdkStrict" }),
+      },
     );
 
     expect(result.ok).toBe(true);
@@ -114,7 +118,11 @@ paths: {}`;
     expect(result.result.base.pathCount).toBe(2);
     expect(result.result.revision.pathCount).toBe(1);
     expect(["lightweight", "scalar"]).toContain(result.result.validationSource);
+    expect(result.result.report.settings.consumerProfile).toBe("sdkStrict");
     expect(result.result.report.findings.length).toBeGreaterThan(0);
+    expect(
+      result.result.report.findings.every((finding) => finding.severityReason.length > 0),
+    ).toBe(true);
     expect(result.result.report.findings.map((finding) => finding.ruleId)).toEqual(
       expect.arrayContaining([
         "parameter.required.added",

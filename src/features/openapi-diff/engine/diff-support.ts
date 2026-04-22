@@ -5,6 +5,8 @@ import type {
   DiffFindingContext,
   DiffFindingEvidence,
   DiffFindingEvidenceLocation,
+  DiffReportCategory,
+  DiffReportCategoryCounts,
   DiffReport,
   DiffSeverity,
   JsonValue,
@@ -56,11 +58,19 @@ export function buildDiffSummary(findings: readonly DiffFinding[]): DiffReport["
     info: 0,
     safe: 0,
   };
-  const byCategory: Partial<Record<DiffCategory, number>> = {};
+  const byCategory: DiffReportCategoryCounts = {
+    docs: 0,
+    operations: 0,
+    parameters: 0,
+    paths: 0,
+    responses: 0,
+    schemas: 0,
+    security: 0,
+  };
 
   for (const finding of findings) {
     bySeverity[finding.severity] += 1;
-    byCategory[finding.category] = (byCategory[finding.category] ?? 0) + 1;
+    byCategory[toReportCategory(finding.category)] += 1;
   }
 
   return {
@@ -408,4 +418,32 @@ function encodePointerSegment(segment: string) {
 
 function stableJson(value: JsonValue | null) {
   return JSON.stringify(value);
+}
+
+function toReportCategory(category: DiffCategory): DiffReportCategory {
+  if (category === "path") {
+    return "paths";
+  }
+
+  if (category === "operation" || category === "metadata") {
+    return "operations";
+  }
+
+  if (category === "parameter" || category === "requestBody") {
+    return "parameters";
+  }
+
+  if (category === "schema" || category === "enum") {
+    return "schemas";
+  }
+
+  if (category === "response") {
+    return "responses";
+  }
+
+  if (category === "security") {
+    return "security";
+  }
+
+  return "docs";
 }
