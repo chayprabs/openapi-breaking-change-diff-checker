@@ -1,0 +1,207 @@
+{
+  "ok": true,
+  "validationSource": "scalar",
+  "warnings": [],
+  "report": {
+    "affectedEndpoints": [
+      {
+        "findingCount": 1,
+        "highestSeverity": "breaking",
+        "key": "/users::get",
+        "method": "get",
+        "path": "/users",
+        "ruleIds": [
+          "schema.type.changed"
+        ]
+      }
+    ],
+    "affectedSchemas": [
+      {
+        "findingCount": 1,
+        "highestSeverity": "breaking",
+        "humanPaths": [
+          "GET /users response 200 application/json schema.age"
+        ],
+        "jsonPointers": [
+          "#/paths/~1users/get/responses/200/content/application~1json/schema/properties/age"
+        ],
+        "key": "schema",
+        "label": "schema",
+        "ruleIds": [
+          "schema.type.changed"
+        ]
+      }
+    ],
+    "baseline": {
+      "byteCount": 377,
+      "componentsOnly": false,
+      "externalRefCount": 0,
+      "input": {
+        "format": "yaml",
+        "id": "base",
+        "label": "Base spec",
+        "source": "sample",
+        "filename": "schema-type-changed.base.yaml"
+      },
+      "lineCount": 19,
+      "localRefCount": 0,
+      "pathCount": 1,
+      "schemaCount": 0,
+      "unresolvedRefs": [],
+      "validationSource": "scalar",
+      "version": {
+        "family": "openapi-3.1.x",
+        "label": "OpenAPI 3.1.0 detected",
+        "raw": "3.1.0",
+        "sourceField": "openapi",
+        "supported": true
+      },
+      "warnings": []
+    },
+    "candidate": {
+      "byteCount": 378,
+      "componentsOnly": false,
+      "externalRefCount": 0,
+      "input": {
+        "format": "yaml",
+        "id": "revision",
+        "label": "Revision spec",
+        "source": "sample",
+        "filename": "schema-type-changed.revision.yaml"
+      },
+      "lineCount": 19,
+      "localRefCount": 0,
+      "pathCount": 1,
+      "schemaCount": 0,
+      "unresolvedRefs": [],
+      "validationSource": "scalar",
+      "version": {
+        "family": "openapi-3.1.x",
+        "label": "OpenAPI 3.1.0 detected",
+        "raw": "3.1.0",
+        "sourceField": "openapi",
+        "supported": true
+      },
+      "warnings": []
+    },
+    "executiveSummary": "This comparison found 1 breaking and 0 dangerous changes across 1 affected endpoint and 1 affected schema. Existing consumers can fail without coordination, so the recommendation is to block release.",
+    "findings": [
+      {
+        "afterValue": [
+          "integer"
+        ],
+        "baseSeverity": "breaking",
+        "beforeValue": [
+          "string"
+        ],
+        "category": "schema",
+        "classificationContext": {
+          "schemaDirection": "response"
+        },
+        "evidence": {
+          "base": {
+            "jsonPointer": "#/paths/~1users/get/responses/200/content/application~1json/schema/properties/age",
+            "node": {
+              "originPath": "#/paths/~1users/get/responses/200/content/application~1json/schema/properties/age",
+              "refChain": [],
+              "sourcePath": "#/paths/~1users/get/responses/200/content/application~1json/schema/properties/age"
+            }
+          },
+          "revision": {
+            "jsonPointer": "#/paths/~1users/get/responses/200/content/application~1json/schema/properties/age",
+            "node": {
+              "originPath": "#/paths/~1users/get/responses/200/content/application~1json/schema/properties/age",
+              "refChain": [],
+              "sourcePath": "#/paths/~1users/get/responses/200/content/application~1json/schema/properties/age"
+            }
+          }
+        },
+        "id": "schema.type.changed::/users::get::#/paths/~1users/get/responses/200/content/application~1json/schema/properties/age::",
+        "humanPath": "GET /users response 200 application/json schema.age",
+        "jsonPointer": "#/paths/~1users/get/responses/200/content/application~1json/schema/properties/age",
+        "message": "GET /users response 200 application/json schema.age changed type from string to integer.",
+        "method": "get",
+        "path": "/users",
+        "ruleId": "schema.type.changed",
+        "severity": "breaking",
+        "severityReason": "The Public API profile keeps this at breaking because type changes often break serialization, validation, SDK generation, and stored assumptions in client code",
+        "title": "GET /users response 200 application/json schema.age: schema type changed",
+        "whyItMatters": "Type changes often break serialization, validation, SDK generation, and stored assumptions in client code.",
+        "operationId": "listUsers",
+        "saferAlternative": "Introduce a new property or versioned schema rather than changing the type in place.",
+        "operationDeprecated": false
+      }
+    ],
+    "generatedAt": "2026-04-23T00:00:00.000Z",
+    "migrationNotes": [
+      "Introduce a new property or versioned schema rather than changing the type in place."
+    ],
+    "recommendation": {
+      "code": "blockRelease",
+      "label": "Block release",
+      "reason": "1 breaking finding can fail existing consumers or integrations immediately."
+    },
+    "riskScore": 45,
+    "sdkImpactSummary": "Generated SDK impact looks high: 1 finding point to typed model, enum, response-shape, or method-name updates. Review GET /users response 200 application/json schema.age: schema type changed before regenerating clients.",
+    "securitySummary": "No auth or security contract changes were detected.",
+    "settings": {
+      "customRedactionRules": [],
+      "consumerProfile": "publicApi",
+      "exportFormats": [],
+      "failOnSeverities": [
+        "breaking"
+      ],
+      "ignoreRules": [],
+      "includeCategories": [
+        "docs",
+        "enum",
+        "metadata",
+        "operation",
+        "parameter",
+        "path",
+        "requestBody",
+        "response",
+        "schema",
+        "security"
+      ],
+      "includeInfoFindings": true,
+      "redactExamples": false,
+      "redactServerUrls": false,
+      "remoteRefPolicy": "localOnly",
+      "resolveLocalRefs": true,
+      "treatEnumAdditionsAsDangerous": false
+    },
+    "successState": null,
+    "summary": {
+      "byCategory": {
+        "docs": 0,
+        "operations": 0,
+        "parameters": 0,
+        "paths": 0,
+        "responses": 0,
+        "schemas": 1,
+        "security": 0
+      },
+      "bySeverity": {
+        "breaking": 1,
+        "dangerous": 0,
+        "info": 0,
+        "safe": 0
+      },
+      "ignoredFindings": 0,
+      "totalFindings": 1
+    },
+    "topReviewItems": [
+      {
+        "id": "schema.type.changed::/users::get::#/paths/~1users/get/responses/200/content/application~1json/schema/properties/age::",
+        "jsonPointer": "#/paths/~1users/get/responses/200/content/application~1json/schema/properties/age",
+        "message": "GET /users response 200 application/json schema.age changed type from string to integer.",
+        "method": "get",
+        "path": "/users",
+        "severity": "breaking",
+        "title": "GET /users response 200 application/json schema.age: schema type changed"
+      }
+    ],
+    "warnings": []
+  }
+}

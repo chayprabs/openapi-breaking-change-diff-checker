@@ -10,6 +10,7 @@ export const metadata = buildPageMetadata({
   title: "API and Schema Tools",
   description:
     "Explore Authos tools for OpenAPI, interface diffing, contract risk, and future API/schema workflows.",
+  path: "/tools/api-and-schema",
 });
 
 export default function ApiAndSchemaToolsPage() {
@@ -22,12 +23,12 @@ export default function ApiAndSchemaToolsPage() {
       ]}
       eyebrow="API and Schema"
       title="Tools for contract-aware interfaces"
-      description="This collection is where Authos groups products for OpenAPI, schema evolution, and compatibility review. OpenAPI Diff is live first, with more interface tools planned around it."
+      description="This collection groups Authos workflows for OpenAPI, schema evolution, and compatibility review. OpenAPI Diff is live first, with adjacent interface tools mapped out on the roadmap."
     >
       <Section
         eyebrow="Collection"
         title="Current lineup"
-        description="One live tool anchors the category and a few placeholders show the next likely expansions."
+        description="One live tool anchors the category, with several roadmap items showing the next likely expansions around compatibility work."
       >
         <div className="grid gap-4 lg:grid-cols-3">
           {apiSchemaTools.map((tool) =>
@@ -70,9 +71,9 @@ export default function ApiAndSchemaToolsPage() {
       </Section>
 
       <Section
-        eyebrow="Planned next"
-        title="Compatibility placeholders linked from OpenAPI Diff"
-        description="These are not live tools yet, but the placeholder destinations exist so internal links from the OpenAPI Diff page point to a real crawlable section instead of a dead end."
+        eyebrow="Roadmap"
+        title="Compatibility workflows planned next"
+        description="These are not live tools yet, but the roadmap cards give internal links from OpenAPI Diff a real destination and show how the category can grow without feeling disconnected."
       >
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           {relatedCompatibilityToolPlaceholders.map((tool) => (
@@ -82,7 +83,7 @@ export default function ApiAndSchemaToolsPage() {
               className="border-line bg-panel rounded-[1.5rem] border p-6 shadow-[var(--shadow-card)]"
             >
               <div className="flex flex-wrap items-center gap-2">
-                <Badge variant="info">Placeholder</Badge>
+                <Badge variant="info">Roadmap</Badge>
                 <span className="text-muted font-mono text-[0.68rem] tracking-[0.18em] uppercase">
                   API and Schema
                 </span>

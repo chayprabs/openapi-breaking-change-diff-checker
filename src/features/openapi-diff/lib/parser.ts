@@ -80,6 +80,7 @@ type AnalyzeOpenApiSpecsOptions = {
   }>;
   onProgress?: (label: WorkerProgressLabel) => void;
   settings?: AnalysisSettings;
+  shouldAbort?: () => boolean;
 };
 
 type ScalarErrorObject = {
@@ -123,6 +124,7 @@ const EMPTY_SPEC_ERROR_CODE = "empty-spec";
 const EXTERNAL_REF_WARNING_CODE = "external-ref";
 const HUGE_SPEC_WARNING_CODE = "large-spec";
 const INVALID_ROOT_ERROR_CODE = "invalid-root";
+const LARGE_SPEC_LIGHTWEIGHT_WARNING_CODE = "large-spec-lightweight-fallback";
 const MISSING_INFO_ERROR_CODE = "missing-info";
 const MISSING_PATHS_ERROR_CODE = "missing-paths";
 const MISSING_VERSION_ERROR_CODE = "missing-version-field";
@@ -133,6 +135,13 @@ const UNSUPPORTED_VERSION_WARNING_CODE = "unsupported-version";
 const UNRESOLVED_REF_WARNING_CODE = "unresolved-ref";
 
 let scalarParserPromise: Promise<ScalarParserModule> | null = null;
+
+class AnalysisCancelledError extends Error {
+  constructor() {
+    super("The analysis request was cancelled.");
+    this.name = "AnalysisCancelledError";
+  }
+}
 
 export async function parseOpenApiSpec(
   spec: SpecInput,
@@ -300,11 +309,44 @@ export async function analyzeOpenApiSpecs(
   options: AnalyzeOpenApiSpecsOptions = {},
 ): Promise<AnalyzeOpenApiSpecsResult> {
   const analysisSettings = createAnalysisSettings(options.settings);
-  options.onProgress?.("Parsing base spec");
+  const totalStart = performance.now();
+  const measurementPrefix = `openapi-diff:${Date.now()}:${Math.random().toString(16).slice(2)}`;
+  const performanceSummary = {
+    classifyMs: 0,
+    diffMs: 0,
+    normalizeMs: 0,
+    parseBaseMs: 0,
+    parseRevisionMs: 0,
+    refResolutionMs: 0,
+    reportMs: 0,
+    totalMs: 0,
+    validationMs: 0,
+  };
+  const throwIfAborted = () => {
+    if (options.shouldAbort?.()) {
+      throw new AnalysisCancelledError();
+    }
+  };
 
-  const baseResult = await parseOpenApiSpec(base);
+  throwIfAborted();
+  options.onProgress?.("Parsing base spec");
+  const baseParsePhase = await measureAnalysisPhase(
+    measurementPrefix,
+    "parse-base",
+    () => parseOpenApiSpec(base),
+  );
+  performanceSummary.parseBaseMs = baseParsePhase.durationMs;
+  const baseResult = baseParsePhase.value;
+
+  throwIfAborted();
   options.onProgress?.("Parsing revision spec");
-  const revisionResult = await parseOpenApiSpec(revision);
+  const revisionParsePhase = await measureAnalysisPhase(
+    measurementPrefix,
+    "parse-revision",
+    () => parseOpenApiSpec(revision),
+  );
+  performanceSummary.parseRevisionMs = revisionParsePhase.durationMs;
+  const revisionResult = revisionParsePhase.value;
   const combinedWarnings = [
     ...baseResult.warnings,
     ...revisionResult.warnings,
@@ -334,19 +376,41 @@ export async function analyzeOpenApiSpecs(
     nextRevision,
   );
   let validationSource: ParserImplementation = "lightweight";
+  const useLargeSpecLightweightFallback = shouldUseLargeSpecLightweightFallback(
+    nextBase.byteCount,
+    nextRevision.byteCount,
+  );
 
+  if (useLargeSpecLightweightFallback) {
+    analysisWarnings = dedupeIssues([
+      ...analysisWarnings,
+      {
+        code: LARGE_SPEC_LIGHTWEIGHT_WARNING_CODE,
+        message:
+          "Large-spec fallback enabled. The browser stayed on lightweight validation and progressively rendered findings to keep the workspace responsive.",
+        source: "worker",
+      },
+    ]);
+  }
+
+  throwIfAborted();
   options.onProgress?.("Validating OpenAPI documents");
-
-  const baseAdvancedChecks = await runAdvancedValidation(
-    base,
-    nextBase,
-    analysisSettings,
+  const validationPhase = await measureAnalysisPhase(
+    measurementPrefix,
+    "validate",
+    async () =>
+      Promise.all([
+        runAdvancedValidation(base, nextBase, analysisSettings, {
+          skipAdvancedChecks: useLargeSpecLightweightFallback,
+        }),
+        runAdvancedValidation(revision, nextRevision, analysisSettings, {
+          skipAdvancedChecks: useLargeSpecLightweightFallback,
+        }),
+      ]),
   );
-  const revisionAdvancedChecks = await runAdvancedValidation(
-    revision,
-    nextRevision,
-    analysisSettings,
-  );
+  performanceSummary.validationMs = validationPhase.durationMs;
+  throwIfAborted();
+  const [baseAdvancedChecks, revisionAdvancedChecks] = validationPhase.value;
 
   if (baseAdvancedChecks.ok === false || revisionAdvancedChecks.ok === false) {
     return {
@@ -376,6 +440,7 @@ export async function analyzeOpenApiSpecs(
   nextBase.validationSource = baseAdvancedChecks.validationSource;
   nextRevision.validationSource = revisionAdvancedChecks.validationSource;
 
+  throwIfAborted();
   options.onProgress?.("Resolving references");
 
   let baseDocumentForNormalization = baseResult.document;
@@ -386,59 +451,96 @@ export async function analyzeOpenApiSpecs(
   let normalizedRevision;
 
   try {
-    if (
-      analysisSettings.remoteRefPolicy === "publicRemote" &&
-      (nextBase.externalRefCount > 0 || nextRevision.externalRefCount > 0)
-    ) {
-      const [baseRemoteResolution, revisionRemoteResolution] = await Promise.all([
-        nextBase.externalRefCount > 0
-          ? resolvePublicRemoteRefs(baseResult.document, {
-              panelId: "base",
-              ...(options.fetchRemoteText
-                ? { fetchRemoteText: options.fetchRemoteText }
-                : {}),
-              ...(base.url ? { sourceUrl: base.url } : {}),
-            })
-          : Promise.resolve({
-              document: baseResult.document,
-              warnings: [] as SpecWarning[],
-            }),
-        nextRevision.externalRefCount > 0
-          ? resolvePublicRemoteRefs(revisionResult.document, {
-              panelId: "revision",
-              ...(options.fetchRemoteText
-                ? { fetchRemoteText: options.fetchRemoteText }
-                : {}),
-              ...(revision.url ? { sourceUrl: revision.url } : {}),
-            })
-          : Promise.resolve({
-              document: revisionResult.document,
-              warnings: [] as SpecWarning[],
-            }),
-      ]);
+    const refResolutionPhase = await measureAnalysisPhase(
+      measurementPrefix,
+      "resolve-refs",
+      async () => {
+        if (
+          analysisSettings.remoteRefPolicy !== "publicRemote" ||
+          (nextBase.externalRefCount === 0 && nextRevision.externalRefCount === 0)
+        ) {
+          return {
+            baseDocument: baseResult.document,
+            baseWarnings: [] as SpecWarning[],
+            revisionDocument: revisionResult.document,
+            revisionWarnings: [] as SpecWarning[],
+          };
+        }
 
-      baseDocumentForNormalization = baseRemoteResolution.document;
-      revisionDocumentForNormalization = revisionRemoteResolution.document;
-      baseRemoteWarnings = baseRemoteResolution.warnings;
-      revisionRemoteWarnings = revisionRemoteResolution.warnings;
-      reportWarnings = [
-        ...reportWarnings,
-        ...baseRemoteResolution.warnings.map((warning) => warning.message),
-        ...revisionRemoteResolution.warnings.map((warning) => warning.message),
-      ];
-      analysisWarnings = dedupeIssues([
-        ...analysisWarnings,
-        ...baseRemoteWarnings,
-        ...revisionRemoteWarnings,
-      ]);
+        const [baseRemoteResolution, revisionRemoteResolution] = await Promise.all([
+          nextBase.externalRefCount > 0
+            ? resolvePublicRemoteRefs(baseResult.document, {
+                panelId: "base",
+                ...(options.fetchRemoteText
+                  ? { fetchRemoteText: options.fetchRemoteText }
+                  : {}),
+                ...(base.url ? { sourceUrl: base.url } : {}),
+              })
+            : Promise.resolve({
+                document: baseResult.document,
+                warnings: [] as SpecWarning[],
+              }),
+          nextRevision.externalRefCount > 0
+            ? resolvePublicRemoteRefs(revisionResult.document, {
+                panelId: "revision",
+                ...(options.fetchRemoteText
+                  ? { fetchRemoteText: options.fetchRemoteText }
+                  : {}),
+                ...(revision.url ? { sourceUrl: revision.url } : {}),
+              })
+            : Promise.resolve({
+                document: revisionResult.document,
+                warnings: [] as SpecWarning[],
+              }),
+        ]);
+
+        return {
+          baseDocument: baseRemoteResolution.document,
+          baseWarnings: baseRemoteResolution.warnings,
+          revisionDocument: revisionRemoteResolution.document,
+          revisionWarnings: revisionRemoteResolution.warnings,
+        };
+      },
+    );
+    performanceSummary.refResolutionMs = refResolutionPhase.durationMs;
+
+    const refResolution = refResolutionPhase.value;
+    baseDocumentForNormalization = refResolution.baseDocument;
+    revisionDocumentForNormalization = refResolution.revisionDocument;
+    baseRemoteWarnings = refResolution.baseWarnings;
+    revisionRemoteWarnings = refResolution.revisionWarnings;
+    reportWarnings = [
+      ...reportWarnings,
+      ...baseRemoteWarnings.map((warning) => warning.message),
+      ...revisionRemoteWarnings.map((warning) => warning.message),
+    ];
+    analysisWarnings = dedupeIssues([
+      ...analysisWarnings,
+      ...baseRemoteWarnings,
+      ...revisionRemoteWarnings,
+    ]);
+
+    throwIfAborted();
+
+    const normalizePhase = await measureAnalysisPhase(
+      measurementPrefix,
+      "normalize",
+      () => ({
+        baseModel: normalizeOpenApiDocument(nextBase, baseDocumentForNormalization),
+        revisionModel: normalizeOpenApiDocument(
+          nextRevision,
+          revisionDocumentForNormalization,
+        ),
+      }),
+    );
+    performanceSummary.normalizeMs = normalizePhase.durationMs;
+    normalizedBase = normalizePhase.value.baseModel;
+    normalizedRevision = normalizePhase.value.revisionModel;
+  } catch (error) {
+    if (error instanceof AnalysisCancelledError) {
+      throw error;
     }
 
-    normalizedBase = normalizeOpenApiDocument(nextBase, baseDocumentForNormalization);
-    normalizedRevision = normalizeOpenApiDocument(
-      nextRevision,
-      revisionDocumentForNormalization,
-    );
-  } catch (error) {
     return {
       ok: false,
       errors: [
@@ -458,16 +560,23 @@ export async function analyzeOpenApiSpecs(
     ...normalizedRevision.warnings,
   ]);
 
-  const baseDereferenceWarnings = await runAdvancedDereference(
-    base,
-    nextBase,
-    analysisSettings,
+  throwIfAborted();
+  const dereferencePhase = await measureAnalysisPhase(
+    measurementPrefix,
+    "dereference",
+    async () =>
+      Promise.all([
+        runAdvancedDereference(base, nextBase, analysisSettings, {
+          skipAdvancedChecks: useLargeSpecLightweightFallback,
+        }),
+        runAdvancedDereference(revision, nextRevision, analysisSettings, {
+          skipAdvancedChecks: useLargeSpecLightweightFallback,
+        }),
+      ]),
   );
-  const revisionDereferenceWarnings = await runAdvancedDereference(
-    revision,
-    nextRevision,
-    analysisSettings,
-  );
+  performanceSummary.validationMs += dereferencePhase.durationMs;
+  throwIfAborted();
+  const [baseDereferenceWarnings, revisionDereferenceWarnings] = dereferencePhase.value;
 
   nextBase.warnings = dedupeIssues([
     ...nextBase.warnings,
@@ -494,22 +603,36 @@ export async function analyzeOpenApiSpecs(
   let report;
 
   try {
-    options.onProgress?.("Comparing paths and operations");
-    rawFindings = diffPathsAndOperations(
-      normalizedBase.model,
-      normalizedRevision.model,
+    const diffPhase = await measureAnalysisPhase(
+      measurementPrefix,
+      "diff",
+      () => {
+        options.onProgress?.("Comparing paths and operations");
+        let nextFindings = diffPathsAndOperations(
+          normalizedBase.model,
+          normalizedRevision.model,
+        );
+        throwIfAborted();
+        options.onProgress?.("Comparing parameters, responses, and schemas");
+        nextFindings = [
+          ...nextFindings,
+          ...diffOperationDetailsAcrossPaths(normalizedBase.model, normalizedRevision.model),
+        ];
+
+        return attachOperationContextToFindings(
+          nextFindings,
+          normalizedBase.model,
+          normalizedRevision.model,
+        );
+      },
     );
-    options.onProgress?.("Comparing parameters, responses, and schemas");
-    rawFindings = [
-      ...rawFindings,
-      ...diffOperationDetailsAcrossPaths(normalizedBase.model, normalizedRevision.model),
-    ];
-    rawFindings = attachOperationContextToFindings(
-      rawFindings,
-      normalizedBase.model,
-      normalizedRevision.model,
-    );
+    performanceSummary.diffMs = diffPhase.durationMs;
+    rawFindings = diffPhase.value;
   } catch (error) {
+    if (error instanceof AnalysisCancelledError) {
+      throw error;
+    }
+
     return {
       ok: false,
       errors: [
@@ -525,8 +648,18 @@ export async function analyzeOpenApiSpecs(
 
   try {
     options.onProgress?.("Classifying impact");
-    classifiedFindings = classifyOpenApiDiffFindings(rawFindings, analysisSettings);
+    const classifyPhase = await measureAnalysisPhase(
+      measurementPrefix,
+      "classify",
+      () => classifyOpenApiDiffFindings(rawFindings, analysisSettings),
+    );
+    performanceSummary.classifyMs = classifyPhase.durationMs;
+    classifiedFindings = classifyPhase.value;
   } catch (error) {
+    if (error instanceof AnalysisCancelledError) {
+      throw error;
+    }
+
     return {
       ok: false,
       errors: [
@@ -542,14 +675,25 @@ export async function analyzeOpenApiSpecs(
 
   try {
     options.onProgress?.("Building report");
-    report = buildReport(nextBase, nextRevision, classifiedFindings, analysisSettings, {
-      generatedAt,
-      warnings: [
-        ...getDiffReportWarnings(normalizedBase.model, normalizedRevision.model),
-        ...reportWarnings,
-      ],
-    });
+    const reportPhase = await measureAnalysisPhase(
+      measurementPrefix,
+      "report",
+      () =>
+        buildReport(nextBase, nextRevision, classifiedFindings, analysisSettings, {
+          generatedAt,
+          warnings: [
+            ...getDiffReportWarnings(normalizedBase.model, normalizedRevision.model),
+            ...reportWarnings,
+          ],
+        }),
+    );
+    performanceSummary.reportMs = reportPhase.durationMs;
+    report = reportPhase.value;
   } catch (error) {
+    if (error instanceof AnalysisCancelledError) {
+      throw error;
+    }
+
     return {
       ok: false,
       errors: [
@@ -571,6 +715,10 @@ export async function analyzeOpenApiSpecs(
       normalized: {
         base: normalizedBase.model,
         revision: normalizedRevision.model,
+      },
+      performance: {
+        ...performanceSummary,
+        totalMs: Math.max(0, performance.now() - totalStart),
       },
       report,
       revision: nextRevision,
@@ -1094,10 +1242,13 @@ async function runAdvancedDereference(
   spec: SpecInput,
   parsed: ParsedSpec,
   settings: AnalysisSettings,
+  options: {
+    skipAdvancedChecks?: boolean;
+  } = {},
 ) {
   const editorId = toWorkspacePanelId(spec.id);
 
-  if (!parsed.version.supported) {
+  if (!parsed.version.supported || options.skipAdvancedChecks) {
     return [] satisfies SpecWarning[];
   }
 
@@ -1132,10 +1283,13 @@ async function runAdvancedValidation(
   spec: SpecInput,
   parsed: ParsedSpec,
   settings: AnalysisSettings,
+  options: {
+    skipAdvancedChecks?: boolean;
+  } = {},
 ) {
   const editorId = toWorkspacePanelId(spec.id);
 
-  if (!parsed.version.supported) {
+  if (!parsed.version.supported || options.skipAdvancedChecks) {
     return {
       ok: true as const,
       validationSource: "lightweight" as const,
@@ -1263,4 +1417,39 @@ function getErrorMessage(error: unknown) {
 
 function toWorkspacePanelId(value: string): WorkspacePanelId {
   return value === "revision" ? "revision" : "base";
+}
+
+async function measureAnalysisPhase<T>(
+  prefix: string,
+  label: string,
+  run: () => Promise<T> | T,
+) {
+  const startMark = `${prefix}:${label}:start`;
+  const endMark = `${prefix}:${label}:end`;
+  const measureName = `${prefix}:${label}`;
+
+  performance.mark(startMark);
+
+  try {
+    const value = await run();
+    performance.mark(endMark);
+    const measure = performance.measure(measureName, startMark, endMark);
+
+    return {
+      durationMs: measure.duration,
+      value,
+    };
+  } finally {
+    performance.clearMarks(startMark);
+    performance.clearMarks(endMark);
+    performance.clearMeasures(measureName);
+  }
+}
+
+function shouldUseLargeSpecLightweightFallback(baseBytes: number, revisionBytes: number) {
+  return (
+    baseBytes > SPEC_SIZE_WARNING_BYTES ||
+    revisionBytes > SPEC_SIZE_WARNING_BYTES ||
+    baseBytes + revisionBytes > SPEC_SIZE_WARNING_BYTES * 1.5
+  );
 }

@@ -7,6 +7,7 @@ type MetricCardProps = {
   label: string;
   meta?: ReactNode;
   severity?: Severity;
+  testId?: string;
   value: ReactNode;
 };
 
@@ -15,10 +16,11 @@ export function MetricCard({
   label,
   meta,
   severity = "neutral",
+  testId,
   value,
 }: MetricCardProps) {
   return (
-    <Card>
+    <Card data-testid={testId}>
       <CardHeader className="space-y-3 pb-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <CardTitle className="text-base">{label}</CardTitle>

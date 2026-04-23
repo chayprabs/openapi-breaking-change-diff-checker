@@ -1,0 +1,203 @@
+{
+  "ok": true,
+  "validationSource": "scalar",
+  "warnings": [],
+  "report": {
+    "affectedEndpoints": [
+      {
+        "findingCount": 1,
+        "highestSeverity": "breaking",
+        "key": "/subscriptions::get",
+        "method": "get",
+        "path": "/subscriptions",
+        "ruleIds": [
+          "schema.enum.value.added"
+        ]
+      }
+    ],
+    "affectedSchemas": [
+      {
+        "findingCount": 1,
+        "highestSeverity": "breaking",
+        "humanPaths": [
+          "GET /subscriptions response 200 application/json schema.state"
+        ],
+        "jsonPointers": [
+          "#/paths/~1subscriptions/get/responses/200/content/application~1json/schema/properties/state/enum"
+        ],
+        "key": "schema",
+        "label": "schema",
+        "ruleIds": [
+          "schema.enum.value.added"
+        ]
+      }
+    ],
+    "baseline": {
+      "byteCount": 455,
+      "componentsOnly": false,
+      "externalRefCount": 0,
+      "input": {
+        "format": "yaml",
+        "id": "base",
+        "label": "Base spec",
+        "source": "sample",
+        "filename": "enum-value-added-sdk-strict.base.yaml"
+      },
+      "lineCount": 21,
+      "localRefCount": 0,
+      "pathCount": 1,
+      "schemaCount": 0,
+      "unresolvedRefs": [],
+      "validationSource": "scalar",
+      "version": {
+        "family": "openapi-3.1.x",
+        "label": "OpenAPI 3.1.0 detected",
+        "raw": "3.1.0",
+        "sourceField": "openapi",
+        "supported": true
+      },
+      "warnings": []
+    },
+    "candidate": {
+      "byteCount": 486,
+      "componentsOnly": false,
+      "externalRefCount": 0,
+      "input": {
+        "format": "yaml",
+        "id": "revision",
+        "label": "Revision spec",
+        "source": "sample",
+        "filename": "enum-value-added-sdk-strict.revision.yaml"
+      },
+      "lineCount": 22,
+      "localRefCount": 0,
+      "pathCount": 1,
+      "schemaCount": 0,
+      "unresolvedRefs": [],
+      "validationSource": "scalar",
+      "version": {
+        "family": "openapi-3.1.x",
+        "label": "OpenAPI 3.1.0 detected",
+        "raw": "3.1.0",
+        "sourceField": "openapi",
+        "supported": true
+      },
+      "warnings": []
+    },
+    "executiveSummary": "This comparison found 1 breaking and 0 dangerous changes across 1 affected endpoint and 1 affected schema. Existing consumers can fail without coordination, so the recommendation is to block release.",
+    "findings": [
+      {
+        "afterValue": "paused",
+        "baseSeverity": "dangerous",
+        "beforeValue": null,
+        "category": "enum",
+        "classificationContext": {
+          "schemaDirection": "response"
+        },
+        "evidence": {
+          "base": {
+            "jsonPointer": "#/paths/~1subscriptions/get/responses/200/content/application~1json/schema/properties/state/enum",
+            "node": {
+              "originPath": "#/paths/~1subscriptions/get/responses/200/content/application~1json/schema/properties/state",
+              "refChain": [],
+              "sourcePath": "#/paths/~1subscriptions/get/responses/200/content/application~1json/schema/properties/state"
+            }
+          },
+          "revision": {
+            "jsonPointer": "#/paths/~1subscriptions/get/responses/200/content/application~1json/schema/properties/state/enum",
+            "node": {
+              "originPath": "#/paths/~1subscriptions/get/responses/200/content/application~1json/schema/properties/state",
+              "refChain": [],
+              "sourcePath": "#/paths/~1subscriptions/get/responses/200/content/application~1json/schema/properties/state"
+            }
+          }
+        },
+        "id": "schema.enum.value.added::/subscriptions::get::#/paths/~1subscriptions/get/responses/200/content/application~1json/schema/properties/state/enum::added:\"paused\"",
+        "humanPath": "GET /subscriptions response 200 application/json schema.state",
+        "jsonPointer": "#/paths/~1subscriptions/get/responses/200/content/application~1json/schema/properties/state/enum",
+        "message": "GET /subscriptions response 200 application/json schema.state now allows the enum value \"paused\". Exhaustive clients may need updates before they can handle that new literal safely.",
+        "method": "get",
+        "path": "/subscriptions",
+        "ruleId": "schema.enum.value.added",
+        "severity": "breaking",
+        "severityReason": "The SDK strict profile raises this to breaking because generated enums and exhaustive switches often fail when a response starts returning a new literal.",
+        "title": "GET /subscriptions response 200 application/json schema.state: enum value added",
+        "whyItMatters": "Strict SDKs and exhaustive client code often compile a closed enum set, so a newly returned value can become a source or runtime break.",
+        "operationId": "listSubscriptions",
+        "saferAlternative": "Document the upcoming value early and audit strict consumer code before the new value appears in live traffic.",
+        "operationDeprecated": false
+      }
+    ],
+    "generatedAt": "2026-04-23T00:00:00.000Z",
+    "migrationNotes": [
+      "Document the upcoming value early and audit strict consumer code before the new value appears in live traffic."
+    ],
+    "recommendation": {
+      "code": "blockRelease",
+      "label": "Block release",
+      "reason": "1 breaking finding can fail existing consumers or integrations immediately."
+    },
+    "riskScore": 45,
+    "sdkImpactSummary": "Generated SDK impact looks high: 1 finding point to typed model, enum, response-shape, or method-name updates. Review GET /subscriptions response 200 application/json schema.state: enum value added before regenerating clients. The current profile already assumes strict generated clients.",
+    "securitySummary": "No auth or security contract changes were detected.",
+    "settings": {
+      "customRedactionRules": [],
+      "consumerProfile": "sdkStrict",
+      "exportFormats": [],
+      "failOnSeverities": [
+        "breaking"
+      ],
+      "ignoreRules": [],
+      "includeCategories": [
+        "docs",
+        "enum",
+        "metadata",
+        "operation",
+        "parameter",
+        "path",
+        "requestBody",
+        "response",
+        "schema",
+        "security"
+      ],
+      "includeInfoFindings": true,
+      "redactExamples": false,
+      "redactServerUrls": false,
+      "remoteRefPolicy": "localOnly",
+      "resolveLocalRefs": true,
+      "treatEnumAdditionsAsDangerous": false
+    },
+    "successState": null,
+    "summary": {
+      "byCategory": {
+        "docs": 0,
+        "operations": 0,
+        "parameters": 0,
+        "paths": 0,
+        "responses": 0,
+        "schemas": 1,
+        "security": 0
+      },
+      "bySeverity": {
+        "breaking": 1,
+        "dangerous": 0,
+        "info": 0,
+        "safe": 0
+      },
+      "ignoredFindings": 0,
+      "totalFindings": 1
+    },
+    "topReviewItems": [
+      {
+        "id": "schema.enum.value.added::/subscriptions::get::#/paths/~1subscriptions/get/responses/200/content/application~1json/schema/properties/state/enum::added:\"paused\"",
+        "jsonPointer": "#/paths/~1subscriptions/get/responses/200/content/application~1json/schema/properties/state/enum",
+        "message": "GET /subscriptions response 200 application/json schema.state now allows the enum value \"paused\". Exhaustive clients may need updates before they can handle that new literal safely.",
+        "method": "get",
+        "path": "/subscriptions",
+        "severity": "breaking",
+        "title": "GET /subscriptions response 200 application/json schema.state: enum value added"
+      }
+    ],
+    "warnings": []
+  }
+}

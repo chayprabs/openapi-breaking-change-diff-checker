@@ -333,11 +333,16 @@ function createHtmlReport(context: ReportExportContext) {
 <html lang="en">
   <head>
     <meta charset="utf-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; style-src 'unsafe-inline'; img-src data:; font-src data:; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+    />
+    <meta name="referrer" content="no-referrer" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>OpenAPI Diff Report</title>
     <style>
       :root {
-        color-scheme: light;
+        color-scheme: light dark;
         font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
         line-height: 1.5;
         --bg: #f5f0e6;
@@ -507,6 +512,52 @@ function createHtmlReport(context: ReportExportContext) {
         font-size: 14px;
         margin-top: 28px;
         text-align: center;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #0b1117;
+          --panel: #101923;
+          --panel-alt: #162231;
+          --line: #2f4257;
+          --text: #edf2f7;
+          --muted: #b2c0d1;
+          --breaking: #fecaca;
+          --dangerous: #fde68a;
+          --safe: #bbf7d0;
+          --info: #bae6fd;
+        }
+        .chip-breaking {
+          background: #40201d;
+        }
+        .chip-dangerous {
+          background: #402c17;
+        }
+        .chip-safe {
+          background: #183525;
+        }
+        .chip-info {
+          background: #163543;
+        }
+      }
+      @media (max-width: 720px) {
+        body {
+          padding: 20px 12px 32px;
+        }
+        .hero,
+        .panel,
+        details.panel {
+          border-radius: 18px;
+          padding: 18px;
+        }
+        .finding {
+          border-radius: 16px;
+          padding: 14px;
+        }
+        .summary-grid,
+        .meta-grid,
+        dl {
+          grid-template-columns: 1fr;
+        }
       }
       @page {
         margin: 14mm;

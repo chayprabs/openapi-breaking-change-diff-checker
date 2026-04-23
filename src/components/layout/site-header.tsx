@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Container } from "@/components/ui/container";
+import { AccountMenuPlaceholder } from "@/features/account-shell/components/account-menu-placeholder";
 import { primaryNavigation, siteConfig } from "@/data/site";
 import { cn } from "@/lib/cn";
 
@@ -21,48 +22,51 @@ export function SiteHeader() {
           </Link>
         </div>
 
-        <nav className="flex flex-wrap items-center gap-2">
-          {primaryNavigation.map((item) => {
-            const isActive = item.href
-              ? item.matchRoutes?.some((route) => route === pathname) ||
-                (item.match === "prefix"
-                  ? pathname === item.href || pathname.startsWith(`${item.href}/`)
-                  : pathname === item.href)
-              : false;
+        <div className="flex flex-wrap items-center gap-2">
+          <nav aria-label="Primary" className="flex flex-wrap items-center gap-2">
+            {primaryNavigation.map((item) => {
+              const isActive = item.href
+                ? item.matchRoutes?.some((route) => route === pathname) ||
+                  (item.match === "prefix"
+                    ? pathname === item.href || pathname.startsWith(`${item.href}/`)
+                    : pathname === item.href)
+                : false;
 
-            const className = cn(
-              "border-line rounded-full border px-3 py-1.5 text-sm font-medium transition-colors",
-              isActive
-                ? "bg-accent text-accent-foreground"
-                : "bg-panel hover:bg-panel-muted text-muted hover:text-foreground",
-              item.placeholder ? "cursor-default" : "",
-            );
+              const className = cn(
+                "border-line rounded-full border px-3 py-1.5 text-sm font-medium transition-colors",
+                isActive
+                  ? "bg-accent text-accent-foreground"
+                  : "bg-panel hover:bg-panel-muted text-muted hover:text-foreground",
+                item.placeholder ? "cursor-default" : "",
+              );
 
-            if (!item.href || item.placeholder) {
+              if (!item.href || item.placeholder) {
+                return (
+                  <span key={item.label} className={className}>
+                    {item.label}
+                    {item.badge ? (
+                      <span className="text-muted ml-2 font-mono text-[0.65rem] tracking-[0.18em] uppercase">
+                        {item.badge}
+                      </span>
+                    ) : null}
+                  </span>
+                );
+              }
+
               return (
-                <span key={item.label} className={className}>
+                <Link key={item.label} href={item.href} className={className}>
                   {item.label}
                   {item.badge ? (
-                    <span className="text-muted ml-2 font-mono text-[0.65rem] tracking-[0.18em] uppercase">
+                    <span className="ml-2 font-mono text-[0.65rem] tracking-[0.18em] uppercase opacity-80">
                       {item.badge}
                     </span>
                   ) : null}
-                </span>
+                </Link>
               );
-            }
-
-            return (
-              <Link key={item.label} href={item.href} className={className}>
-                {item.label}
-                {item.badge ? (
-                  <span className="ml-2 font-mono text-[0.65rem] tracking-[0.18em] uppercase opacity-80">
-                    {item.badge}
-                  </span>
-                ) : null}
-              </Link>
-            );
-          })}
-        </nav>
+            })}
+          </nav>
+          <AccountMenuPlaceholder />
+        </div>
       </Container>
     </header>
   );

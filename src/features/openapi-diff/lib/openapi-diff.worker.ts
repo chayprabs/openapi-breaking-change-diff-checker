@@ -16,12 +16,20 @@ import type {
 } from "@/features/openapi-diff/types";
 
 const workerScope = self as DedicatedWorkerGlobalScope;
+const cancelledAnalysisRequests = new Set<string>();
 
 workerScope.addEventListener("message", (event: MessageEvent<OpenApiDiffWorkerRequest>) => {
+  if (event.data.type === "cancel") {
+    cancelledAnalysisRequests.add(event.data.requestId);
+    return;
+  }
+
   void handleWorkerRequest(event.data);
 });
 
-async function handleWorkerRequest(request: OpenApiDiffWorkerRequest) {
+async function handleWorkerRequest(
+  request: Exclude<OpenApiDiffWorkerRequest, { type: "cancel" }>,
+) {
   try {
     if (request.type === "parse") {
       workerScope.postMessage(
@@ -56,14 +64,29 @@ async function handleWorkerRequest(request: OpenApiDiffWorkerRequest) {
       return;
     }
 
+    if (cancelledAnalysisRequests.has(request.requestId)) {
+      cancelledAnalysisRequests.delete(request.requestId);
+      return;
+    }
+
     const result = await analyzeOpenApiSpecs(request.base, request.revision, {
       onProgress: (label) => {
+        if (cancelledAnalysisRequests.has(request.requestId)) {
+          return;
+        }
+
         workerScope.postMessage(
           createWorkerProgressMessage("analyze", request.requestId, label),
         );
       },
+      shouldAbort: () => cancelledAnalysisRequests.has(request.requestId),
       ...(request.settings ? { settings: request.settings } : {}),
     });
+
+    if (cancelledAnalysisRequests.has(request.requestId)) {
+      cancelledAnalysisRequests.delete(request.requestId);
+      return;
+    }
 
     if (!result.ok) {
       workerScope.postMessage(
@@ -81,6 +104,11 @@ async function handleWorkerRequest(request: OpenApiDiffWorkerRequest) {
       createWorkerSuccessMessage("analyze", request.requestId, result.result),
     );
   } catch (error) {
+    if (error instanceof Error && error.name === "AnalysisCancelledError") {
+      cancelledAnalysisRequests.delete(request.requestId);
+      return;
+    }
+
     workerScope.postMessage(
       createWorkerErrorMessage(
         request.type,
@@ -90,6 +118,10 @@ async function handleWorkerRequest(request: OpenApiDiffWorkerRequest) {
         request.type === "parse" ? request.editorId : undefined,
       ),
     );
+  } finally {
+    if (request.type === "analyze") {
+      cancelledAnalysisRequests.delete(request.requestId);
+    }
   }
 }
 

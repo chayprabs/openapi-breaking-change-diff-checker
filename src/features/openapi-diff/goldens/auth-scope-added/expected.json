@@ -1,0 +1,192 @@
+{
+  "ok": true,
+  "validationSource": "scalar",
+  "warnings": [],
+  "report": {
+    "affectedEndpoints": [
+      {
+        "findingCount": 1,
+        "highestSeverity": "dangerous",
+        "key": "/exports/accounts::get",
+        "method": "get",
+        "path": "/exports/accounts",
+        "ruleIds": [
+          "security.scope.added"
+        ]
+      }
+    ],
+    "affectedSchemas": [],
+    "baseline": {
+      "byteCount": 529,
+      "componentsOnly": false,
+      "externalRefCount": 0,
+      "input": {
+        "format": "yaml",
+        "id": "base",
+        "label": "Base spec",
+        "source": "sample",
+        "filename": "auth-scope-added.base.yaml"
+      },
+      "lineCount": 25,
+      "localRefCount": 0,
+      "pathCount": 1,
+      "schemaCount": 0,
+      "unresolvedRefs": [],
+      "validationSource": "scalar",
+      "version": {
+        "family": "openapi-3.1.x",
+        "label": "OpenAPI 3.1.0 detected",
+        "raw": "3.1.0",
+        "sourceField": "openapi",
+        "supported": true
+      },
+      "warnings": []
+    },
+    "candidate": {
+      "byteCount": 559,
+      "componentsOnly": false,
+      "externalRefCount": 0,
+      "input": {
+        "format": "yaml",
+        "id": "revision",
+        "label": "Revision spec",
+        "source": "sample",
+        "filename": "auth-scope-added.revision.yaml"
+      },
+      "lineCount": 26,
+      "localRefCount": 0,
+      "pathCount": 1,
+      "schemaCount": 0,
+      "unresolvedRefs": [],
+      "validationSource": "scalar",
+      "version": {
+        "family": "openapi-3.1.x",
+        "label": "OpenAPI 3.1.0 detected",
+        "raw": "3.1.0",
+        "sourceField": "openapi",
+        "supported": true
+      },
+      "warnings": []
+    },
+    "executiveSummary": "No breaking changes were found for the Public API profile, but 1 dangerous changes still affect 1 affected endpoint and 0 affected schemas. Review rollout risk before release.",
+    "findings": [
+      {
+        "afterValue": [
+          "accounts:export",
+          "accounts:read"
+        ],
+        "baseSeverity": "dangerous",
+        "beforeValue": [
+          "accounts:read"
+        ],
+        "category": "security",
+        "evidence": {
+          "base": {
+            "jsonPointer": "#/paths/~1exports~1accounts/get/security",
+            "node": {
+              "originPath": "#/paths/~1exports~1accounts/get/security",
+              "refChain": [],
+              "sourcePath": "#/paths/~1exports~1accounts/get/security"
+            }
+          },
+          "revision": {
+            "jsonPointer": "#/paths/~1exports~1accounts/get/security",
+            "node": {
+              "originPath": "#/paths/~1exports~1accounts/get/security",
+              "refChain": [],
+              "sourcePath": "#/paths/~1exports~1accounts/get/security"
+            }
+          }
+        },
+        "id": "security.scope.added::/exports/accounts::get::#/paths/~1exports~1accounts/get/security/oauth2/accounts:export::",
+        "jsonPointer": "#/paths/~1exports~1accounts/get/security/oauth2/accounts:export",
+        "message": "GET /exports/accounts now also requires the \"accounts:export\" scope on \"oauth2\".",
+        "method": "get",
+        "operationDeprecated": false,
+        "path": "/exports/accounts",
+        "ruleId": "security.scope.added",
+        "severity": "dangerous",
+        "severityReason": "The Public API profile keeps this at dangerous because existing tokens may remain valid structurally but still fail authorization if they do not carry the new scope",
+        "title": "GET /exports/accounts: security scope added",
+        "whyItMatters": "Existing tokens may remain valid structurally but still fail authorization if they do not carry the new scope.",
+        "operationId": "getAccountExport",
+        "saferAlternative": "Allow either the old or new scope during a transition window and communicate the deadline for stricter enforcement."
+      }
+    ],
+    "generatedAt": "2026-04-23T00:00:00.000Z",
+    "migrationNotes": [
+      "Allow either the old or new scope during a transition window and communicate the deadline for stricter enforcement."
+    ],
+    "recommendation": {
+      "code": "reviewBeforeRelease",
+      "label": "Review before release",
+      "reason": "1 dangerous finding still needs review before release because rollout or client tolerance may be risky."
+    },
+    "riskScore": 23,
+    "sdkImpactSummary": "No strong SDK regeneration signals were detected from the current findings.",
+    "securitySummary": "Detected 1 auth/security finding across 1 endpoint: OAuth scopes were expanded.",
+    "settings": {
+      "customRedactionRules": [],
+      "consumerProfile": "publicApi",
+      "exportFormats": [],
+      "failOnSeverities": [
+        "breaking"
+      ],
+      "ignoreRules": [],
+      "includeCategories": [
+        "docs",
+        "enum",
+        "metadata",
+        "operation",
+        "parameter",
+        "path",
+        "requestBody",
+        "response",
+        "schema",
+        "security"
+      ],
+      "includeInfoFindings": true,
+      "redactExamples": false,
+      "redactServerUrls": false,
+      "remoteRefPolicy": "localOnly",
+      "resolveLocalRefs": true,
+      "treatEnumAdditionsAsDangerous": false
+    },
+    "successState": {
+      "emphasis": "info",
+      "message": "1 dangerous finding still needs review before release.",
+      "title": "No breaking changes found"
+    },
+    "summary": {
+      "byCategory": {
+        "docs": 0,
+        "operations": 0,
+        "parameters": 0,
+        "paths": 0,
+        "responses": 0,
+        "schemas": 0,
+        "security": 1
+      },
+      "bySeverity": {
+        "breaking": 0,
+        "dangerous": 1,
+        "info": 0,
+        "safe": 0
+      },
+      "ignoredFindings": 0,
+      "totalFindings": 1
+    },
+    "topReviewItems": [
+      {
+        "id": "security.scope.added::/exports/accounts::get::#/paths/~1exports~1accounts/get/security/oauth2/accounts:export::",
+        "jsonPointer": "#/paths/~1exports~1accounts/get/security/oauth2/accounts:export",
+        "message": "GET /exports/accounts now also requires the \"accounts:export\" scope on \"oauth2\".",
+        "method": "get",
+        "path": "/exports/accounts",
+        "severity": "dangerous",
+        "title": "GET /exports/accounts: security scope added"
+      }
+    ],
+    "warnings": []
+  }
+}

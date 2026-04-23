@@ -1,0 +1,38 @@
+openapi: 3.1.0
+info:
+  title: Local Refs API
+  version: 1.0.0
+paths:
+  /accounts/{accountId}:
+    get:
+      operationId: getAccount
+      parameters:
+        - $ref: "#/components/parameters/AccountId"
+      responses:
+        "200":
+          description: Account payload
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Account"
+components:
+  parameters:
+    AccountId:
+      in: path
+      name: accountId
+      required: true
+      schema:
+        type: string
+  schemas:
+    Account:
+      type: object
+      properties:
+        id:
+          type: string
+        profile:
+          $ref: "#/components/schemas/Profile"
+    Profile:
+      type: object
+      properties:
+        state:
+          type: string

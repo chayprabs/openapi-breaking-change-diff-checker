@@ -31,7 +31,7 @@ export type EditorWorkerState = {
 export type AnalysisWorkerState = {
   errors: SpecParserError[];
   result: OpenApiAnalysisResult | null;
-  status: "error" | "idle" | "running" | "success";
+  status: "cancelled" | "error" | "idle" | "running" | "success";
   warnings: SpecWarning[];
 };
 
@@ -366,6 +366,12 @@ export function useOpenApiDiffWorker() {
 
   const clearAllStates = useCallback(() => {
     clearAnalysisTimeout();
+    if (analyzeRequestIdRef.current) {
+      workerRef.current?.postMessage({
+        requestId: analyzeRequestIdRef.current,
+        type: "cancel",
+      });
+    }
     parseRequestIdsRef.current.base = null;
     parseRequestIdsRef.current.revision = null;
     analyzeRequestIdRef.current = null;
@@ -376,8 +382,37 @@ export function useOpenApiDiffWorker() {
     setProgress(null);
   }, [clearAnalysisTimeout]);
 
+  const cancelAnalyze = useCallback(() => {
+    const requestId = analyzeRequestIdRef.current;
+
+    if (!requestId) {
+      return;
+    }
+
+    clearAnalysisTimeout();
+    analyzeRequestIdRef.current = null;
+    analyzeInFlightRef.current = false;
+    workerRef.current?.postMessage({
+      requestId,
+      type: "cancel",
+    });
+    setAnalysisState((current) => ({
+      errors: [],
+      result: current.result,
+      status: "cancelled",
+      warnings: current.warnings,
+    }));
+    setProgress((current) => (current?.action === "analyze" ? null : current));
+  }, [clearAnalysisTimeout]);
+
   const resetAnalysisState = useCallback(() => {
     clearAnalysisTimeout();
+    if (analyzeRequestIdRef.current) {
+      workerRef.current?.postMessage({
+        requestId: analyzeRequestIdRef.current,
+        type: "cancel",
+      });
+    }
     analyzeRequestIdRef.current = null;
     analyzeInFlightRef.current = false;
     setAnalysisState(EMPTY_ANALYSIS_STATE);
@@ -492,6 +527,7 @@ export function useOpenApiDiffWorker() {
 
   return {
     analysisState,
+    cancelAnalyze,
     clearAllStates,
     clearEditorState,
     editorStates,

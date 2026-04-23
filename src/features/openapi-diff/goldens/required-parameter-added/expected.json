@@ -1,0 +1,207 @@
+{
+  "ok": true,
+  "validationSource": "scalar",
+  "warnings": [],
+  "report": {
+    "affectedEndpoints": [
+      {
+        "findingCount": 1,
+        "highestSeverity": "breaking",
+        "key": "/reports::get",
+        "method": "get",
+        "path": "/reports",
+        "ruleIds": [
+          "parameter.required.added"
+        ]
+      }
+    ],
+    "affectedSchemas": [],
+    "baseline": {
+      "byteCount": 187,
+      "componentsOnly": false,
+      "externalRefCount": 0,
+      "input": {
+        "format": "yaml",
+        "id": "base",
+        "label": "Base spec",
+        "source": "sample",
+        "filename": "required-parameter-added.base.yaml"
+      },
+      "lineCount": 12,
+      "localRefCount": 0,
+      "pathCount": 1,
+      "schemaCount": 0,
+      "unresolvedRefs": [],
+      "validationSource": "scalar",
+      "version": {
+        "family": "openapi-3.1.x",
+        "label": "OpenAPI 3.1.0 detected",
+        "raw": "3.1.0",
+        "sourceField": "openapi",
+        "supported": true
+      },
+      "warnings": []
+    },
+    "candidate": {
+      "byteCount": 316,
+      "componentsOnly": false,
+      "externalRefCount": 0,
+      "input": {
+        "format": "yaml",
+        "id": "revision",
+        "label": "Revision spec",
+        "source": "sample",
+        "filename": "required-parameter-added.revision.yaml"
+      },
+      "lineCount": 18,
+      "localRefCount": 0,
+      "pathCount": 1,
+      "schemaCount": 0,
+      "unresolvedRefs": [],
+      "validationSource": "scalar",
+      "version": {
+        "family": "openapi-3.1.x",
+        "label": "OpenAPI 3.1.0 detected",
+        "raw": "3.1.0",
+        "sourceField": "openapi",
+        "supported": true
+      },
+      "warnings": []
+    },
+    "executiveSummary": "This comparison found 1 breaking and 0 dangerous changes across 1 affected endpoint and 0 affected schemas. Existing consumers can fail without coordination, so the recommendation is to block release.",
+    "findings": [
+      {
+        "afterValue": {
+          "contentTypes": [],
+          "deprecated": false,
+          "description": null,
+          "examples": [],
+          "explode": null,
+          "in": "query",
+          "name": "region",
+          "required": true,
+          "schema": {
+            "allOf": [],
+            "anyOf": [],
+            "constraints": {},
+            "deprecated": false,
+            "enumValues": [],
+            "kind": "schema",
+            "keywords": {},
+            "nullable": false,
+            "oneOf": [],
+            "properties": {},
+            "readOnly": false,
+            "refKind": "inline",
+            "required": [],
+            "type": [
+              "string"
+            ],
+            "writeOnly": false
+          },
+          "style": null
+        },
+        "baseSeverity": "breaking",
+        "beforeValue": null,
+        "category": "parameter",
+        "classificationContext": {
+          "parameterLocation": "query"
+        },
+        "evidence": {
+          "revision": {
+            "jsonPointer": "#/paths/~1reports/get/parameters/0",
+            "node": {
+              "originPath": "#/paths/~1reports/get/parameters/0",
+              "refChain": [],
+              "sourcePath": "#/paths/~1reports/get/parameters/0"
+            }
+          }
+        },
+        "id": "parameter.required.added::/reports::get::#/paths/~1reports/get/parameters/0::",
+        "jsonPointer": "#/paths/~1reports/get/parameters/0",
+        "message": "GET /reports now requires the \"region\" parameter in \"query\".",
+        "method": "get",
+        "operationDeprecated": false,
+        "path": "/reports",
+        "ruleId": "parameter.required.added",
+        "severity": "breaking",
+        "severityReason": "All profiles keep this at breaking because existing callers do not know to send the new required query parameter.",
+        "title": "GET /reports: required parameter added",
+        "whyItMatters": "Existing requests may become invalid because clients are unaware of the new required input.",
+        "operationId": "listReports",
+        "saferAlternative": "Add the parameter as optional first, or provide a backward-compatible default while clients migrate."
+      }
+    ],
+    "generatedAt": "2026-04-23T00:00:00.000Z",
+    "migrationNotes": [
+      "Add the parameter as optional first, or provide a backward-compatible default while clients migrate."
+    ],
+    "recommendation": {
+      "code": "blockRelease",
+      "label": "Block release",
+      "reason": "1 breaking finding can fail existing consumers or integrations immediately."
+    },
+    "riskScore": 39,
+    "sdkImpactSummary": "No strong SDK regeneration signals were detected from the current findings.",
+    "securitySummary": "No auth or security contract changes were detected.",
+    "settings": {
+      "customRedactionRules": [],
+      "consumerProfile": "publicApi",
+      "exportFormats": [],
+      "failOnSeverities": [
+        "breaking"
+      ],
+      "ignoreRules": [],
+      "includeCategories": [
+        "docs",
+        "enum",
+        "metadata",
+        "operation",
+        "parameter",
+        "path",
+        "requestBody",
+        "response",
+        "schema",
+        "security"
+      ],
+      "includeInfoFindings": true,
+      "redactExamples": false,
+      "redactServerUrls": false,
+      "remoteRefPolicy": "localOnly",
+      "resolveLocalRefs": true,
+      "treatEnumAdditionsAsDangerous": false
+    },
+    "successState": null,
+    "summary": {
+      "byCategory": {
+        "docs": 0,
+        "operations": 0,
+        "parameters": 1,
+        "paths": 0,
+        "responses": 0,
+        "schemas": 0,
+        "security": 0
+      },
+      "bySeverity": {
+        "breaking": 1,
+        "dangerous": 0,
+        "info": 0,
+        "safe": 0
+      },
+      "ignoredFindings": 0,
+      "totalFindings": 1
+    },
+    "topReviewItems": [
+      {
+        "id": "parameter.required.added::/reports::get::#/paths/~1reports/get/parameters/0::",
+        "jsonPointer": "#/paths/~1reports/get/parameters/0",
+        "message": "GET /reports now requires the \"region\" parameter in \"query\".",
+        "method": "get",
+        "path": "/reports",
+        "severity": "breaking",
+        "title": "GET /reports: required parameter added"
+      }
+    ],
+    "warnings": []
+  }
+}

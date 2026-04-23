@@ -6,21 +6,22 @@ import { buildPageMetadata } from "@/lib/metadata";
 export const metadata = buildPageMetadata({
   title: "About",
   description:
-    "Authos is building a practical multi-tool website for developers, starting with API and contract safety workflows.",
+    "Authos builds privacy-aware developer tools, starting with OpenAPI compatibility review and contract risk reporting.",
+  path: "/about",
 });
 
 const principles = [
   {
-    title: "Multi-tool structure first",
-    body: "The shell is designed so new tools can land as part of a larger directory instead of requiring a redesign every time the product expands.",
+    title: "Local-first product design",
+    body: "The first tool is built so paste and upload analysis can stay in the browser worker, with backend contact limited to clearly optional paths such as safe public URL fetches or configured feedback delivery.",
   },
   {
-    title: "Useful before accounts",
-    body: "Core workflows such as OpenAPI diffing remain available without authentication while account features are still on the roadmap.",
+    title: "Useful before accounts exist",
+    body: "OpenAPI Diff remains available without login so the core workflow is launchable today, while saved reports, team rules, and private sharing stay modular for future account work.",
   },
   {
-    title: "Neutral developer-tool design",
-    body: "Authos uses a clean, flexible visual system with room for a future brand pass once the product surface is clearer.",
+    title: "Deterministic workflow over AI magic",
+    body: "Authos does not rely on AI APIs for the launch diff workflow. Parsing, normalization, classification, redaction, and exports are deterministic so teams can reason about the result and test it properly.",
   },
 ];
 
@@ -28,13 +29,13 @@ export default function AboutPage() {
   return (
     <PageShell
       eyebrow="About Authos"
-      title="A growing tools website for technical workflows"
-      description="Authos is starting with OpenAPI contract review, but the structure already points toward a broader catalog for API, schema, DevOps, and database tasks."
+      title="A launch-ready developer-tools shell starting with API compatibility"
+      description="Authos starts with OpenAPI contract review and exportable release reporting, then expands outward into adjacent developer workflows without losing the privacy and no-login defaults that make the first tool useful."
     >
       <Section
         eyebrow="Principles"
-        title="How the site is taking shape"
-        description="The current direction optimizes for a clean foundation that can evolve as more tools are added."
+        title="What the product is optimizing for"
+        description="The current direction is intentionally narrow: ship one strong workflow, keep the privacy story honest, and preserve room for future tooling without forcing a rewrite."
       >
         <div className="grid gap-4 md:grid-cols-3">
           {principles.map((principle) => (

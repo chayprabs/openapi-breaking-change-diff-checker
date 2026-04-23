@@ -8,6 +8,7 @@ type CopyButtonProps = {
   className?: string;
   label?: string;
   onBeforeCopy?: () => boolean | Promise<boolean>;
+  onCopySuccess?: () => void;
   successLabel?: string;
   value: string;
   variant?: ButtonVariant;
@@ -17,6 +18,7 @@ export function CopyButton({
   className,
   label = "Copy",
   onBeforeCopy,
+  onCopySuccess,
   successLabel = "Copied",
   value,
   variant = "ghost",
@@ -48,6 +50,7 @@ export function CopyButton({
         description: "The selected content was copied to your clipboard.",
         variant: "success",
       });
+      void onCopySuccess?.();
     } catch {
       notify({
         title: "Copy failed",

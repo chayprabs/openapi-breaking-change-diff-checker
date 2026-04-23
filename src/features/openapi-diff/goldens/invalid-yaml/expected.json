@@ -1,0 +1,33 @@
+{
+  "errors": [
+    {
+      "code": "MULTILINE_IMPLICIT_KEY",
+      "column": 1,
+      "editorId": "revision",
+      "line": 2,
+      "message": "Implicit keys need to be on a single line",
+      "offset": 15,
+      "source": "yaml"
+    },
+    {
+      "code": "BLOCK_AS_IMPLICIT_KEY",
+      "column": 10,
+      "editorId": "revision",
+      "line": 3,
+      "message": "Nested mappings are not allowed in compact mappings",
+      "offset": 29,
+      "source": "yaml"
+    },
+    {
+      "code": "MULTILINE_IMPLICIT_KEY",
+      "column": 10,
+      "editorId": "revision",
+      "line": 3,
+      "message": "Implicit keys need to be on a single line",
+      "offset": 29,
+      "source": "yaml"
+    }
+  ],
+  "ok": false,
+  "warnings": []
+}

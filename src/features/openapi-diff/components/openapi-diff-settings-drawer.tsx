@@ -33,12 +33,14 @@ import {
 } from "@/features/openapi-diff/types";
 
 type OpenApiDiffSettingsDrawerProps = {
+  autoRunAnalysis: boolean;
   onAddIgnoreRule: (ignoreRule: IgnoreRule) => void;
   onClearLocalData: () => void;
   onImportSettingsJson: (settingsJson: string) => void;
   onOpenChange: (open: boolean) => void;
   onRemoveIgnoreRule: (ignoreRuleId: string) => void;
   onResetSettings: () => void;
+  onSetAutoRunAnalysis: (enabled: boolean) => void;
   onSetConsumerProfile: (consumerProfile: ConsumerProfile) => void;
   onSetRememberEditorContents: (enabled: boolean) => void;
   onSetRemoteRefPolicy: (policy: RemoteRefPolicy) => void;
@@ -83,12 +85,14 @@ function RuleChip({
 }
 
 export function OpenApiDiffSettingsDrawer({
+  autoRunAnalysis,
   onAddIgnoreRule,
   onClearLocalData,
   onImportSettingsJson,
   onOpenChange,
   onRemoveIgnoreRule,
   onResetSettings,
+  onSetAutoRunAnalysis,
   onSetConsumerProfile,
   onSetRememberEditorContents,
   onSetRemoteRefPolicy,
@@ -235,6 +239,18 @@ export function OpenApiDiffSettingsDrawer({
             <CardTitle className="text-base">Local persistence</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
+            <label className="border-line bg-panel-muted inline-flex items-center gap-3 rounded-2xl border px-4 py-3 text-sm">
+              <input
+                checked={autoRunAnalysis}
+                onChange={(event) => onSetAutoRunAnalysis(event.currentTarget.checked)}
+                type="checkbox"
+              />
+              <span>Auto-run analysis after edits</span>
+            </label>
+            <p className="text-muted text-sm leading-6">
+              Off by default. When enabled, the workspace waits briefly after edits, then reruns
+              the worker analysis automatically. Large specs still fall back to manual runs.
+            </p>
             <label className="border-line bg-panel-muted inline-flex items-center gap-3 rounded-2xl border px-4 py-3 text-sm">
               <input
                 checked={rememberEditorContents}

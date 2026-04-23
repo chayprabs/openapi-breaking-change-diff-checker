@@ -1,0 +1,17 @@
+openapi: 3.1.0
+info:
+  title: Required Parameter API
+  version: 1.1.0
+paths:
+  /reports:
+    get:
+      operationId: listReports
+      parameters:
+        - in: query
+          name: region
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ok

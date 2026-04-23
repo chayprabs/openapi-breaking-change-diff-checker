@@ -7,7 +7,8 @@ import { buildPageMetadata } from "@/lib/metadata";
 export const metadata = buildPageMetadata({
   title: "Tools Directory",
   description:
-    "Browse the Authos tools directory, including the live OpenAPI Diff tool and placeholder cards for future developer workflows.",
+    "Browse the Authos tools directory, including the live OpenAPI Diff workflow and roadmap categories for adjacent developer tooling.",
+  path: "/tools",
 });
 
 export default function ToolsPage() {
@@ -15,7 +16,7 @@ export default function ToolsPage() {
     <PageShell
       eyebrow="Tools directory"
       title="A growing library of developer utilities"
-      description="Authos is structured like a multi-tool website. The first live workflow is OpenAPI Diff, and the directory already makes room for API/schema, DevOps, and database tools."
+      description="Authos is structured as a focused developer-tools website. OpenAPI Diff is live today, and the surrounding categories show where release, CI, and schema workflows can expand next."
     >
       <Section
         eyebrow="Categories"
@@ -54,8 +55,8 @@ export default function ToolsPage() {
 
       <Section
         eyebrow="Directory"
-        title="Current and upcoming tools"
-        description="The cards below include one real tool and several placeholders to establish the broader Authos product shape."
+        title="Current and planned tools"
+        description="The directory starts with one production-ready workflow and a visible roadmap for the next categories around API compatibility, release safety, and schema review."
       >
         <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
           {toolDirectory.map((tool) =>

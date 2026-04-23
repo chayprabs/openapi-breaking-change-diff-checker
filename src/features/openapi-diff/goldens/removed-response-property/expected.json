@@ -1,0 +1,221 @@
+{
+  "ok": true,
+  "validationSource": "scalar",
+  "warnings": [],
+  "report": {
+    "affectedEndpoints": [
+      {
+        "findingCount": 1,
+        "highestSeverity": "breaking",
+        "key": "/users::get",
+        "method": "get",
+        "path": "/users",
+        "ruleIds": [
+          "schema.property.removed"
+        ]
+      }
+    ],
+    "affectedSchemas": [
+      {
+        "findingCount": 1,
+        "highestSeverity": "breaking",
+        "humanPaths": [
+          "GET /users response 200 application/json schema.email"
+        ],
+        "jsonPointers": [
+          "#/paths/~1users/get/responses/200/content/application~1json/schema/properties/email"
+        ],
+        "key": "schema",
+        "label": "schema",
+        "ruleIds": [
+          "schema.property.removed"
+        ]
+      }
+    ],
+    "baseline": {
+      "byteCount": 441,
+      "componentsOnly": false,
+      "externalRefCount": 0,
+      "input": {
+        "format": "yaml",
+        "id": "base",
+        "label": "Base spec",
+        "source": "sample",
+        "filename": "removed-response-property.base.yaml"
+      },
+      "lineCount": 21,
+      "localRefCount": 0,
+      "pathCount": 1,
+      "schemaCount": 0,
+      "unresolvedRefs": [],
+      "validationSource": "scalar",
+      "version": {
+        "family": "openapi-3.1.x",
+        "label": "OpenAPI 3.1.0 detected",
+        "raw": "3.1.0",
+        "sourceField": "openapi",
+        "supported": true
+      },
+      "warnings": []
+    },
+    "candidate": {
+      "byteCount": 383,
+      "componentsOnly": false,
+      "externalRefCount": 0,
+      "input": {
+        "format": "yaml",
+        "id": "revision",
+        "label": "Revision spec",
+        "source": "sample",
+        "filename": "removed-response-property.revision.yaml"
+      },
+      "lineCount": 19,
+      "localRefCount": 0,
+      "pathCount": 1,
+      "schemaCount": 0,
+      "unresolvedRefs": [],
+      "validationSource": "scalar",
+      "version": {
+        "family": "openapi-3.1.x",
+        "label": "OpenAPI 3.1.0 detected",
+        "raw": "3.1.0",
+        "sourceField": "openapi",
+        "supported": true
+      },
+      "warnings": []
+    },
+    "executiveSummary": "This comparison found 1 breaking and 0 dangerous changes across 1 affected endpoint and 1 affected schema. Existing consumers can fail without coordination, so the recommendation is to block release.",
+    "findings": [
+      {
+        "afterValue": null,
+        "baseSeverity": "breaking",
+        "beforeValue": {
+          "allOf": [],
+          "anyOf": [],
+          "constraints": {},
+          "deprecated": false,
+          "enumValues": [],
+          "kind": "schema",
+          "keywords": {},
+          "nullable": false,
+          "oneOf": [],
+          "properties": {},
+          "readOnly": false,
+          "refKind": "inline",
+          "required": [],
+          "type": [
+            "string"
+          ],
+          "writeOnly": false
+        },
+        "category": "schema",
+        "classificationContext": {
+          "schemaDirection": "response"
+        },
+        "evidence": {
+          "base": {
+            "jsonPointer": "#/paths/~1users/get/responses/200/content/application~1json/schema/properties/email",
+            "node": {
+              "originPath": "#/paths/~1users/get/responses/200/content/application~1json/schema/properties/email",
+              "refChain": [],
+              "sourcePath": "#/paths/~1users/get/responses/200/content/application~1json/schema/properties/email"
+            }
+          },
+          "revision": {
+            "jsonPointer": "#/paths/~1users/get/responses/200/content/application~1json/schema/properties/email",
+            "node": {
+              "originPath": "#/paths/~1users/get/responses/200/content/application~1json/schema",
+              "refChain": [],
+              "sourcePath": "#/paths/~1users/get/responses/200/content/application~1json/schema"
+            }
+          }
+        },
+        "id": "schema.property.removed::/users::get::#/paths/~1users/get/responses/200/content/application~1json/schema/properties/email::",
+        "humanPath": "GET /users response 200 application/json schema.email",
+        "jsonPointer": "#/paths/~1users/get/responses/200/content/application~1json/schema/properties/email",
+        "message": "GET /users response 200 application/json schema.email is no longer present in the candidate schema.",
+        "method": "get",
+        "path": "/users",
+        "ruleId": "schema.property.removed",
+        "severity": "breaking",
+        "severityReason": "The Public API profile keeps this at breaking because consumers may deserialize, display, validate, or persist the missing field and break when it disappears",
+        "title": "GET /users response 200 application/json schema.email: property removed",
+        "whyItMatters": "Consumers may deserialize, display, validate, or persist the missing field and break when it disappears.",
+        "operationId": "listUsers",
+        "saferAlternative": "Deprecate the property first and keep serving it until clients no longer depend on it.",
+        "operationDeprecated": false
+      }
+    ],
+    "generatedAt": "2026-04-23T00:00:00.000Z",
+    "migrationNotes": [
+      "Deprecate the property first and keep serving it until clients no longer depend on it."
+    ],
+    "recommendation": {
+      "code": "blockRelease",
+      "label": "Block release",
+      "reason": "1 breaking finding can fail existing consumers or integrations immediately."
+    },
+    "riskScore": 45,
+    "sdkImpactSummary": "Generated SDK impact looks high: 1 finding point to typed model, enum, response-shape, or method-name updates. Review GET /users response 200 application/json schema.email: property removed before regenerating clients.",
+    "securitySummary": "No auth or security contract changes were detected.",
+    "settings": {
+      "customRedactionRules": [],
+      "consumerProfile": "publicApi",
+      "exportFormats": [],
+      "failOnSeverities": [
+        "breaking"
+      ],
+      "ignoreRules": [],
+      "includeCategories": [
+        "docs",
+        "enum",
+        "metadata",
+        "operation",
+        "parameter",
+        "path",
+        "requestBody",
+        "response",
+        "schema",
+        "security"
+      ],
+      "includeInfoFindings": true,
+      "redactExamples": false,
+      "redactServerUrls": false,
+      "remoteRefPolicy": "localOnly",
+      "resolveLocalRefs": true,
+      "treatEnumAdditionsAsDangerous": false
+    },
+    "successState": null,
+    "summary": {
+      "byCategory": {
+        "docs": 0,
+        "operations": 0,
+        "parameters": 0,
+        "paths": 0,
+        "responses": 0,
+        "schemas": 1,
+        "security": 0
+      },
+      "bySeverity": {
+        "breaking": 1,
+        "dangerous": 0,
+        "info": 0,
+        "safe": 0
+      },
+      "ignoredFindings": 0,
+      "totalFindings": 1
+    },
+    "topReviewItems": [
+      {
+        "id": "schema.property.removed::/users::get::#/paths/~1users/get/responses/200/content/application~1json/schema/properties/email::",
+        "jsonPointer": "#/paths/~1users/get/responses/200/content/application~1json/schema/properties/email",
+        "message": "GET /users response 200 application/json schema.email is no longer present in the candidate schema.",
+        "method": "get",
+        "path": "/users",
+        "severity": "breaking",
+        "title": "GET /users response 200 application/json schema.email: property removed"
+      }
+    ],
+    "warnings": []
+  }
+}

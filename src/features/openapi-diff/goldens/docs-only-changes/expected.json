@@ -1,0 +1,283 @@
+{
+  "ok": true,
+  "validationSource": "scalar",
+  "warnings": [],
+  "report": {
+    "affectedEndpoints": [
+      {
+        "findingCount": 3,
+        "highestSeverity": "info",
+        "key": "/users::get",
+        "method": "get",
+        "path": "/users",
+        "ruleIds": [
+          "docs.description.changed",
+          "docs.summary.changed",
+          "response.description.changed"
+        ]
+      }
+    ],
+    "affectedSchemas": [],
+    "baseline": {
+      "byteCount": 248,
+      "componentsOnly": false,
+      "externalRefCount": 0,
+      "input": {
+        "format": "yaml",
+        "id": "base",
+        "label": "Base spec",
+        "source": "sample",
+        "filename": "docs-only-changes.base.yaml"
+      },
+      "lineCount": 14,
+      "localRefCount": 0,
+      "pathCount": 1,
+      "schemaCount": 0,
+      "unresolvedRefs": [],
+      "validationSource": "scalar",
+      "version": {
+        "family": "openapi-3.1.x",
+        "label": "OpenAPI 3.1.0 detected",
+        "raw": "3.1.0",
+        "sourceField": "openapi",
+        "supported": true
+      },
+      "warnings": []
+    },
+    "candidate": {
+      "byteCount": 304,
+      "componentsOnly": false,
+      "externalRefCount": 0,
+      "input": {
+        "format": "yaml",
+        "id": "revision",
+        "label": "Revision spec",
+        "source": "sample",
+        "filename": "docs-only-changes.revision.yaml"
+      },
+      "lineCount": 14,
+      "localRefCount": 0,
+      "pathCount": 1,
+      "schemaCount": 0,
+      "unresolvedRefs": [],
+      "validationSource": "scalar",
+      "version": {
+        "family": "openapi-3.1.x",
+        "label": "OpenAPI 3.1.0 detected",
+        "raw": "3.1.0",
+        "sourceField": "openapi",
+        "supported": true
+      },
+      "warnings": []
+    },
+    "executiveSummary": "Only safe or informational changes were detected for the Public API profile across 1 affected endpoint and 0 affected schemas. This release is likely safe with normal verification.",
+    "findings": [
+      {
+        "afterValue": "Returns all users with rollout guidance.",
+        "baseSeverity": "info",
+        "beforeValue": "Returns all users.",
+        "category": "docs",
+        "evidence": {
+          "base": {
+            "jsonPointer": "#/paths/~1users/get",
+            "node": {
+              "originPath": "#/paths/~1users/get",
+              "refChain": [],
+              "sourcePath": "#/paths/~1users/get"
+            }
+          },
+          "revision": {
+            "jsonPointer": "#/paths/~1users/get",
+            "node": {
+              "originPath": "#/paths/~1users/get",
+              "refChain": [],
+              "sourcePath": "#/paths/~1users/get"
+            }
+          }
+        },
+        "id": "docs.description.changed::/users::get::#/paths/~1users/get/description::",
+        "jsonPointer": "#/paths/~1users/get/description",
+        "message": "GET /users changed its description text.",
+        "method": "get",
+        "operationDeprecated": false,
+        "path": "/users",
+        "ruleId": "docs.description.changed",
+        "severity": "info",
+        "severityReason": "The Public API profile keeps this at info because documentation changes usually do not break integrations, but they can still signal changed intent or better usage guidance",
+        "title": "GET /users: description changed",
+        "whyItMatters": "Documentation changes usually do not break integrations, but they can still signal changed intent or better usage guidance.",
+        "operationId": "listUsers",
+        "saferAlternative": "Prefer precise docs updates that clarify behavior without implying unimplemented contract changes."
+      },
+      {
+        "afterValue": "List all active users",
+        "baseSeverity": "info",
+        "beforeValue": "List users",
+        "category": "docs",
+        "evidence": {
+          "base": {
+            "jsonPointer": "#/paths/~1users/get",
+            "node": {
+              "originPath": "#/paths/~1users/get",
+              "refChain": [],
+              "sourcePath": "#/paths/~1users/get"
+            }
+          },
+          "revision": {
+            "jsonPointer": "#/paths/~1users/get",
+            "node": {
+              "originPath": "#/paths/~1users/get",
+              "refChain": [],
+              "sourcePath": "#/paths/~1users/get"
+            }
+          }
+        },
+        "id": "docs.summary.changed::/users::get::#/paths/~1users/get/summary::",
+        "jsonPointer": "#/paths/~1users/get/summary",
+        "message": "GET /users changed its summary text.",
+        "method": "get",
+        "operationDeprecated": false,
+        "path": "/users",
+        "ruleId": "docs.summary.changed",
+        "severity": "info",
+        "severityReason": "The Public API profile keeps this at info because summary changes are usually docs-only, but they can signal updated positioning or intent for the operation",
+        "title": "GET /users: summary changed",
+        "whyItMatters": "Summary changes are usually docs-only, but they can signal updated positioning or intent for the operation.",
+        "operationId": "listUsers",
+        "saferAlternative": "Keep summaries precise and aligned with actual behavior so docs changes do not imply unsupported contract shifts."
+      },
+      {
+        "afterValue": "User payload for documented clients",
+        "baseSeverity": "info",
+        "beforeValue": "User payload",
+        "category": "response",
+        "evidence": {
+          "base": {
+            "jsonPointer": "#/paths/~1users/get/responses/200",
+            "node": {
+              "originPath": "#/paths/~1users/get/responses/200",
+              "refChain": [],
+              "sourcePath": "#/paths/~1users/get/responses/200"
+            }
+          },
+          "revision": {
+            "jsonPointer": "#/paths/~1users/get/responses/200",
+            "node": {
+              "originPath": "#/paths/~1users/get/responses/200",
+              "refChain": [],
+              "sourcePath": "#/paths/~1users/get/responses/200"
+            }
+          }
+        },
+        "id": "response.description.changed::/users::get::#/paths/~1users/get/responses/200/description::",
+        "jsonPointer": "#/paths/~1users/get/responses/200/description",
+        "message": "GET /users changed the description for the \"200\" response.",
+        "method": "get",
+        "operationDeprecated": false,
+        "path": "/users",
+        "ruleId": "response.description.changed",
+        "severity": "info",
+        "severityReason": "The Public API profile keeps this at info because description changes are usually docs-only, but they can still signal changed semantics or rollout guidance",
+        "title": "GET /users: response description changed",
+        "whyItMatters": "Description changes are usually docs-only, but they can still signal changed semantics or rollout guidance.",
+        "operationId": "listUsers",
+        "saferAlternative": "Keep response descriptions precise and aligned with the actual runtime behavior."
+      }
+    ],
+    "generatedAt": "2026-04-23T00:00:00.000Z",
+    "migrationNotes": [
+      "Keep response descriptions precise and aligned with the actual runtime behavior.",
+      "Keep summaries precise and aligned with actual behavior so docs changes do not imply unsupported contract shifts.",
+      "Prefer precise docs updates that clarify behavior without implying unimplemented contract changes."
+    ],
+    "recommendation": {
+      "code": "likelySafe",
+      "label": "Likely safe",
+      "reason": "Only safe and informational findings remain for the selected compatibility profile."
+    },
+    "riskScore": 7,
+    "sdkImpactSummary": "No strong SDK regeneration signals were detected from the current findings.",
+    "securitySummary": "No auth or security contract changes were detected.",
+    "settings": {
+      "customRedactionRules": [],
+      "consumerProfile": "publicApi",
+      "exportFormats": [],
+      "failOnSeverities": [
+        "breaking"
+      ],
+      "ignoreRules": [],
+      "includeCategories": [
+        "docs",
+        "enum",
+        "metadata",
+        "operation",
+        "parameter",
+        "path",
+        "requestBody",
+        "response",
+        "schema",
+        "security"
+      ],
+      "includeInfoFindings": true,
+      "redactExamples": false,
+      "redactServerUrls": false,
+      "remoteRefPolicy": "localOnly",
+      "resolveLocalRefs": true,
+      "treatEnumAdditionsAsDangerous": false
+    },
+    "successState": {
+      "emphasis": "success",
+      "message": "Only safe and informational changes remain for the selected compatibility profile.",
+      "title": "No breaking changes found"
+    },
+    "summary": {
+      "byCategory": {
+        "docs": 2,
+        "operations": 0,
+        "parameters": 0,
+        "paths": 0,
+        "responses": 1,
+        "schemas": 0,
+        "security": 0
+      },
+      "bySeverity": {
+        "breaking": 0,
+        "dangerous": 0,
+        "info": 3,
+        "safe": 0
+      },
+      "ignoredFindings": 0,
+      "totalFindings": 3
+    },
+    "topReviewItems": [
+      {
+        "id": "docs.description.changed::/users::get::#/paths/~1users/get/description::",
+        "jsonPointer": "#/paths/~1users/get/description",
+        "message": "GET /users changed its description text.",
+        "method": "get",
+        "path": "/users",
+        "severity": "info",
+        "title": "GET /users: description changed"
+      },
+      {
+        "id": "docs.summary.changed::/users::get::#/paths/~1users/get/summary::",
+        "jsonPointer": "#/paths/~1users/get/summary",
+        "message": "GET /users changed its summary text.",
+        "method": "get",
+        "path": "/users",
+        "severity": "info",
+        "title": "GET /users: summary changed"
+      },
+      {
+        "id": "response.description.changed::/users::get::#/paths/~1users/get/responses/200/description::",
+        "jsonPointer": "#/paths/~1users/get/responses/200/description",
+        "message": "GET /users changed the description for the \"200\" response.",
+        "method": "get",
+        "path": "/users",
+        "severity": "info",
+        "title": "GET /users: response description changed"
+      }
+    ],
+    "warnings": []
+  }
+}

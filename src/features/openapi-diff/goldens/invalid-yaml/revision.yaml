@@ -1,0 +1,10 @@
+openapi: 3.1.0
+info
+  title: Invalid YAML API
+  version: 1.1.0
+paths:
+  /users:
+    get:
+      responses:
+        "200":
+          description: ok

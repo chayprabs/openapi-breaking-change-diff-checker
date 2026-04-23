@@ -1,0 +1,236 @@
+{
+  "ok": true,
+  "validationSource": "scalar",
+  "warnings": [],
+  "report": {
+    "affectedEndpoints": [
+      {
+        "findingCount": 1,
+        "highestSeverity": "breaking",
+        "key": "/legacy/reports::",
+        "method": null,
+        "path": "/legacy/reports",
+        "ruleIds": [
+          "path.removed"
+        ]
+      },
+      {
+        "findingCount": 1,
+        "highestSeverity": "breaking",
+        "key": "/legacy/reports::get",
+        "method": "get",
+        "path": "/legacy/reports",
+        "ruleIds": [
+          "operation.removed"
+        ]
+      }
+    ],
+    "affectedSchemas": [],
+    "baseline": {
+      "byteCount": 197,
+      "componentsOnly": false,
+      "externalRefCount": 0,
+      "input": {
+        "format": "yaml",
+        "id": "base",
+        "label": "Base spec",
+        "source": "sample",
+        "filename": "removed-endpoint.base.yaml"
+      },
+      "lineCount": 12,
+      "localRefCount": 0,
+      "pathCount": 1,
+      "schemaCount": 0,
+      "unresolvedRefs": [],
+      "validationSource": "scalar",
+      "version": {
+        "family": "openapi-3.1.x",
+        "label": "OpenAPI 3.1.0 detected",
+        "raw": "3.1.0",
+        "sourceField": "openapi",
+        "supported": true
+      },
+      "warnings": []
+    },
+    "candidate": {
+      "byteCount": 78,
+      "componentsOnly": false,
+      "externalRefCount": 0,
+      "input": {
+        "format": "yaml",
+        "id": "revision",
+        "label": "Revision spec",
+        "source": "sample",
+        "filename": "removed-endpoint.revision.yaml"
+      },
+      "lineCount": 6,
+      "localRefCount": 0,
+      "pathCount": 0,
+      "schemaCount": 0,
+      "unresolvedRefs": [],
+      "validationSource": "scalar",
+      "version": {
+        "family": "openapi-3.1.x",
+        "label": "OpenAPI 3.1.0 detected",
+        "raw": "3.1.0",
+        "sourceField": "openapi",
+        "supported": true
+      },
+      "warnings": []
+    },
+    "executiveSummary": "This comparison found 2 breaking and 0 dangerous changes across 2 affected endpoints and 0 affected schemas. Existing consumers can fail without coordination, so the recommendation is to block release.",
+    "findings": [
+      {
+        "afterValue": null,
+        "baseSeverity": "breaking",
+        "beforeValue": {
+          "methods": [
+            "get"
+          ],
+          "path": "/legacy/reports"
+        },
+        "category": "path",
+        "evidence": {
+          "base": {
+            "jsonPointer": "#/paths/~1legacy~1reports",
+            "node": {
+              "originPath": "#/paths/~1legacy~1reports",
+              "refChain": [],
+              "sourcePath": "#/paths/~1legacy~1reports"
+            }
+          }
+        },
+        "id": "path.removed::/legacy/reports::::#/paths/~1legacy~1reports::",
+        "jsonPointer": "#/paths/~1legacy~1reports",
+        "message": "Path \"/legacy/reports\" is present in the base spec but not in the revision spec.",
+        "method": null,
+        "path": "/legacy/reports",
+        "ruleId": "path.removed",
+        "severity": "breaking",
+        "severityReason": "All profiles keep this at breaking because existing clients can fail immediately when this newly required behavior is rolled out.",
+        "title": "Path removed: /legacy/reports",
+        "whyItMatters": "Clients that still call the removed URL will lose functionality or receive hard failures after deployment.",
+        "saferAlternative": "Keep the old path available during a deprecation window or introduce a versioned replacement before removal."
+      },
+      {
+        "afterValue": null,
+        "baseSeverity": "breaking",
+        "beforeValue": {
+          "deprecated": false,
+          "description": null,
+          "method": "get",
+          "operationId": "getLegacyReports",
+          "path": "/legacy/reports",
+          "security": [],
+          "summary": null,
+          "tags": []
+        },
+        "category": "operation",
+        "evidence": {
+          "base": {
+            "jsonPointer": "#/paths/~1legacy~1reports/get",
+            "node": {
+              "originPath": "#/paths/~1legacy~1reports/get",
+              "refChain": [],
+              "sourcePath": "#/paths/~1legacy~1reports/get"
+            }
+          }
+        },
+        "id": "operation.removed::/legacy/reports::get::#/paths/~1legacy~1reports/get::",
+        "jsonPointer": "#/paths/~1legacy~1reports/get",
+        "message": "GET /legacy/reports is present in the base spec but not in the revision spec.",
+        "method": "get",
+        "operationDeprecated": false,
+        "path": "/legacy/reports",
+        "ruleId": "operation.removed",
+        "severity": "breaking",
+        "severityReason": "All profiles keep this at breaking because existing clients can fail immediately when this newly required behavior is rolled out.",
+        "title": "GET /legacy/reports: operation removed",
+        "whyItMatters": "Consumers can keep resolving the path but still fail because the expected method is no longer implemented.",
+        "operationId": "getLegacyReports",
+        "saferAlternative": "Deprecate the operation first and ship an explicit replacement route or method before removal."
+      }
+    ],
+    "generatedAt": "2026-04-23T00:00:00.000Z",
+    "migrationNotes": [
+      "Deprecate the operation first and ship an explicit replacement route or method before removal.",
+      "Keep the old path available during a deprecation window or introduce a versioned replacement before removal."
+    ],
+    "recommendation": {
+      "code": "blockRelease",
+      "label": "Block release",
+      "reason": "2 breaking findings can fail existing consumers or integrations immediately."
+    },
+    "riskScore": 78,
+    "sdkImpactSummary": "No strong SDK regeneration signals were detected from the current findings.",
+    "securitySummary": "No auth or security contract changes were detected.",
+    "settings": {
+      "customRedactionRules": [],
+      "consumerProfile": "publicApi",
+      "exportFormats": [],
+      "failOnSeverities": [
+        "breaking"
+      ],
+      "ignoreRules": [],
+      "includeCategories": [
+        "docs",
+        "enum",
+        "metadata",
+        "operation",
+        "parameter",
+        "path",
+        "requestBody",
+        "response",
+        "schema",
+        "security"
+      ],
+      "includeInfoFindings": true,
+      "redactExamples": false,
+      "redactServerUrls": false,
+      "remoteRefPolicy": "localOnly",
+      "resolveLocalRefs": true,
+      "treatEnumAdditionsAsDangerous": false
+    },
+    "successState": null,
+    "summary": {
+      "byCategory": {
+        "docs": 0,
+        "operations": 1,
+        "parameters": 0,
+        "paths": 1,
+        "responses": 0,
+        "schemas": 0,
+        "security": 0
+      },
+      "bySeverity": {
+        "breaking": 2,
+        "dangerous": 0,
+        "info": 0,
+        "safe": 0
+      },
+      "ignoredFindings": 0,
+      "totalFindings": 2
+    },
+    "topReviewItems": [
+      {
+        "id": "path.removed::/legacy/reports::::#/paths/~1legacy~1reports::",
+        "jsonPointer": "#/paths/~1legacy~1reports",
+        "message": "Path \"/legacy/reports\" is present in the base spec but not in the revision spec.",
+        "method": null,
+        "path": "/legacy/reports",
+        "severity": "breaking",
+        "title": "Path removed: /legacy/reports"
+      },
+      {
+        "id": "operation.removed::/legacy/reports::get::#/paths/~1legacy~1reports/get::",
+        "jsonPointer": "#/paths/~1legacy~1reports/get",
+        "message": "GET /legacy/reports is present in the base spec but not in the revision spec.",
+        "method": "get",
+        "path": "/legacy/reports",
+        "severity": "breaking",
+        "title": "GET /legacy/reports: operation removed"
+      }
+    ],
+    "warnings": []
+  }
+}

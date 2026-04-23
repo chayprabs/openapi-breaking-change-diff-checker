@@ -331,7 +331,7 @@ export function createReportHtml(
     <title>OpenAPI Diff Report</title>
     <style>
       :root {
-        color-scheme: light;
+        color-scheme: light dark;
         font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
       }
       body {
@@ -394,6 +394,41 @@ export function createReportHtml(
       }
       code {
         font-family: "IBM Plex Mono", "SFMono-Regular", monospace;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          color-scheme: dark;
+        }
+        body {
+          background: #0b1117;
+          color: #edf2f7;
+        }
+        .panel {
+          background: #101923;
+          border-color: #2f4257;
+        }
+        .summary-item {
+          background: #162231;
+          border-color: #2f4257;
+        }
+        table {
+          color: #edf2f7;
+        }
+        th,
+        td {
+          border-bottom-color: #2f4257;
+        }
+        th {
+          background: #162231;
+        }
+      }
+      @media (max-width: 720px) {
+        body {
+          padding: 20px 12px 32px;
+        }
+        .summary-grid {
+          grid-template-columns: 1fr;
+        }
       }
     </style>
   </head>

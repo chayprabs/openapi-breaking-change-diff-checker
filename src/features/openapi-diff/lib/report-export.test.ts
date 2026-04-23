@@ -230,6 +230,8 @@ describe("report export bundle", () => {
 
     expect(html).toContain("@media print");
     expect(html).toContain('<details class="finding" open>');
+    expect(html).toContain('http-equiv="Content-Security-Policy"');
+    expect(html).toContain('name="referrer" content="no-referrer"');
     expect(html).toContain("&lt;script&gt;alert(&#39;xss&#39;)&lt;/script&gt;");
     expect(html).toContain("&lt;b&gt;Response removed&lt;/b&gt;");
     expect(html).not.toContain("<script>alert('xss')</script>");

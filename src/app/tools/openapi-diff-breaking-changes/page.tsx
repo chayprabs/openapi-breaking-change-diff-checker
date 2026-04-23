@@ -33,7 +33,10 @@ export const metadata = buildPageMetadata({
 });
 
 export default function OpenApiDiffBreakingChangesPage() {
-  const structuredData = JSON.stringify(buildOpenApiDiffStructuredData());
+  const structuredData = JSON.stringify(buildOpenApiDiffStructuredData())
+    .replaceAll("<", "\\u003c")
+    .replaceAll(">", "\\u003e")
+    .replaceAll("&", "\\u0026");
 
   return (
     <>
@@ -272,7 +275,7 @@ export default function OpenApiDiffBreakingChangesPage() {
               ))}
             </div>
             <p className="text-muted text-sm leading-7">
-              For the full site-wide placeholder policy, see the{" "}
+              For the full site-wide privacy model, see the{" "}
               <Link href="/privacy" className="underline underline-offset-4">
                 privacy page
               </Link>
@@ -305,8 +308,8 @@ export default function OpenApiDiffBreakingChangesPage() {
         <div id="related-tools">
           <Section
             eyebrow="Related tools"
-            title="More compatibility workflows planned for this category"
-            description="OpenAPI Diff is the first live tool, but the surrounding API-and-schema category is meant to grow into a broader compatibility review workspace."
+            title="More compatibility workflows on the roadmap"
+            description="OpenAPI Diff is the first live tool, and the surrounding API-and-schema category is designed to grow into a broader compatibility review workspace over time."
           >
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
               {relatedCompatibilityToolPlaceholders.map((tool) => (
@@ -316,7 +319,7 @@ export default function OpenApiDiffBreakingChangesPage() {
                   className="border-line bg-panel rounded-[1.75rem] border p-6 shadow-[var(--shadow-card)] transition-transform hover:-translate-y-0.5"
                 >
                   <div className="flex flex-wrap items-center gap-2">
-                    <Badge variant="info">Placeholder</Badge>
+                    <Badge variant="info">Roadmap</Badge>
                     <span className="text-muted font-mono text-xs tracking-[0.18em] uppercase">
                       API and Schema
                     </span>
@@ -331,7 +334,7 @@ export default function OpenApiDiffBreakingChangesPage() {
               <Link href="/tools/api-and-schema" className="underline underline-offset-4">
                 API and Schema tools category
               </Link>{" "}
-              to see where these placeholders fit beside the live OpenAPI diff workflow.
+              to see where these roadmap items fit beside the live OpenAPI diff workflow.
             </p>
           </Section>
         </div>

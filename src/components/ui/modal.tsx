@@ -1,8 +1,9 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useEffect, useId, useRef } from "react";
+import { useId, useRef } from "react";
 import { Button } from "@/components/ui/button";
+import { useOverlayFocus } from "@/components/ui/use-overlay-focus";
 import { cn } from "@/lib/cn";
 
 type ModalProps = {
@@ -27,29 +28,11 @@ export function Modal({
   const titleId = useId();
   const descriptionId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    panelRef.current?.focus();
-
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        onOpenChange(false);
-      }
-    };
-
-    window.addEventListener("keydown", handleEscape);
-
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      window.removeEventListener("keydown", handleEscape);
-    };
-  }, [onOpenChange, open]);
+  useOverlayFocus({
+    containerRef: panelRef,
+    onClose: () => onOpenChange(false),
+    open,
+  });
 
   if (!open) {
     return null;

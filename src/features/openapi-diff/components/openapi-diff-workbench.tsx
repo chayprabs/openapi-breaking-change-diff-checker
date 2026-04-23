@@ -11,6 +11,7 @@ import {
 import CodeMirror from "@uiw/react-codemirror";
 import type { ChangeEvent, DragEvent } from "react";
 import {
+  memo,
   useCallback,
   useDeferredValue,
   useEffect,
@@ -31,6 +32,7 @@ import { KeyboardShortcut } from "@/components/ui/keyboard-shortcut";
 import { ProgressSteps, type ProgressStep } from "@/components/ui/progress-steps";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/components/ui/toast";
+import { OpenApiDiffFeedbackButton } from "@/features/openapi-diff/components/openapi-diff-feedback-button";
 import { OpenApiDiffPrivacyDrawer } from "@/features/openapi-diff/components/openapi-diff-privacy-drawer";
 import { OpenApiDiffReportExplorer } from "@/features/openapi-diff/components/openapi-diff-report-explorer";
 import { OpenApiDiffSettingsDrawer } from "@/features/openapi-diff/components/openapi-diff-settings-drawer";
@@ -68,6 +70,12 @@ import {
   PublicSpecFetchError,
   validatePublicSpecUrl,
 } from "@/features/openapi-diff/lib/public-spec-url";
+import {
+  createAnalysisCompletedEvent,
+  createAnalysisStartedEvent,
+  createRedactionUsedEvent,
+  createSampleLoadedEvent,
+} from "@/features/openapi-diff/lib/privacy-safe-analytics";
 import { redactTextSources } from "@/features/openapi-diff/lib/redaction";
 import {
   createTooManyFindingsWarning,
@@ -93,6 +101,7 @@ import {
   SPEC_SIZE_WARNING_BYTES,
 } from "@/features/openapi-diff/lib/workspace";
 import { analysisProgressLabels } from "@/features/openapi-diff/types";
+import { useAnalytics } from "@/lib/analytics";
 import type {
   AnalysisSettings,
   ConsumerProfile,
@@ -109,6 +118,7 @@ import type {
 type WorkspaceSettings = {
   activeMobileTab: WorkspaceMobileTab;
   analysisSettings: AnalysisSettings;
+  autoRunAnalysis: boolean;
   rememberEditorContents: boolean;
   reportExplorerUiState: ReportExplorerUiState;
   selectedSampleId: WorkspaceSampleId | null;
@@ -125,6 +135,7 @@ type WorkspaceShareState = {
 type WorkspaceStateSnapshot = {
   activeMobileTab: WorkspaceMobileTab;
   analysisSettings: AnalysisSettings;
+  autoRunAnalysis: boolean;
   rememberEditorContents: boolean;
   reportExplorerUiState: ReportExplorerUiState;
   selectedSampleId: WorkspaceSampleId | null;
@@ -166,10 +177,13 @@ type WorkspaceEditorPanelProps = {
 type WorkspaceResultsPanelProps = {
   activeMobileTab: WorkspaceMobileTab;
   analysisState: AnalysisWorkerState;
+  autoRunAnalysis: boolean;
   baseSpec: SpecInput;
   editorStates: Record<WorkspacePanelId, EditorWorkerState>;
+  largeWorkspaceFallbackActive: boolean;
   onAddIgnoreRule: (ignoreRule: AnalysisSettings["ignoreRules"][number]) => void;
   onAnalyze: () => void;
+  onCancelAnalyze: () => void;
   onReportExplorerUiStateChange: (uiState: ReportExplorerUiState) => void;
   onRemoveIgnoreRule: (ignoreRuleId: string) => void;
   progress: WorkerProgressState;
@@ -183,6 +197,7 @@ type WorkspaceResultsPanelProps = {
 const DEFAULT_SETTINGS: WorkspaceSettings = {
   activeMobileTab: "base",
   analysisSettings: createAnalysisSettings(),
+  autoRunAnalysis: false,
   rememberEditorContents: false,
   reportExplorerUiState: createDefaultReportExplorerUiState(),
   selectedSampleId: null,
@@ -625,6 +640,7 @@ function readStoredWorkspaceSettings(): WorkspaceSettings {
           ? ((parsed as { consumerProfile?: ConsumerProfile }).consumerProfile as ConsumerProfile)
           : undefined,
       ),
+      autoRunAnalysis: parsed.autoRunAnalysis === true,
       rememberEditorContents,
       reportExplorerUiState: parseReportExplorerUiState(parsed.reportExplorerUiState),
       selectedSampleId,
@@ -652,6 +668,7 @@ function createInitialWorkspaceState(): WorkspaceStateSnapshot {
     return {
       activeMobileTab: "results",
       analysisSettings: shareState.analysisSettings ?? settings.analysisSettings,
+      autoRunAnalysis: settings.autoRunAnalysis,
       rememberEditorContents: settings.rememberEditorContents,
       reportExplorerUiState:
         shareState.reportExplorerUiState ?? settings.reportExplorerUiState,
@@ -673,6 +690,7 @@ function createInitialWorkspaceState(): WorkspaceStateSnapshot {
     activeMobileTab:
       shareState.sharedActiveMobileTab ?? settings.activeMobileTab,
     analysisSettings: shareState.analysisSettings ?? settings.analysisSettings,
+    autoRunAnalysis: settings.autoRunAnalysis,
     rememberEditorContents: settings.rememberEditorContents,
     reportExplorerUiState:
       shareState.reportExplorerUiState ?? settings.reportExplorerUiState,
@@ -757,6 +775,31 @@ function dedupeIssues<T extends SpecParserIssue>(issues: T[]) {
   });
 }
 
+function areIssuesEqual(
+  previous: readonly SpecParserIssue[],
+  next: readonly SpecParserIssue[],
+) {
+  if (previous.length !== next.length) {
+    return false;
+  }
+
+  return previous.every((issue, index) => {
+    const nextIssue = next[index];
+
+    if (!nextIssue) {
+      return false;
+    }
+
+    return (
+      issue.code === nextIssue.code &&
+      issue.message === nextIssue.message &&
+      issue.editorId === nextIssue.editorId &&
+      issue.line === nextIssue.line &&
+      issue.column === nextIssue.column
+    );
+  });
+}
+
 function formatIssueLocation(issue: SpecParserIssue) {
   if (issue.line && issue.column) {
     return `Line ${issue.line}, column ${issue.column}`;
@@ -836,6 +879,10 @@ function getWorkerStatusLabel(
 ) {
   if (analysisState.status === "running") {
     return progress?.action === "analyze" ? progress.label : "Parsing base spec";
+  }
+
+  if (analysisState.status === "cancelled") {
+    return "Cancelled";
   }
 
   if (editorStates.base.status === "running") {
@@ -1043,7 +1090,43 @@ function renderStringList(values: readonly string[]) {
   );
 }
 
-function WorkspaceEditorPanel({
+function formatDuration(durationMs: number) {
+  if (durationMs >= 1000) {
+    return `${(durationMs / 1000).toFixed(2)} s`;
+  }
+
+  return `${Math.round(durationMs)} ms`;
+}
+
+function getAutoParseDelayMs(byteCount: number) {
+  if (byteCount > SPEC_SIZE_WARNING_BYTES) {
+    return 900;
+  }
+
+  if (byteCount > SPEC_SIZE_WARNING_BYTES / 2) {
+    return 500;
+  }
+
+  return 250;
+}
+
+function getAutoRunDebounceMs(largestSpecByteCount: number) {
+  if (largestSpecByteCount > SPEC_SIZE_WARNING_BYTES / 2) {
+    return 1600;
+  }
+
+  return 900;
+}
+
+function shouldUseLargeWorkspaceFallback(baseBytes: number, revisionBytes: number) {
+  return (
+    baseBytes > SPEC_SIZE_WARNING_BYTES ||
+    revisionBytes > SPEC_SIZE_WARNING_BYTES ||
+    baseBytes + revisionBytes > SPEC_SIZE_WARNING_BYTES * 1.5
+  );
+}
+
+const WorkspaceEditorPanel = memo(function WorkspaceEditorPanel({
   errors,
   label,
   onClear,
@@ -1299,15 +1382,43 @@ function WorkspaceEditorPanel({
       </CardContent>
     </Card>
   );
+}, areWorkspaceEditorPanelPropsEqual);
+
+function areWorkspaceEditorPanelPropsEqual(
+  previous: WorkspaceEditorPanelProps,
+  next: WorkspaceEditorPanelProps,
+) {
+  return (
+    previous.label === next.label &&
+    previous.panelId === next.panelId &&
+    previous.placeholder === next.placeholder &&
+    previous.readClipboardSupported === next.readClipboardSupported &&
+    previous.sizeWarning === next.sizeWarning &&
+    previous.spec.content === next.spec.content &&
+    previous.spec.filename === next.spec.filename &&
+    previous.spec.format === next.spec.format &&
+    previous.spec.source === next.spec.source &&
+    previous.spec.url === next.spec.url &&
+    previous.urlImportState.channel === next.urlImportState.channel &&
+    previous.urlImportState.finalUrl === next.urlImportState.finalUrl &&
+    previous.urlImportState.isLoading === next.urlImportState.isLoading &&
+    previous.urlImportState.redirected === next.urlImportState.redirected &&
+    previous.urlImportState.requestedUrl === next.urlImportState.requestedUrl &&
+    areIssuesEqual(previous.errors, next.errors) &&
+    areIssuesEqual(previous.warnings, next.warnings)
+  );
 }
 
 function WorkspaceResultsPanel({
   activeMobileTab,
   analysisState,
+  autoRunAnalysis,
   baseSpec,
   editorStates,
+  largeWorkspaceFallbackActive,
   onAddIgnoreRule,
   onAnalyze,
+  onCancelAnalyze,
   onReportExplorerUiStateChange,
   onRemoveIgnoreRule,
   progress,
@@ -1393,6 +1504,14 @@ function WorkspaceResultsPanel({
           </Alert>
         ) : null}
 
+        {largeWorkspaceFallbackActive ? (
+          <Alert title="Large-spec browser fallback" variant="warning">
+            The current inputs are large enough that the browser stays on lightweight validation,
+            pauses auto-run, and progressively renders result lists to keep the workspace
+            responsive.
+          </Alert>
+        ) : null}
+
         {analysisState.status === "running" ? (
           <Alert title={analysisProgressLabel} variant="info">
             <div className="space-y-4">
@@ -1401,7 +1520,19 @@ function WorkspaceResultsPanel({
                 keep editing while it runs.
               </p>
               <ProgressSteps steps={analysisSteps} />
+              <div className="flex flex-wrap gap-3">
+                <Button onClick={onCancelAnalyze} variant="secondary">
+                  Cancel analysis
+                </Button>
+              </div>
             </div>
+          </Alert>
+        ) : null}
+
+        {analysisState.status === "cancelled" ? (
+          <Alert title="Analysis cancelled" variant="info">
+            The in-flight worker run was cancelled. Previous successful results stay visible until
+            you run the comparison again.
           </Alert>
         ) : null}
 
@@ -1468,6 +1599,13 @@ function WorkspaceResultsPanel({
           />
         </div>
 
+        <div className="text-muted flex flex-wrap items-center gap-3 text-sm">
+          <span>Auto-run: {autoRunAnalysis ? "Enabled" : "Disabled"}</span>
+          <span>
+            Results view: {activeMobileTab === "results" ? "Open" : "Available in Results tab"}
+          </span>
+        </div>
+
         {analysisState.result ? (
           <>
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -1500,6 +1638,39 @@ function WorkspaceResultsPanel({
                 value={analysisState.result.summary.totalUnresolvedRefs}
               />
             </div>
+
+            <Card>
+              <CardHeader className="space-y-3">
+                <CardTitle className="text-base">Worker timings</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                  {[
+                    ["Parse base", analysisState.result.performance.parseBaseMs],
+                    ["Parse revision", analysisState.result.performance.parseRevisionMs],
+                    ["Validate", analysisState.result.performance.validationMs],
+                    ["Normalize", analysisState.result.performance.normalizeMs],
+                    ["Diff", analysisState.result.performance.diffMs],
+                    ["Classify", analysisState.result.performance.classifyMs],
+                    ["Build report", analysisState.result.performance.reportMs],
+                    ["Resolve refs", analysisState.result.performance.refResolutionMs],
+                    ["Total", analysisState.result.performance.totalMs],
+                  ].map(([label, durationMs]) => (
+                    <div
+                      key={label}
+                      className="border-line bg-panel-muted rounded-2xl border p-4"
+                    >
+                      <p className="text-xs font-semibold tracking-[0.18em] text-muted uppercase">
+                        {label}
+                      </p>
+                      <p className="mt-2 text-2xl font-semibold">
+                        {formatDuration(durationMs as number)}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
 
             {report ? (
               <div className="space-y-6">
@@ -1539,9 +1710,14 @@ function WorkspaceResultsPanel({
         )}
 
         <div className="flex flex-wrap items-center gap-3">
-          <Button onClick={onAnalyze} variant="secondary">
+          <Button disabled={analysisState.status === "running"} onClick={onAnalyze} variant="secondary">
             {analysisState.status === "running" ? "Analyzing..." : "Analyze specs"}
           </Button>
+          {analysisState.status === "running" ? (
+            <Button onClick={onCancelAnalyze} variant="outline">
+              Cancel
+            </Button>
+          ) : null}
           <span className="text-muted text-sm">
             Previous successful results stay visible if a newer edit introduces parse errors.
           </span>
@@ -1600,6 +1776,7 @@ function SharedReportReadOnlyPanel({
 }
 
 export function OpenApiDiffWorkbench() {
+  const analytics = useAnalytics();
   const { notify } = useToast();
   const initialState = useMemo(() => createInitialWorkspaceState(), []);
   const workspaceShareState = initialState.shareState;
@@ -1613,6 +1790,7 @@ export function OpenApiDiffWorkbench() {
   const [analysisSettingsState, setAnalysisSettingsState] = useState<AnalysisSettings>(
     () => initialState.analysisSettings,
   );
+  const [autoRunAnalysis, setAutoRunAnalysis] = useState(() => initialState.autoRunAnalysis);
   const [rememberEditorContents, setRememberEditorContents] = useState(
     () => initialState.rememberEditorContents,
   );
@@ -1636,6 +1814,7 @@ export function OpenApiDiffWorkbench() {
   });
   const {
     analysisState,
+    cancelAnalyze,
     clearAllStates,
     clearEditorState,
     editorStates,
@@ -1668,6 +1847,62 @@ export function OpenApiDiffWorkbench() {
     () => serializeAnalysisSettings(analysisSettings),
     [analysisSettings],
   );
+  const lastAnalyzedInputKeyRef = useRef<string | null>(null);
+  const lastTrackedAnalysisIdRef = useRef<string | null>(null);
+  const analysisInputKey = useMemo(
+    () =>
+      JSON.stringify({
+        analysisSettings: settingsJson,
+        baseContent: workspaceSpecs.base.content,
+        baseFilename: workspaceSpecs.base.filename ?? "",
+        revisionContent: workspaceSpecs.revision.content,
+        revisionFilename: workspaceSpecs.revision.filename ?? "",
+      }),
+    [
+      settingsJson,
+      workspaceSpecs.base.content,
+      workspaceSpecs.base.filename,
+      workspaceSpecs.revision.content,
+      workspaceSpecs.revision.filename,
+    ],
+  );
+  const baseSpecBytes = useMemo(
+    () => getSpecContentBytes(workspaceSpecs.base.content),
+    [workspaceSpecs.base.content],
+  );
+  const revisionSpecBytes = useMemo(
+    () => getSpecContentBytes(workspaceSpecs.revision.content),
+    [workspaceSpecs.revision.content],
+  );
+  const largestSpecBytes = Math.max(baseSpecBytes, revisionSpecBytes);
+  const combinedSpecBytes = baseSpecBytes + revisionSpecBytes;
+  const largeWorkspaceFallbackActive = shouldUseLargeWorkspaceFallback(
+    baseSpecBytes,
+    revisionSpecBytes,
+  );
+  const analysisAnnouncement = useMemo(() => {
+    if (analysisState.status === "running" && progress?.action === "analyze") {
+      return `${progress.label}. Analysis is running in the background.`;
+    }
+
+    if (analysisState.status === "success" && displayReport) {
+      return `Analysis complete. ${displayReport.summary.totalFindings} active findings and ${displayReport.summary.ignoredFindings} ignored findings are ready to review.`;
+    }
+
+    if (analysisState.status === "cancelled") {
+      return "Analysis canceled. Previous successful results remain available.";
+    }
+
+    if (analysisState.status === "error") {
+      const firstError = analysisState.errors[0];
+
+      return firstError
+        ? `Analysis failed. ${formatIssueMessage(firstError)}`
+        : "Analysis failed. Fix the editor errors and try again.";
+    }
+
+    return "";
+  }, [analysisState.errors, analysisState.status, displayReport, progress]);
   const privacyInspection = useMemo(() => {
     if (!isPrivacyDrawerOpen) {
       return EMPTY_REDACTION_RESULT;
@@ -1705,6 +1940,8 @@ export function OpenApiDiffWorkbench() {
     workspaceSpecs.base.content,
     workspaceSpecs.revision.content,
   ]);
+  const detectedSecretsInWorkspace =
+    privacyInspection.detectedSecrets || Boolean(displayReport?.redaction?.detectedSecrets);
 
   const updateAnalysisSettings = useCallback(
     (
@@ -1722,6 +1959,62 @@ export function OpenApiDiffWorkbench() {
       });
     },
     [],
+  );
+
+  const handleSetRedactExamples = useCallback(
+    (enabled: boolean) => {
+      updateAnalysisSettings((current) => ({
+        ...current,
+        redactExamples: enabled,
+      }));
+
+      if (enabled) {
+        analytics.track(
+          createRedactionUsedEvent({
+            customRuleCount: analysisSettings.customRedactionRules.length,
+            detectedSecrets: detectedSecretsInWorkspace,
+            redactExamples: true,
+            redactServerUrls: analysisSettings.redactServerUrls,
+            scope: "analysis_settings",
+          }),
+        );
+      }
+    },
+    [
+      analysisSettings.customRedactionRules.length,
+      analysisSettings.redactServerUrls,
+      analytics,
+      detectedSecretsInWorkspace,
+      updateAnalysisSettings,
+    ],
+  );
+
+  const handleSetRedactServerUrls = useCallback(
+    (enabled: boolean) => {
+      updateAnalysisSettings((current) => ({
+        ...current,
+        redactServerUrls: enabled,
+      }));
+
+      if (enabled) {
+        analytics.track(
+          createRedactionUsedEvent({
+            customRuleCount: analysisSettings.customRedactionRules.length,
+            detectedSecrets: detectedSecretsInWorkspace,
+            redactExamples: analysisSettings.redactExamples,
+            redactServerUrls: true,
+            scope: "analysis_settings",
+          }),
+        );
+      }
+    },
+    [
+      analysisSettings.customRedactionRules.length,
+      analysisSettings.redactExamples,
+      analytics,
+      detectedSecretsInWorkspace,
+      updateAnalysisSettings,
+    ],
   );
 
   const handleReportExplorerUiStateChange = useCallback((uiState: ReportExplorerUiState) => {
@@ -1840,8 +2133,29 @@ export function OpenApiDiffWorkbench() {
         title: "Custom redaction rule added",
         variant: "success",
       });
+      analytics.track(
+        createRedactionUsedEvent({
+          customRuleCount: analysisSettings.customRedactionRules.some(
+            (entry) => entry.id === rule.id,
+          )
+            ? analysisSettings.customRedactionRules.length
+            : analysisSettings.customRedactionRules.length + 1,
+          detectedSecrets: detectedSecretsInWorkspace,
+          redactExamples: analysisSettings.redactExamples,
+          redactServerUrls: analysisSettings.redactServerUrls,
+          scope: "custom_rule",
+        }),
+      );
     },
-    [notify, updateAnalysisSettings],
+    [
+      analysisSettings.customRedactionRules,
+      analysisSettings.redactExamples,
+      analysisSettings.redactServerUrls,
+      analytics,
+      detectedSecretsInWorkspace,
+      notify,
+      updateAnalysisSettings,
+    ],
   );
 
   const handleRemoveCustomRedactionRule = useCallback(
@@ -1942,8 +2256,9 @@ export function OpenApiDiffWorkbench() {
         title: "Sample loaded",
         variant: "success",
       });
+      analytics.track(createSampleLoadedEvent(sampleId));
     },
-    [clearAllStates, notify],
+    [analytics, clearAllStates, notify],
   );
 
   const clearPanel = useCallback(
@@ -1962,6 +2277,10 @@ export function OpenApiDiffWorkbench() {
   );
 
   const handleAnalyze = useCallback(() => {
+    if (analysisState.status === "running") {
+      return;
+    }
+
     const missingPanels = getMissingSpecPanels(
       workspaceSpecs.base,
       workspaceSpecs.revision,
@@ -1979,12 +2298,31 @@ export function OpenApiDiffWorkbench() {
 
     clearClientPanelErrors("base");
     clearClientPanelErrors("revision");
+    lastAnalyzedInputKeyRef.current = analysisInputKey;
+    analytics.track(
+      createAnalysisStartedEvent({
+        autoRunAnalysis,
+        baseSpec: workspaceSpecs.base,
+        combinedBytes: combinedSpecBytes,
+        largeWorkspaceFallbackActive,
+        largestSpecBytes,
+        revisionSpec: workspaceSpecs.revision,
+        settings: analysisSettings,
+      }),
+    );
     requestAnalyze(workspaceSpecs.base, workspaceSpecs.revision, analysisSettings);
     setActiveMobileTab("results");
   }, [
+    analysisInputKey,
     analysisSettings,
     analysisState.result,
+    analysisState.status,
+    analytics,
+    autoRunAnalysis,
     clearClientPanelErrors,
+    combinedSpecBytes,
+    largeWorkspaceFallbackActive,
+    largestSpecBytes,
     notify,
     requestAnalyze,
     workspaceSpecs.base,
@@ -1996,6 +2334,33 @@ export function OpenApiDiffWorkbench() {
   });
 
   useEffect(() => {
+    if (analysisState.status !== "success" || !analysisState.result) {
+      return;
+    }
+
+    if (lastTrackedAnalysisIdRef.current === analysisState.result.generatedAt) {
+      return;
+    }
+
+    lastTrackedAnalysisIdRef.current = analysisState.result.generatedAt;
+    analytics.track(
+      createAnalysisCompletedEvent({
+        autoRunAnalysis,
+        combinedBytes: combinedSpecBytes,
+        largeWorkspaceFallbackActive,
+        result: analysisState.result,
+      }),
+    );
+  }, [
+    analysisState.result,
+    analysisState.status,
+    analytics,
+    autoRunAnalysis,
+    combinedSpecBytes,
+    largeWorkspaceFallbackActive,
+  ]);
+
+  useEffect(() => {
     if (typeof window === "undefined" || isReadOnlySharedReport) {
       return;
     }
@@ -2003,6 +2368,7 @@ export function OpenApiDiffWorkbench() {
     const shouldPersistSettings =
       activeMobileTab !== DEFAULT_SETTINGS.activeMobileTab ||
       selectedSampleId !== DEFAULT_SETTINGS.selectedSampleId ||
+      autoRunAnalysis !== DEFAULT_SETTINGS.autoRunAnalysis ||
       rememberEditorContents ||
       serializeAnalysisSettings(analysisSettings) !==
         serializeAnalysisSettings(DEFAULT_SETTINGS.analysisSettings) ||
@@ -2019,6 +2385,7 @@ export function OpenApiDiffWorkbench() {
       JSON.stringify({
         activeMobileTab,
         analysisSettings,
+        autoRunAnalysis,
         rememberEditorContents,
         reportExplorerUiState,
         selectedSampleId,
@@ -2028,6 +2395,7 @@ export function OpenApiDiffWorkbench() {
   }, [
     activeMobileTab,
     analysisSettings,
+    autoRunAnalysis,
     isReadOnlySharedReport,
     rememberEditorContents,
     reportExplorerUiState,
@@ -2063,10 +2431,10 @@ export function OpenApiDiffWorkbench() {
 
     const timeoutId = window.setTimeout(() => {
       requestParse("base", workspaceSpecs.base);
-    }, 250);
+    }, getAutoParseDelayMs(baseSpecBytes));
 
     return () => window.clearTimeout(timeoutId);
-  }, [clearEditorState, isReadOnlySharedReport, requestParse, workspaceSpecs.base]);
+  }, [baseSpecBytes, clearEditorState, isReadOnlySharedReport, requestParse, workspaceSpecs.base]);
 
   useEffect(() => {
     if (isReadOnlySharedReport) {
@@ -2080,10 +2448,55 @@ export function OpenApiDiffWorkbench() {
 
     const timeoutId = window.setTimeout(() => {
       requestParse("revision", workspaceSpecs.revision);
-    }, 250);
+    }, getAutoParseDelayMs(revisionSpecBytes));
 
     return () => window.clearTimeout(timeoutId);
-  }, [clearEditorState, isReadOnlySharedReport, requestParse, workspaceSpecs.revision]);
+  }, [
+    clearEditorState,
+    isReadOnlySharedReport,
+    requestParse,
+    revisionSpecBytes,
+    workspaceSpecs.revision,
+  ]);
+
+  useEffect(() => {
+    if (
+      isReadOnlySharedReport ||
+      !autoRunAnalysis ||
+      analysisState.status === "running" ||
+      largeWorkspaceFallbackActive ||
+      !analysisInputKey ||
+      lastAnalyzedInputKeyRef.current === analysisInputKey ||
+      editorStates.base.status === "running" ||
+      editorStates.revision.status === "running" ||
+      Boolean(clientErrors.base?.length) ||
+      Boolean(clientErrors.revision?.length) ||
+      !workspaceSpecs.base.content.trim().length ||
+      !workspaceSpecs.revision.content.trim().length
+    ) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      lastAnalyzedInputKeyRef.current = analysisInputKey;
+      handleAnalyzeEvent();
+    }, getAutoRunDebounceMs(largestSpecBytes));
+
+    return () => window.clearTimeout(timeoutId);
+  }, [
+    analysisInputKey,
+    analysisState.status,
+    autoRunAnalysis,
+    clientErrors.base,
+    clientErrors.revision,
+    editorStates.base.status,
+    editorStates.revision.status,
+    isReadOnlySharedReport,
+    largeWorkspaceFallbackActive,
+    largestSpecBytes,
+    workspaceSpecs.base.content,
+    workspaceSpecs.revision.content,
+  ]);
 
   const handleSwapSpecs = useCallback(() => {
     setWorkspaceSpecs((current) => ({
@@ -2162,6 +2575,7 @@ export function OpenApiDiffWorkbench() {
       window.localStorage.removeItem(OPENAPI_WORKSPACE_SETTINGS_STORAGE_KEY);
     }
 
+    setAutoRunAnalysis(false);
     setRememberEditorContents(false);
     setWorkspaceSpecs({
       base: createEmptySpecInput("base"),
@@ -2388,12 +2802,12 @@ export function OpenApiDiffWorkbench() {
   );
 
   const baseWarning =
-    getSpecContentBytes(workspaceSpecs.base.content) > SPEC_SIZE_WARNING_BYTES
-      ? "This editor is holding more than 5 MB of content. The worker keeps parsing off the main thread, but validation may feel slower."
+    baseSpecBytes > SPEC_SIZE_WARNING_BYTES
+      ? "This editor is holding more than 5 MB of content. The worker keeps parsing off the main thread, auto-run pauses, and analysis falls back to lightweight validation to keep the browser responsive."
       : undefined;
   const revisionWarning =
-    getSpecContentBytes(workspaceSpecs.revision.content) > SPEC_SIZE_WARNING_BYTES
-      ? "This editor is holding more than 5 MB of content. The worker keeps parsing off the main thread, but validation may feel slower."
+    revisionSpecBytes > SPEC_SIZE_WARNING_BYTES
+      ? "This editor is holding more than 5 MB of content. The worker keeps parsing off the main thread, auto-run pauses, and analysis falls back to lightweight validation to keep the browser responsive."
       : undefined;
   const workerStatusLabel = getWorkerStatusLabel(progress, analysisState, editorStates);
   const activeIgnoreRules = analysisSettings.ignoreRules;
@@ -2453,34 +2867,35 @@ export function OpenApiDiffWorkbench() {
 
   return (
     <div className="space-y-6">
+      <h2 className="sr-only">OpenAPI diff workspace</h2>
+      <div
+        aria-atomic="true"
+        aria-live={analysisState.status === "error" ? "assertive" : "polite"}
+        className="sr-only"
+      >
+        {analysisAnnouncement}
+      </div>
+
       <OpenApiDiffPrivacyDrawer
         inspection={privacyInspection}
         onAddCustomRedactionRule={handleAddCustomRedactionRule}
         onOpenChange={setIsPrivacyDrawerOpen}
         onRemoveCustomRedactionRule={handleRemoveCustomRedactionRule}
-        onSetRedactExamples={(enabled) =>
-          updateAnalysisSettings((current) => ({
-            ...current,
-            redactExamples: enabled,
-          }))
-        }
-        onSetRedactServerUrls={(enabled) =>
-          updateAnalysisSettings((current) => ({
-            ...current,
-            redactServerUrls: enabled,
-          }))
-        }
+        onSetRedactExamples={handleSetRedactExamples}
+        onSetRedactServerUrls={handleSetRedactServerUrls}
         open={isPrivacyDrawerOpen}
         settings={analysisSettings}
       />
 
       <OpenApiDiffSettingsDrawer
+        autoRunAnalysis={autoRunAnalysis}
         onAddIgnoreRule={handleAddIgnoreRule}
         onImportSettingsJson={handleImportSettingsJson}
         onOpenChange={setIsSettingsDrawerOpen}
         onRemoveIgnoreRule={handleRemoveIgnoreRule}
         onClearLocalData={handleClearLocalData}
         onResetSettings={handleResetAnalysisSettings}
+        onSetAutoRunAnalysis={setAutoRunAnalysis}
         onSetRememberEditorContents={handleSetRememberEditorContents}
         onSetConsumerProfile={(nextProfile) =>
           updateAnalysisSettings((current) => ({
@@ -2534,6 +2949,7 @@ export function OpenApiDiffWorkbench() {
             <Button onClick={() => setIsPrivacyDrawerOpen(true)} variant="outline">
               Privacy
             </Button>
+            <OpenApiDiffFeedbackButton report={displayReport} />
             <Button onClick={() => setIsSettingsDrawerOpen(true)} variant="secondary">
               Settings
             </Button>
@@ -2543,8 +2959,14 @@ export function OpenApiDiffWorkbench() {
             <Button onClick={handleClearAll} variant="ghost">
               Clear all
             </Button>
+            {analysisState.status === "running" ? (
+              <Button onClick={cancelAnalyze} variant="outline">
+                Cancel analysis
+              </Button>
+            ) : null}
             <Button
               disabled={analysisState.status === "running"}
+              data-testid="analyze-specs-button"
               onClick={handleAnalyze}
             >
               {analysisState.status === "running" ? "Analyzing..." : "Analyze specs"}
@@ -2557,6 +2979,7 @@ export function OpenApiDiffWorkbench() {
           <select
             aria-label="Load sample workspace"
             className="border-line bg-panel rounded-xl border px-3 py-2 text-sm"
+            data-testid="sample-select"
             onChange={(event) => {
               const sampleId = event.currentTarget.value as WorkspaceSampleId;
 
@@ -2603,6 +3026,18 @@ export function OpenApiDiffWorkbench() {
         {analysisSettings.treatEnumAdditionsAsDangerous ? (
           <Badge variant="dangerous">Enum additions stay dangerous</Badge>
         ) : null}
+        <label className="border-line bg-panel-muted inline-flex items-center gap-3 rounded-full border px-3 py-2 text-sm">
+          <input
+            checked={autoRunAnalysis}
+            disabled={largeWorkspaceFallbackActive}
+            onChange={(event) => setAutoRunAnalysis(event.currentTarget.checked)}
+            type="checkbox"
+          />
+          <span>
+            Auto-run
+            {largeWorkspaceFallbackActive ? " unavailable for large specs" : " after edits"}
+          </span>
+        </label>
         <span className="text-muted inline-flex items-center gap-2 text-sm">
           <KeyboardShortcut keys={["Ctrl", "Enter"]} />
           or
@@ -2615,10 +3050,14 @@ export function OpenApiDiffWorkbench() {
             {workerStatusLabel}
           </span>
         </span>
+        <span className="text-muted inline-flex items-center gap-2 text-sm">
+          Workspace size: {formatBytes(combinedSpecBytes)}
+          {largeWorkspaceFallbackActive ? " (lightweight fallback)" : ""}
+        </span>
       </Toolbar>
 
       {activeIgnoreRules.length ? (
-        <Card>
+        <Card data-testid="active-ignore-rules">
           <CardHeader className="space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <CardTitle className="text-base">Active ignore rules</CardTitle>
@@ -2682,10 +3121,13 @@ export function OpenApiDiffWorkbench() {
             <WorkspaceResultsPanel
               activeMobileTab={activeMobileTab}
               analysisState={analysisState}
+              autoRunAnalysis={autoRunAnalysis}
               baseSpec={workspaceSpecs.base}
               editorStates={editorStates}
+              largeWorkspaceFallbackActive={largeWorkspaceFallbackActive}
               onAddIgnoreRule={handleAddIgnoreRule}
               onAnalyze={handleAnalyze}
+              onCancelAnalyze={cancelAnalyze}
               onReportExplorerUiStateChange={handleReportExplorerUiStateChange}
               onRemoveIgnoreRule={handleRemoveIgnoreRule}
               progress={progress}
@@ -2714,10 +3156,13 @@ export function OpenApiDiffWorkbench() {
         <WorkspaceResultsPanel
           activeMobileTab={activeMobileTab}
           analysisState={analysisState}
+          autoRunAnalysis={autoRunAnalysis}
           baseSpec={workspaceSpecs.base}
           editorStates={editorStates}
+          largeWorkspaceFallbackActive={largeWorkspaceFallbackActive}
           onAddIgnoreRule={handleAddIgnoreRule}
           onAnalyze={handleAnalyze}
+          onCancelAnalyze={cancelAnalyze}
           onReportExplorerUiStateChange={handleReportExplorerUiStateChange}
           onRemoveIgnoreRule={handleRemoveIgnoreRule}
           progress={progress}

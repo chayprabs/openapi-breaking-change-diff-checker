@@ -45,9 +45,19 @@ import {
   type ReportExportFormat,
 } from "@/features/openapi-diff/lib/report-export";
 import {
+  createExportCopiedEvent,
+  createExportDownloadedEvent,
+  createRedactionUsedEvent,
+} from "@/features/openapi-diff/lib/privacy-safe-analytics";
+import {
   buildRedactedReportShareLink,
   buildSettingsShareLink,
 } from "@/features/openapi-diff/lib/share-links";
+import {
+  MAX_RENDERED_REPORT_ENDPOINTS,
+  MAX_RENDERED_REPORT_FINDINGS,
+  MAX_RENDERED_REPORT_SCHEMAS,
+} from "@/features/openapi-diff/lib/report-display";
 import {
   cloneReportExplorerUiState,
   createDefaultReportExplorerUiState,
@@ -62,6 +72,7 @@ import type {
   IgnoreRule,
   JsonValue,
 } from "@/features/openapi-diff/types";
+import { useAnalytics } from "@/lib/analytics";
 
 type OpenApiDiffReportExplorerProps = {
   activeMobileTab: WorkspaceMobileTab;
@@ -273,20 +284,32 @@ function FindingsTable({
 
       <div className="space-y-3 lg:hidden">
         {rows.map((row) => (
-          <Card key={row.finding.id}>
-            <CardHeader className="space-y-3">
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge variant={row.finding.severity}>
-                  {formatSeverityLabel(row.finding.severity)}
-                </Badge>
-                <Badge variant="neutral">{row.finding.ruleId}</Badge>
-                <Badge variant="neutral">{formatCategoryLabel(row.finding.category)}</Badge>
+          <details
+            key={row.finding.id}
+            className="border-line bg-panel group overflow-hidden rounded-[1.5rem] border shadow-[var(--shadow-card)]"
+          >
+            <summary className="focus-visible:ring-accent/30 list-none cursor-pointer px-5 py-4 focus-visible:ring-2">
+              <div className="flex items-start justify-between gap-3">
+                <div className="space-y-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant={row.finding.severity}>
+                      {formatSeverityLabel(row.finding.severity)}
+                    </Badge>
+                    <Badge variant="neutral">{row.finding.ruleId}</Badge>
+                    <Badge variant="neutral">{formatCategoryLabel(row.finding.category)}</Badge>
+                  </div>
+                  <div className="space-y-2">
+                    <p className="font-semibold text-foreground">{row.finding.title}</p>
+                    <div>{renderFindingTargetText(row)}</div>
+                  </div>
+                </div>
+                <span className="text-muted text-xs font-medium transition group-open:rotate-180">
+                  Details
+                </span>
               </div>
-              <CardTitle className="text-base">{row.finding.title}</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div>{renderFindingTargetText(row)}</div>
-              <p className="text-muted text-sm leading-6">{row.finding.message}</p>
+            </summary>
+            <div className="border-line space-y-3 border-t px-5 pb-5">
+              <p className="pt-4 text-muted text-sm leading-6">{row.finding.message}</p>
               <p className="text-muted text-xs leading-5">{row.finding.jsonPointer}</p>
               {row.finding.ignoredBy?.length ? (
                 <div className="flex flex-wrap gap-2">
@@ -300,8 +323,8 @@ function FindingsTable({
               <Button onClick={() => onOpenFinding(row.finding.id)} variant="secondary">
                 View details
               </Button>
-            </CardContent>
-          </Card>
+            </div>
+          </details>
         ))}
       </div>
     </>
@@ -310,10 +333,14 @@ function FindingsTable({
 
 function EndpointList({
   onJumpToFindings,
+  onLoadMore,
   report,
+  visibleCount,
 }: {
   onJumpToFindings: (nextFilters: Partial<FindingsExplorerFilters>) => void;
+  onLoadMore: () => void;
   report: DiffReport;
+  visibleCount: number;
 }) {
   if (!report.affectedEndpoints.length) {
     return (
@@ -326,7 +353,7 @@ function EndpointList({
 
   return (
     <div className="space-y-4">
-      {report.affectedEndpoints.map((endpoint) => (
+      {report.affectedEndpoints.slice(0, visibleCount).map((endpoint) => (
         <Card key={endpoint.key}>
           <CardHeader className="space-y-3">
             <div className="flex flex-wrap items-center gap-2">
@@ -365,16 +392,27 @@ function EndpointList({
           </CardContent>
         </Card>
       ))}
+      {report.affectedEndpoints.length > visibleCount ? (
+        <div className="flex justify-center">
+          <Button onClick={onLoadMore} variant="secondary">
+            Load {Math.min(MAX_RENDERED_REPORT_ENDPOINTS, report.affectedEndpoints.length - visibleCount)} more endpoints
+          </Button>
+        </div>
+      ) : null}
     </div>
   );
 }
 
 function SchemaList({
   onJumpToFindings,
+  onLoadMore,
   report,
+  visibleCount,
 }: {
   onJumpToFindings: (nextFilters: Partial<FindingsExplorerFilters>) => void;
+  onLoadMore: () => void;
   report: DiffReport;
+  visibleCount: number;
 }) {
   if (!report.affectedSchemas.length) {
     return (
@@ -387,7 +425,7 @@ function SchemaList({
 
   return (
     <div className="space-y-4">
-      {report.affectedSchemas.map((schema) => (
+      {report.affectedSchemas.slice(0, visibleCount).map((schema) => (
         <Card key={schema.key}>
           <CardHeader className="space-y-3">
             <div className="flex flex-wrap items-center gap-2">
@@ -422,6 +460,13 @@ function SchemaList({
           </CardContent>
         </Card>
       ))}
+      {report.affectedSchemas.length > visibleCount ? (
+        <div className="flex justify-center">
+          <Button onClick={onLoadMore} variant="secondary">
+            Load {Math.min(MAX_RENDERED_REPORT_SCHEMAS, report.affectedSchemas.length - visibleCount)} more schemas
+          </Button>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -645,6 +690,7 @@ export function OpenApiDiffReportExplorer({
   readOnly = false,
   report,
 }: OpenApiDiffReportExplorerProps) {
+  const analytics = useAnalytics();
   const { notify } = useToast();
   const initialExplorerState = useMemo(
     () =>
@@ -680,6 +726,26 @@ export function OpenApiDiffReportExplorer({
     () => initialExplorerState.redactBeforeExport,
   );
   const [selectedFindingId, setSelectedFindingId] = useState<string | null>(null);
+  const [visibleSecurityState, setVisibleSecurityState] = useState(() => ({
+    count: MAX_RENDERED_REPORT_FINDINGS,
+    key: report.generatedAt,
+  }));
+  const [visibleFindingsState, setVisibleFindingsState] = useState(() => ({
+    count: MAX_RENDERED_REPORT_FINDINGS,
+    key: report.generatedAt,
+  }));
+  const [visibleIgnoredState, setVisibleIgnoredState] = useState(() => ({
+    count: MAX_RENDERED_REPORT_FINDINGS,
+    key: report.generatedAt,
+  }));
+  const [visibleEndpointState, setVisibleEndpointState] = useState(() => ({
+    count: MAX_RENDERED_REPORT_ENDPOINTS,
+    key: report.generatedAt,
+  }));
+  const [visibleSchemaState, setVisibleSchemaState] = useState(() => ({
+    count: MAX_RENDERED_REPORT_SCHEMAS,
+    key: report.generatedAt,
+  }));
   const [filters, setFilters] = useState<FindingsExplorerFilters>(
     () => ({ ...initialExplorerState.filters }),
   );
@@ -847,6 +913,49 @@ export function OpenApiDiffReportExplorer({
   const clearFindingsFilters = () => {
     setFilters(createDefaultFindingsExplorerFilters());
   };
+  const findingsWindowKey = JSON.stringify({
+    filters,
+    generatedAt: report.generatedAt,
+  });
+  const reportWindowKey = report.generatedAt;
+  const visibleFindingsCount =
+    visibleFindingsState.key === findingsWindowKey
+      ? visibleFindingsState.count
+      : MAX_RENDERED_REPORT_FINDINGS;
+  const visibleIgnoredCount =
+    visibleIgnoredState.key === findingsWindowKey
+      ? visibleIgnoredState.count
+      : MAX_RENDERED_REPORT_FINDINGS;
+  const visibleSecurityCount =
+    visibleSecurityState.key === findingsWindowKey
+      ? visibleSecurityState.count
+      : MAX_RENDERED_REPORT_FINDINGS;
+  const visibleEndpointCount =
+    visibleEndpointState.key === reportWindowKey
+      ? visibleEndpointState.count
+      : MAX_RENDERED_REPORT_ENDPOINTS;
+  const visibleSchemaCount =
+    visibleSchemaState.key === reportWindowKey
+      ? visibleSchemaState.count
+      : MAX_RENDERED_REPORT_SCHEMAS;
+  const visibleFindingsRows = filteredRows.slice(0, visibleFindingsCount);
+  const visibleIgnoredRows = filteredIgnoredRows.slice(0, visibleIgnoredCount);
+  const visibleSecurityRows = securityRows.slice(0, visibleSecurityCount);
+  const handleSetRedactBeforeExport = (enabled: boolean) => {
+    if (enabled && !redactBeforeExport) {
+      analytics.track(
+        createRedactionUsedEvent({
+          customRuleCount: report.settings.customRedactionRules.length,
+          detectedSecrets: exportBundle.inspection.detectedSecrets,
+          redactExamples: report.settings.redactExamples,
+          redactServerUrls: report.settings.redactServerUrls,
+          scope: "export",
+        }),
+      );
+    }
+
+    setRedactBeforeExport(enabled);
+  };
 
   const confirmPotentiallyUnsafeExport = () => {
     if (redactBeforeExport || !exportBundle.inspection.detectedSecrets) {
@@ -893,10 +1002,19 @@ export function OpenApiDiffReportExplorer({
       title: `Downloaded ${format.toUpperCase()}`,
       variant: "success",
     });
+    analytics.track(
+      createExportDownloadedEvent({
+        detectedSecrets: exportBundle.inspection.detectedSecrets,
+        format,
+        includedFindingCount: exportBundle.includedRows.length,
+        redacted: redactBeforeExport,
+      }),
+    );
   };
 
   return (
     <>
+      <h2 className="sr-only">OpenAPI diff report explorer</h2>
       <Tabs
         defaultValue="summary"
         onValueChange={(value) => setActiveTab(value as ReportExplorerTab)}
@@ -1020,6 +1138,7 @@ export function OpenApiDiffReportExplorer({
                     ) : null
                   }
                   severity={severity}
+                  testId={`severity-metric-${severity}`}
                   value={report.summary.bySeverity[severity]}
                 />
               ))}
@@ -1034,6 +1153,7 @@ export function OpenApiDiffReportExplorer({
                   ) : null
                 }
                 severity={report.summary.ignoredFindings > 0 ? "info" : "safe"}
+                testId="severity-metric-ignored"
                 value={report.summary.ignoredFindings}
               />
             </div>
@@ -1224,11 +1344,37 @@ export function OpenApiDiffReportExplorer({
         </TabsContent>
 
         <TabsContent value="endpoints">
-          <EndpointList onJumpToFindings={jumpToFindings} report={report} />
+          <EndpointList
+            onJumpToFindings={jumpToFindings}
+            onLoadMore={() =>
+              setVisibleEndpointState((current) => ({
+                count:
+                  (current.key === reportWindowKey
+                    ? current.count
+                    : MAX_RENDERED_REPORT_ENDPOINTS) + MAX_RENDERED_REPORT_ENDPOINTS,
+                key: reportWindowKey,
+              }))
+            }
+            report={report}
+            visibleCount={visibleEndpointCount}
+          />
         </TabsContent>
 
         <TabsContent value="schemas">
-          <SchemaList onJumpToFindings={jumpToFindings} report={report} />
+          <SchemaList
+            onJumpToFindings={jumpToFindings}
+            onLoadMore={() =>
+              setVisibleSchemaState((current) => ({
+                count:
+                  (current.key === reportWindowKey
+                    ? current.count
+                    : MAX_RENDERED_REPORT_SCHEMAS) + MAX_RENDERED_REPORT_SCHEMAS,
+                key: reportWindowKey,
+              }))
+            }
+            report={report}
+            visibleCount={visibleSchemaCount}
+          />
         </TabsContent>
 
         <TabsContent value="security">
@@ -1262,8 +1408,32 @@ export function OpenApiDiffReportExplorer({
               emptyDescription="This comparison did not produce any security-related findings."
               emptyTitle="No security findings"
               onOpenFinding={setSelectedFindingId}
-              rows={securityRows}
+              rows={visibleSecurityRows}
             />
+
+            {securityRows.length > visibleSecurityRows.length ? (
+              <div className="flex justify-center">
+                <Button
+                  onClick={() =>
+                    setVisibleSecurityState((current) => ({
+                      count:
+                        (current.key === findingsWindowKey
+                          ? current.count
+                          : MAX_RENDERED_REPORT_FINDINGS) + MAX_RENDERED_REPORT_FINDINGS,
+                      key: findingsWindowKey,
+                    }))
+                  }
+                  variant="secondary"
+                >
+                  Load{" "}
+                  {Math.min(
+                    MAX_RENDERED_REPORT_FINDINGS,
+                    securityRows.length - visibleSecurityRows.length,
+                  )}{" "}
+                  more security findings
+                </Button>
+              </div>
+            ) : null}
           </div>
         </TabsContent>
 
@@ -1274,7 +1444,8 @@ export function OpenApiDiffReportExplorer({
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <CardTitle>All findings</CardTitle>
                   <Badge variant="neutral">
-                    Showing {filteredRows.length} of {report.summary.totalFindings}
+                    Showing {Math.min(filteredRows.length, visibleFindingsRows.length)} of{" "}
+                    {report.summary.totalFindings}
                   </Badge>
                 </div>
               </CardHeader>
@@ -1472,12 +1643,44 @@ export function OpenApiDiffReportExplorer({
                 title="No search results"
               />
             ) : (
-              <FindingsTable
-                emptyDescription="No findings matched the current selection."
-                emptyTitle="No search results"
-                onOpenFinding={setSelectedFindingId}
-                rows={filteredRows}
-              />
+              <div className="space-y-4">
+                {filteredRows.length > visibleFindingsRows.length ? (
+                  <Alert title="Progressively rendering findings" variant="info">
+                    This filtered view contains {filteredRows.length} findings. The browser is
+                    rendering them in smaller chunks to keep scrolling and keyboard navigation
+                    responsive.
+                  </Alert>
+                ) : null}
+                <FindingsTable
+                  emptyDescription="No findings matched the current selection."
+                  emptyTitle="No search results"
+                  onOpenFinding={setSelectedFindingId}
+                  rows={visibleFindingsRows}
+                />
+                {filteredRows.length > visibleFindingsRows.length ? (
+                  <div className="flex justify-center">
+                    <Button
+                      onClick={() =>
+                        setVisibleFindingsState((current) => ({
+                          count:
+                            (current.key === findingsWindowKey
+                              ? current.count
+                              : MAX_RENDERED_REPORT_FINDINGS) + MAX_RENDERED_REPORT_FINDINGS,
+                          key: findingsWindowKey,
+                        }))
+                      }
+                      variant="secondary"
+                    >
+                      Load{" "}
+                      {Math.min(
+                        MAX_RENDERED_REPORT_FINDINGS,
+                        filteredRows.length - visibleFindingsRows.length,
+                      )}{" "}
+                      more findings
+                    </Button>
+                  </div>
+                ) : null}
+              </div>
             )}
           </div>
         </TabsContent>
@@ -1489,7 +1692,8 @@ export function OpenApiDiffReportExplorer({
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <CardTitle>Ignored findings</CardTitle>
                   <Badge variant="neutral">
-                    Showing {filteredIgnoredRows.length} of {report.summary.ignoredFindings}
+                    Showing {Math.min(filteredIgnoredRows.length, visibleIgnoredRows.length)} of{" "}
+                    {report.summary.ignoredFindings}
                   </Badge>
                 </div>
               </CardHeader>
@@ -1512,12 +1716,43 @@ export function OpenApiDiffReportExplorer({
                 title="No search results"
               />
             ) : (
-              <FindingsTable
-                emptyDescription="No ignored findings matched the current selection."
-                emptyTitle="No ignored findings"
-                onOpenFinding={setSelectedFindingId}
-                rows={filteredIgnoredRows}
-              />
+              <div className="space-y-4">
+                {filteredIgnoredRows.length > visibleIgnoredRows.length ? (
+                  <Alert title="Progressively rendering ignored findings" variant="info">
+                    Ignored findings stay in the audit trail. This view is rendering them in
+                    smaller chunks so the browser stays responsive.
+                  </Alert>
+                ) : null}
+                <FindingsTable
+                  emptyDescription="No ignored findings matched the current selection."
+                  emptyTitle="No ignored findings"
+                  onOpenFinding={setSelectedFindingId}
+                  rows={visibleIgnoredRows}
+                />
+                {filteredIgnoredRows.length > visibleIgnoredRows.length ? (
+                  <div className="flex justify-center">
+                    <Button
+                      onClick={() =>
+                        setVisibleIgnoredState((current) => ({
+                          count:
+                            (current.key === findingsWindowKey
+                              ? current.count
+                              : MAX_RENDERED_REPORT_FINDINGS) + MAX_RENDERED_REPORT_FINDINGS,
+                          key: findingsWindowKey,
+                        }))
+                      }
+                      variant="secondary"
+                    >
+                      Load{" "}
+                      {Math.min(
+                        MAX_RENDERED_REPORT_FINDINGS,
+                        filteredIgnoredRows.length - visibleIgnoredRows.length,
+                      )}{" "}
+                      more ignored findings
+                    </Button>
+                  </div>
+                ) : null}
+              </div>
             )}
           </div>
         </TabsContent>
@@ -1703,7 +1938,7 @@ export function OpenApiDiffReportExplorer({
                 <label className="border-line bg-panel-muted inline-flex items-center gap-3 rounded-2xl border px-4 py-3 text-sm">
                   <input
                     checked={redactBeforeExport}
-                    onChange={(event) => setRedactBeforeExport(event.currentTarget.checked)}
+                    onChange={(event) => handleSetRedactBeforeExport(event.currentTarget.checked)}
                     type="checkbox"
                   />
                   <span>Redact before export</span>
@@ -1737,7 +1972,7 @@ export function OpenApiDiffReportExplorer({
                         leak internal contract data.
                       </p>
                       <div className="flex flex-wrap gap-3">
-                        <Button onClick={() => setRedactBeforeExport(true)} variant="secondary">
+                        <Button onClick={() => handleSetRedactBeforeExport(true)} variant="secondary">
                           Redact before export
                         </Button>
                       </div>
@@ -1748,7 +1983,7 @@ export function OpenApiDiffReportExplorer({
             </Card>
 
             {exportBundle.inspection.previews.length ? (
-              <Card>
+              <Card data-testid="redaction-preview">
                 <CardHeader className="space-y-3">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <CardTitle>Redaction preview</CardTitle>
@@ -1811,6 +2046,16 @@ export function OpenApiDiffReportExplorer({
                     <CopyButton
                       label="Copy Markdown"
                       onBeforeCopy={confirmPotentiallyUnsafeExport}
+                      onCopySuccess={() =>
+                        analytics.track(
+                          createExportCopiedEvent({
+                            detectedSecrets: exportBundle.inspection.detectedSecrets,
+                            format: "markdown",
+                            includedFindingCount: exportBundle.includedRows.length,
+                            redacted: redactBeforeExport,
+                          }),
+                        )
+                      }
                       value={markdownExport}
                       variant="secondary"
                     />
@@ -1868,7 +2113,7 @@ export function OpenApiDiffReportExplorer({
                     </TabsContent>
 
                     <TabsContent value="html">
-                      <div className="border-line overflow-hidden rounded-2xl border bg-white">
+                      <div className="border-line bg-panel-muted overflow-hidden rounded-2xl border">
                         <iframe
                           className="h-[40rem] w-full"
                           sandbox=""
@@ -1955,7 +2200,7 @@ export function OpenApiDiffReportExplorer({
                         tokens, and other secret-like values are masked across the shared payload.
                       </p>
                       <div className="flex flex-wrap gap-3">
-                        <Button onClick={() => setRedactBeforeExport(true)} variant="secondary">
+                        <Button onClick={() => handleSetRedactBeforeExport(true)} variant="secondary">
                           Enable redaction
                         </Button>
                       </div>

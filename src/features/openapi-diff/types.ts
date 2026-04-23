@@ -254,6 +254,17 @@ export type OpenApiAnalysisResult = {
     base: NormalizedOpenApiModel;
     revision: NormalizedOpenApiModel;
   };
+  performance: {
+    classifyMs: number;
+    diffMs: number;
+    normalizeMs: number;
+    parseBaseMs: number;
+    parseRevisionMs: number;
+    refResolutionMs: number;
+    reportMs: number;
+    totalMs: number;
+    validationMs: number;
+  };
   report: DiffReport;
   revision: ParsedSpec;
   validationSource: ParserImplementation;
@@ -281,8 +292,14 @@ export type OpenApiDiffWorkerAnalyzeRequest = {
   type: "analyze";
 };
 
+export type OpenApiDiffWorkerCancelRequest = {
+  requestId: string;
+  type: "cancel";
+};
+
 export type OpenApiDiffWorkerRequest =
   | OpenApiDiffWorkerAnalyzeRequest
+  | OpenApiDiffWorkerCancelRequest
   | OpenApiDiffWorkerParseRequest;
 
 export type OpenApiDiffWorkerProgressMessage = {

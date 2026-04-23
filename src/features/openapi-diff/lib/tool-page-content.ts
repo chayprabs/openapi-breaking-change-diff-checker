@@ -170,7 +170,7 @@ export const openApiDiffSemanticDiffBenefits = [
   {
     title: "Client-impact explanations",
     body:
-      "The tool does not stop at “changed.” It explains who is likely to break, why the change matters, and which rule classified it.",
+      'The tool does not stop at "changed." It explains who is likely to break, why the change matters, and which rule classified it.',
   },
   {
     title: "Profile-aware review",
@@ -257,7 +257,7 @@ export const openApiDiffRuleExplainers = [
   {
     anchorId: "response-property-removed",
     body:
-      "When a response schema drops a field that consumers already read, the tool typically reports `schema.property.removed`. The concept is “response property removed,” even though the rule is attached to the affected schema node.",
+      'When a response schema drops a field that consumers already read, the tool typically reports `schema.property.removed`. The concept is "response property removed," even though the rule is attached to the affected schema node.',
     exampleAfter: "properties:\n  balance:\n    type: integer",
     exampleBefore: "properties:\n  creditLimit:\n    type: integer",
     ruleId: "schema.property.removed",
@@ -310,28 +310,28 @@ export const relatedCompatibilityToolPlaceholders = [
     anchorId: "json-schema-compatibility-checker",
     href: "/tools/api-and-schema#json-schema-compatibility-checker",
     summary:
-      "Planned placeholder for semantic JSON Schema compatibility checks across versioned payload contracts.",
+      "Roadmap preview for semantic JSON Schema compatibility checks across versioned payload contracts.",
     title: "JSON Schema compatibility checker",
   },
   {
     anchorId: "graphql-schema-diff",
     href: "/tools/api-and-schema#graphql-schema-diff",
     summary:
-      "Planned placeholder for GraphQL field removals, nullability changes, enum changes, and schema drift review.",
+      "Roadmap preview for GraphQL field removals, nullability changes, enum changes, and schema drift review.",
     title: "GraphQL schema diff",
   },
   {
     anchorId: "protobuf-breaking-change-checker",
     href: "/tools/api-and-schema#protobuf-breaking-change-checker",
     summary:
-      "Planned placeholder for field-number safety, reserved ranges, wire-format compatibility, and RPC surface changes.",
+      "Roadmap preview for field-number safety, reserved ranges, wire-format compatibility, and RPC surface changes.",
     title: "Protobuf breaking-change checker",
   },
   {
     anchorId: "avro-schema-compatibility-checker",
     href: "/tools/api-and-schema#avro-schema-compatibility-checker",
     summary:
-      "Planned placeholder for Avro backward, forward, and full compatibility checks across producer-consumer schemas.",
+      "Roadmap preview for Avro backward, forward, and full compatibility checks across producer-consumer schemas.",
     title: "Avro schema compatibility checker",
   },
 ] as const;

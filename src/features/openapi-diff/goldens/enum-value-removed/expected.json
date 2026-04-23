@@ -1,0 +1,203 @@
+{
+  "ok": true,
+  "validationSource": "scalar",
+  "warnings": [],
+  "report": {
+    "affectedEndpoints": [
+      {
+        "findingCount": 1,
+        "highestSeverity": "breaking",
+        "key": "/subscriptions::get",
+        "method": "get",
+        "path": "/subscriptions",
+        "ruleIds": [
+          "schema.enum.value.removed"
+        ]
+      }
+    ],
+    "affectedSchemas": [
+      {
+        "findingCount": 1,
+        "highestSeverity": "breaking",
+        "humanPaths": [
+          "GET /subscriptions response 200 application/json schema.state"
+        ],
+        "jsonPointers": [
+          "#/paths/~1subscriptions/get/responses/200/content/application~1json/schema/properties/state/enum"
+        ],
+        "key": "schema",
+        "label": "schema",
+        "ruleIds": [
+          "schema.enum.value.removed"
+        ]
+      }
+    ],
+    "baseline": {
+      "byteCount": 485,
+      "componentsOnly": false,
+      "externalRefCount": 0,
+      "input": {
+        "format": "yaml",
+        "id": "base",
+        "label": "Base spec",
+        "source": "sample",
+        "filename": "enum-value-removed.base.yaml"
+      },
+      "lineCount": 22,
+      "localRefCount": 0,
+      "pathCount": 1,
+      "schemaCount": 0,
+      "unresolvedRefs": [],
+      "validationSource": "scalar",
+      "version": {
+        "family": "openapi-3.1.x",
+        "label": "OpenAPI 3.1.0 detected",
+        "raw": "3.1.0",
+        "sourceField": "openapi",
+        "supported": true
+      },
+      "warnings": []
+    },
+    "candidate": {
+      "byteCount": 454,
+      "componentsOnly": false,
+      "externalRefCount": 0,
+      "input": {
+        "format": "yaml",
+        "id": "revision",
+        "label": "Revision spec",
+        "source": "sample",
+        "filename": "enum-value-removed.revision.yaml"
+      },
+      "lineCount": 21,
+      "localRefCount": 0,
+      "pathCount": 1,
+      "schemaCount": 0,
+      "unresolvedRefs": [],
+      "validationSource": "scalar",
+      "version": {
+        "family": "openapi-3.1.x",
+        "label": "OpenAPI 3.1.0 detected",
+        "raw": "3.1.0",
+        "sourceField": "openapi",
+        "supported": true
+      },
+      "warnings": []
+    },
+    "executiveSummary": "This comparison found 1 breaking and 0 dangerous changes across 1 affected endpoint and 1 affected schema. Existing consumers can fail without coordination, so the recommendation is to block release.",
+    "findings": [
+      {
+        "afterValue": null,
+        "baseSeverity": "breaking",
+        "beforeValue": "paused",
+        "category": "enum",
+        "classificationContext": {
+          "schemaDirection": "response"
+        },
+        "evidence": {
+          "base": {
+            "jsonPointer": "#/paths/~1subscriptions/get/responses/200/content/application~1json/schema/properties/state/enum",
+            "node": {
+              "originPath": "#/paths/~1subscriptions/get/responses/200/content/application~1json/schema/properties/state",
+              "refChain": [],
+              "sourcePath": "#/paths/~1subscriptions/get/responses/200/content/application~1json/schema/properties/state"
+            }
+          },
+          "revision": {
+            "jsonPointer": "#/paths/~1subscriptions/get/responses/200/content/application~1json/schema/properties/state/enum",
+            "node": {
+              "originPath": "#/paths/~1subscriptions/get/responses/200/content/application~1json/schema/properties/state",
+              "refChain": [],
+              "sourcePath": "#/paths/~1subscriptions/get/responses/200/content/application~1json/schema/properties/state"
+            }
+          }
+        },
+        "id": "schema.enum.value.removed::/subscriptions::get::#/paths/~1subscriptions/get/responses/200/content/application~1json/schema/properties/state/enum::removed:\"paused\"",
+        "humanPath": "GET /subscriptions response 200 application/json schema.state",
+        "jsonPointer": "#/paths/~1subscriptions/get/responses/200/content/application~1json/schema/properties/state/enum",
+        "message": "GET /subscriptions response 200 application/json schema.state no longer allows the enum value \"paused\". Clients still sending or expecting that literal can fail validation or parsing.",
+        "method": "get",
+        "path": "/subscriptions",
+        "ruleId": "schema.enum.value.removed",
+        "severity": "breaking",
+        "severityReason": "The Public API profile keeps this at breaking because clients or stored records using the removed value may no longer validate or deserialize correctly",
+        "title": "GET /subscriptions response 200 application/json schema.state: enum value removed",
+        "whyItMatters": "Clients or stored records using the removed value may no longer validate or deserialize correctly.",
+        "operationId": "listSubscriptions",
+        "saferAlternative": "Keep legacy enum values accepted while marking them deprecated until downstream systems are updated.",
+        "operationDeprecated": false
+      }
+    ],
+    "generatedAt": "2026-04-23T00:00:00.000Z",
+    "migrationNotes": [
+      "Keep legacy enum values accepted while marking them deprecated until downstream systems are updated."
+    ],
+    "recommendation": {
+      "code": "blockRelease",
+      "label": "Block release",
+      "reason": "1 breaking finding can fail existing consumers or integrations immediately."
+    },
+    "riskScore": 45,
+    "sdkImpactSummary": "Generated SDK impact looks high: 1 finding point to typed model, enum, response-shape, or method-name updates. Review GET /subscriptions response 200 application/json schema.state: enum value removed before regenerating clients.",
+    "securitySummary": "No auth or security contract changes were detected.",
+    "settings": {
+      "customRedactionRules": [],
+      "consumerProfile": "publicApi",
+      "exportFormats": [],
+      "failOnSeverities": [
+        "breaking"
+      ],
+      "ignoreRules": [],
+      "includeCategories": [
+        "docs",
+        "enum",
+        "metadata",
+        "operation",
+        "parameter",
+        "path",
+        "requestBody",
+        "response",
+        "schema",
+        "security"
+      ],
+      "includeInfoFindings": true,
+      "redactExamples": false,
+      "redactServerUrls": false,
+      "remoteRefPolicy": "localOnly",
+      "resolveLocalRefs": true,
+      "treatEnumAdditionsAsDangerous": false
+    },
+    "successState": null,
+    "summary": {
+      "byCategory": {
+        "docs": 0,
+        "operations": 0,
+        "parameters": 0,
+        "paths": 0,
+        "responses": 0,
+        "schemas": 1,
+        "security": 0
+      },
+      "bySeverity": {
+        "breaking": 1,
+        "dangerous": 0,
+        "info": 0,
+        "safe": 0
+      },
+      "ignoredFindings": 0,
+      "totalFindings": 1
+    },
+    "topReviewItems": [
+      {
+        "id": "schema.enum.value.removed::/subscriptions::get::#/paths/~1subscriptions/get/responses/200/content/application~1json/schema/properties/state/enum::removed:\"paused\"",
+        "jsonPointer": "#/paths/~1subscriptions/get/responses/200/content/application~1json/schema/properties/state/enum",
+        "message": "GET /subscriptions response 200 application/json schema.state no longer allows the enum value \"paused\". Clients still sending or expecting that literal can fail validation or parsing.",
+        "method": "get",
+        "path": "/subscriptions",
+        "severity": "breaking",
+        "title": "GET /subscriptions response 200 application/json schema.state: enum value removed"
+      }
+    ],
+    "warnings": []
+  }
+}
