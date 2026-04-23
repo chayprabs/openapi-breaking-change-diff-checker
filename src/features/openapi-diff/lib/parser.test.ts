@@ -154,4 +154,87 @@ paths: {}`;
     expect(result.ok).toBe(true);
     expect(progressLabels).toEqual([...analysisProgressLabels]);
   });
+
+  it("resolves public remote refs during analysis when the policy is enabled", async () => {
+    const baseWithRemoteRef = `openapi: 3.1.0
+info:
+  title: Remote Base
+  version: 1.0.0
+paths:
+  /users:
+    get:
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: "./schemas.yaml#/User"
+`;
+    const revisionWithRemoteRef = `openapi: 3.1.0
+info:
+  title: Remote Revision
+  version: 1.0.0
+paths:
+  /users:
+    get:
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: "./schemas.yaml#/User"
+`;
+
+    const result = await analyzeOpenApiSpecs(
+      {
+        ...createSpecInput("base", baseWithRemoteRef),
+        source: "url",
+        url: "https://example.com/base/openapi.yaml",
+      },
+      {
+        ...createSpecInput("revision", revisionWithRemoteRef),
+        source: "url",
+        url: "https://example.com/revision/openapi.yaml",
+      },
+      {
+        fetchRemoteText: async (url) => {
+          if (url === "https://example.com/base/schemas.yaml") {
+            return {
+              content: "User:\n  type: string\n",
+              finalUrl: url,
+            };
+          }
+
+          if (url === "https://example.com/revision/schemas.yaml") {
+            return {
+              content: "User:\n  type: integer\n",
+              finalUrl: url,
+            };
+          }
+
+          throw new Error(`Unexpected remote URL: ${url}`);
+        },
+        settings: createAnalysisSettings({
+          remoteRefPolicy: "publicRemote",
+        }),
+      },
+    );
+
+    expect(result.ok).toBe(true);
+
+    if (!result.ok) {
+      return;
+    }
+
+    expect(result.result.report.findings.map((finding) => finding.ruleId)).toEqual(
+      expect.arrayContaining(["schema.type.changed"]),
+    );
+    expect(
+      result.result.warnings.some((warning) =>
+        warning.message.includes("Skipped remote $ref"),
+      ),
+    ).toBe(false);
+  });
 });

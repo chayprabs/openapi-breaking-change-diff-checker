@@ -23,6 +23,7 @@ import { getDiffReportWarnings } from "@/features/openapi-diff/engine/diff-suppo
 import { normalizeOpenApiDocument } from "@/features/openapi-diff/engine/normalize";
 import { buildReport } from "@/features/openapi-diff/engine/report";
 import { createAnalysisSettings } from "@/features/openapi-diff/lib/analysis-settings";
+import { resolvePublicRemoteRefs } from "@/features/openapi-diff/lib/remote-ref-resolution";
 import { redactText } from "@/features/openapi-diff/lib/redaction";
 import type {
   AnalysisSettings,
@@ -73,6 +74,10 @@ type ParseOpenApiSpecOptions = {
 };
 
 type AnalyzeOpenApiSpecsOptions = {
+  fetchRemoteText?: (url: string) => Promise<{
+    content: string;
+    finalUrl: string;
+  }>;
   onProgress?: (label: WorkerProgressLabel) => void;
   settings?: AnalysisSettings;
 };
@@ -323,12 +328,25 @@ export async function analyzeOpenApiSpecs(
     warnings: [...revisionResult.parsed.warnings],
   };
   let analysisWarnings = [...combinedWarnings];
+  let reportWarnings = buildRemoteRefPolicyWarnings(
+    analysisSettings,
+    nextBase,
+    nextRevision,
+  );
   let validationSource: ParserImplementation = "lightweight";
 
   options.onProgress?.("Validating OpenAPI documents");
 
-  const baseAdvancedChecks = await runAdvancedValidation(base, nextBase);
-  const revisionAdvancedChecks = await runAdvancedValidation(revision, nextRevision);
+  const baseAdvancedChecks = await runAdvancedValidation(
+    base,
+    nextBase,
+    analysisSettings,
+  );
+  const revisionAdvancedChecks = await runAdvancedValidation(
+    revision,
+    nextRevision,
+    analysisSettings,
+  );
 
   if (baseAdvancedChecks.ok === false || revisionAdvancedChecks.ok === false) {
     return {
@@ -360,12 +378,66 @@ export async function analyzeOpenApiSpecs(
 
   options.onProgress?.("Resolving references");
 
+  let baseDocumentForNormalization = baseResult.document;
+  let revisionDocumentForNormalization = revisionResult.document;
+  let baseRemoteWarnings: SpecWarning[] = [];
+  let revisionRemoteWarnings: SpecWarning[] = [];
   let normalizedBase;
   let normalizedRevision;
 
   try {
-    normalizedBase = normalizeOpenApiDocument(nextBase, baseResult.document);
-    normalizedRevision = normalizeOpenApiDocument(nextRevision, revisionResult.document);
+    if (
+      analysisSettings.remoteRefPolicy === "publicRemote" &&
+      (nextBase.externalRefCount > 0 || nextRevision.externalRefCount > 0)
+    ) {
+      const [baseRemoteResolution, revisionRemoteResolution] = await Promise.all([
+        nextBase.externalRefCount > 0
+          ? resolvePublicRemoteRefs(baseResult.document, {
+              panelId: "base",
+              ...(options.fetchRemoteText
+                ? { fetchRemoteText: options.fetchRemoteText }
+                : {}),
+              ...(base.url ? { sourceUrl: base.url } : {}),
+            })
+          : Promise.resolve({
+              document: baseResult.document,
+              warnings: [] as SpecWarning[],
+            }),
+        nextRevision.externalRefCount > 0
+          ? resolvePublicRemoteRefs(revisionResult.document, {
+              panelId: "revision",
+              ...(options.fetchRemoteText
+                ? { fetchRemoteText: options.fetchRemoteText }
+                : {}),
+              ...(revision.url ? { sourceUrl: revision.url } : {}),
+            })
+          : Promise.resolve({
+              document: revisionResult.document,
+              warnings: [] as SpecWarning[],
+            }),
+      ]);
+
+      baseDocumentForNormalization = baseRemoteResolution.document;
+      revisionDocumentForNormalization = revisionRemoteResolution.document;
+      baseRemoteWarnings = baseRemoteResolution.warnings;
+      revisionRemoteWarnings = revisionRemoteResolution.warnings;
+      reportWarnings = [
+        ...reportWarnings,
+        ...baseRemoteResolution.warnings.map((warning) => warning.message),
+        ...revisionRemoteResolution.warnings.map((warning) => warning.message),
+      ];
+      analysisWarnings = dedupeIssues([
+        ...analysisWarnings,
+        ...baseRemoteWarnings,
+        ...revisionRemoteWarnings,
+      ]);
+    }
+
+    normalizedBase = normalizeOpenApiDocument(nextBase, baseDocumentForNormalization);
+    normalizedRevision = normalizeOpenApiDocument(
+      nextRevision,
+      revisionDocumentForNormalization,
+    );
   } catch (error) {
     return {
       ok: false,
@@ -386,18 +458,28 @@ export async function analyzeOpenApiSpecs(
     ...normalizedRevision.warnings,
   ]);
 
-  const baseDereferenceWarnings = await runAdvancedDereference(base, nextBase);
-  const revisionDereferenceWarnings = await runAdvancedDereference(revision, nextRevision);
+  const baseDereferenceWarnings = await runAdvancedDereference(
+    base,
+    nextBase,
+    analysisSettings,
+  );
+  const revisionDereferenceWarnings = await runAdvancedDereference(
+    revision,
+    nextRevision,
+    analysisSettings,
+  );
 
   nextBase.warnings = dedupeIssues([
     ...nextBase.warnings,
     ...baseAdvancedChecks.warnings,
+    ...baseRemoteWarnings,
     ...normalizedBase.warnings,
     ...baseDereferenceWarnings,
   ]);
   nextRevision.warnings = dedupeIssues([
     ...nextRevision.warnings,
     ...revisionAdvancedChecks.warnings,
+    ...revisionRemoteWarnings,
     ...normalizedRevision.warnings,
     ...revisionDereferenceWarnings,
   ]);
@@ -462,7 +544,10 @@ export async function analyzeOpenApiSpecs(
     options.onProgress?.("Building report");
     report = buildReport(nextBase, nextRevision, classifiedFindings, analysisSettings, {
       generatedAt,
-      warnings: getDiffReportWarnings(normalizedBase.model, normalizedRevision.model),
+      warnings: [
+        ...getDiffReportWarnings(normalizedBase.model, normalizedRevision.model),
+        ...reportWarnings,
+      ],
     });
   } catch (error) {
     return {
@@ -706,7 +791,7 @@ function inspectReferences(document: OpenApiDocument, editorId: WorkspacePanelId
     warnings.push({
       code: EXTERNAL_REF_WARNING_CODE,
       editorId,
-      message: `External or remote $ref values are not resolved in-browser yet: ${formatRefList(
+      message: `Remote $ref values were detected and stay skipped unless public remote refs are enabled for analysis: ${formatRefList(
         uniqueExternalRefs,
       )}.`,
       source: "openapi",
@@ -729,6 +814,32 @@ function formatRefList(refs: Set<string>) {
   }
 
   return `${values.slice(0, 3).join(", ")}, and ${values.length - 3} more`;
+}
+
+function buildRemoteRefPolicyWarnings(
+  settings: AnalysisSettings,
+  base: ParsedSpec,
+  revision: ParsedSpec,
+) {
+  if (settings.remoteRefPolicy !== "localOnly") {
+    return [] satisfies string[];
+  }
+
+  const warnings: string[] = [];
+
+  if (base.externalRefCount > 0) {
+    warnings.push(
+      "Base spec remote $ref values were skipped because Remote $ref policy is set to Local refs only.",
+    );
+  }
+
+  if (revision.externalRefCount > 0) {
+    warnings.push(
+      "Revision spec remote $ref values were skipped because Remote $ref policy is set to Local refs only.",
+    );
+  }
+
+  return warnings;
 }
 
 function isRecord(value: unknown): value is OpenApiDocument {
@@ -979,10 +1090,22 @@ function resolveLocalRef(document: OpenApiDocument, ref: string): unknown {
   return current;
 }
 
-async function runAdvancedDereference(spec: SpecInput, parsed: ParsedSpec) {
+async function runAdvancedDereference(
+  spec: SpecInput,
+  parsed: ParsedSpec,
+  settings: AnalysisSettings,
+) {
   const editorId = toWorkspacePanelId(spec.id);
 
   if (!parsed.version.supported) {
+    return [] satisfies SpecWarning[];
+  }
+
+  if (
+    parsed.externalRefCount > 0 &&
+    (settings.remoteRefPolicy === "localOnly" ||
+      settings.remoteRefPolicy === "publicRemote")
+  ) {
     return [] satisfies SpecWarning[];
   }
 
@@ -1005,10 +1128,26 @@ async function runAdvancedDereference(spec: SpecInput, parsed: ParsedSpec) {
   }
 }
 
-async function runAdvancedValidation(spec: SpecInput, parsed: ParsedSpec) {
+async function runAdvancedValidation(
+  spec: SpecInput,
+  parsed: ParsedSpec,
+  settings: AnalysisSettings,
+) {
   const editorId = toWorkspacePanelId(spec.id);
 
   if (!parsed.version.supported) {
+    return {
+      ok: true as const,
+      validationSource: "lightweight" as const,
+      warnings: [] as SpecWarning[],
+    };
+  }
+
+  if (
+    parsed.externalRefCount > 0 &&
+    (settings.remoteRefPolicy === "localOnly" ||
+      settings.remoteRefPolicy === "publicRemote")
+  ) {
     return {
       ok: true as const,
       validationSource: "lightweight" as const,

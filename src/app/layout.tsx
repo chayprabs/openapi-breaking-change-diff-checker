@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { AppProviders } from "@/components/layout/app-providers";
+import { siteConfig } from "@/data/site";
 import { IBM_Plex_Mono, IBM_Plex_Sans } from "next/font/google";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteHeader } from "@/components/layout/site-header";
@@ -20,6 +21,7 @@ const plexMono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(siteConfig.url),
   title: {
     default: "Authos",
     template: "%s | Authos",

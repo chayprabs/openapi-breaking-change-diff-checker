@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useDeferredValue, useMemo, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { MetricCard } from "@/components/devtools/metric-card";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CopyButton } from "@/components/ui/copy-button";
 import { Drawer } from "@/components/ui/drawer";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Modal } from "@/components/ui/modal";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/components/ui/toast";
 import { formatConsumerProfileLabel } from "@/features/openapi-diff/lib/analysis-settings";
@@ -18,6 +19,11 @@ import {
   createPathPatternIgnoreRule,
   createRuleIdIgnoreRule,
 } from "@/features/openapi-diff/lib/ignore-rules";
+import {
+  ciSnippetTargetOptions,
+  createCiSnippetBundle,
+  type CiSnippetTarget,
+} from "@/features/openapi-diff/lib/ci-snippets";
 import {
   createDefaultFindingsExplorerFilters,
   createFindingCopyValue,
@@ -38,6 +44,17 @@ import {
   createReportExportBundle,
   type ReportExportFormat,
 } from "@/features/openapi-diff/lib/report-export";
+import {
+  buildRedactedReportShareLink,
+  buildSettingsShareLink,
+} from "@/features/openapi-diff/lib/share-links";
+import {
+  cloneReportExplorerUiState,
+  createDefaultReportExplorerUiState,
+  type ReportExplorerTab,
+  type ReportExplorerUiState,
+  type WorkspaceMobileTab,
+} from "@/features/openapi-diff/lib/ui-state";
 import type {
   DiffReportCategory,
   DiffReport,
@@ -47,19 +64,14 @@ import type {
 } from "@/features/openapi-diff/types";
 
 type OpenApiDiffReportExplorerProps = {
-  onAddIgnoreRule: (ignoreRule: IgnoreRule) => void;
-  onRemoveIgnoreRule: (ignoreRuleId: string) => void;
+  activeMobileTab: WorkspaceMobileTab;
+  initialUiState?: ReportExplorerUiState;
+  onAddIgnoreRule?: (ignoreRule: IgnoreRule) => void;
+  onRemoveIgnoreRule?: (ignoreRuleId: string) => void;
+  onUiStateChange?: (uiState: ReportExplorerUiState) => void;
+  readOnly?: boolean;
   report: DiffReport;
 };
-
-type ReportExplorerTab =
-  | "summary"
-  | "endpoints"
-  | "schemas"
-  | "security"
-  | "findings"
-  | "ignored"
-  | "export";
 
 type FilterFieldProps = {
   children: ReactNode;
@@ -67,6 +79,7 @@ type FilterFieldProps = {
 };
 
 const REPORT_TAB_LABELS: Record<ReportExplorerTab, string> = {
+  ci: "CI",
   endpoints: "Endpoints",
   export: "Export",
   findings: "All Findings",
@@ -418,12 +431,14 @@ function FindingDrawer({
   onOpenChange,
   onRemoveIgnoreRule,
   open,
+  readOnly,
   row,
 }: {
-  onAddIgnoreRule: (ignoreRule: IgnoreRule) => void;
+  onAddIgnoreRule?: (ignoreRule: IgnoreRule) => void;
   onOpenChange: (open: boolean) => void;
-  onRemoveIgnoreRule: (ignoreRuleId: string) => void;
+  onRemoveIgnoreRule?: (ignoreRuleId: string) => void;
   open: boolean;
+  readOnly?: boolean;
   row: ReportFindingRow | null;
 }) {
   if (!row) {
@@ -440,7 +455,7 @@ function FindingDrawer({
       footer={
         <div className="flex flex-wrap gap-3">
           <CopyButton label="Copy finding" value={createFindingCopyValue(row)} variant="secondary" />
-          {findingPath ? (
+          {!readOnly && onAddIgnoreRule && findingPath ? (
             <Button
               onClick={() => onAddIgnoreRule(createPathPatternIgnoreRule(findingPath))}
               variant="outline"
@@ -448,18 +463,22 @@ function FindingDrawer({
               Ignore this path
             </Button>
           ) : null}
-          <Button
-            onClick={() => onAddIgnoreRule(createRuleIdIgnoreRule(finding.ruleId))}
-            variant="outline"
-          >
-            Ignore this rule
-          </Button>
-          <Button
-            onClick={() => onAddIgnoreRule(createFindingIgnoreRule(finding))}
-            variant="outline"
-          >
-            Ignore this finding
-          </Button>
+          {!readOnly && onAddIgnoreRule ? (
+            <Button
+              onClick={() => onAddIgnoreRule(createRuleIdIgnoreRule(finding.ruleId))}
+              variant="outline"
+            >
+              Ignore this rule
+            </Button>
+          ) : null}
+          {!readOnly && onAddIgnoreRule ? (
+            <Button
+              onClick={() => onAddIgnoreRule(createFindingIgnoreRule(finding))}
+              variant="outline"
+            >
+              Ignore this finding
+            </Button>
+          ) : null}
           <Button onClick={() => onOpenChange(false)} variant="ghost">
             Close
           </Button>
@@ -546,12 +565,14 @@ function FindingDrawer({
                     <p className="font-medium text-foreground">{ignoreRule.label}</p>
                     <p className="text-muted leading-6">{ignoreRule.reason}</p>
                   </div>
-                  <Button
-                    onClick={() => onRemoveIgnoreRule(ignoreRule.id)}
-                    variant="ghost"
-                  >
-                    Remove rule
-                  </Button>
+                  {!readOnly && onRemoveIgnoreRule ? (
+                    <Button
+                      onClick={() => onRemoveIgnoreRule(ignoreRule.id)}
+                      variant="ghost"
+                    >
+                      Remove rule
+                    </Button>
+                  ) : null}
                 </div>
               ))}
             </CardContent>
@@ -616,23 +637,55 @@ function FindingDrawer({
 }
 
 export function OpenApiDiffReportExplorer({
+  activeMobileTab,
+  initialUiState,
   onAddIgnoreRule,
   onRemoveIgnoreRule,
+  onUiStateChange,
+  readOnly = false,
   report,
 }: OpenApiDiffReportExplorerProps) {
   const { notify } = useToast();
-  const [activeTab, setActiveTab] = useState<ReportExplorerTab>("summary");
-  const [includeIgnoredInExport, setIncludeIgnoredInExport] = useState(false);
-  const [includeSafeInExport, setIncludeSafeInExport] = useState(false);
-  const [exportPreviewFormat, setExportPreviewFormat] =
-    useState<ReportExportFormat>("markdown");
-  const [redactBeforeExport, setRedactBeforeExport] = useState(false);
-  const [searchText, setSearchText] = useState("");
+  const initialExplorerState = useMemo(
+    () =>
+      initialUiState
+        ? cloneReportExplorerUiState(initialUiState)
+        : createDefaultReportExplorerUiState(),
+    [initialUiState],
+  );
+  const [activeTab, setActiveTab] = useState<ReportExplorerTab>(() => initialExplorerState.activeTab);
+  const [includeIgnoredInExport, setIncludeIgnoredInExport] = useState(
+    () => initialExplorerState.includeIgnoredInExport,
+  );
+  const [includeSafeInExport, setIncludeSafeInExport] = useState(
+    () => initialExplorerState.includeSafeInExport,
+  );
+  const [exportPreviewFormat, setExportPreviewFormat] = useState<ReportExportFormat>(
+    () => initialExplorerState.exportPreviewFormat,
+  );
+  const [ciTarget, setCiTarget] = useState<CiSnippetTarget>(() => initialExplorerState.ciTarget);
+  const [ciBaseSpecPath, setCiBaseSpecPath] = useState(
+    () => initialExplorerState.ciBaseSpecPath,
+  );
+  const [ciRevisionSpecPath, setCiRevisionSpecPath] = useState(
+    () => initialExplorerState.ciRevisionSpecPath,
+  );
+  const [ciReportOutputPath, setCiReportOutputPath] = useState(
+    () => initialExplorerState.ciReportOutputPath,
+  );
+  const [ciFailBuildOnBreaking, setCiFailBuildOnBreaking] = useState(
+    () => initialExplorerState.ciFailBuildOnBreaking,
+  );
+  const [redactBeforeExport, setRedactBeforeExport] = useState(
+    () => initialExplorerState.redactBeforeExport,
+  );
   const [selectedFindingId, setSelectedFindingId] = useState<string | null>(null);
   const [filters, setFilters] = useState<FindingsExplorerFilters>(
-    createDefaultFindingsExplorerFilters(),
+    () => ({ ...initialExplorerState.filters }),
   );
-  const deferredSearchText = useDeferredValue(searchText);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [shareMode, setShareMode] = useState<"report" | "settings">("settings");
+  const deferredSearchText = useDeferredValue(filters.search);
 
   const allRows = useMemo(() => createReportFindingRows(report), [report]);
   const activeRows = useMemo(
@@ -685,14 +738,105 @@ export function OpenApiDiffReportExplorer({
   const jsonExport = exportBundle.artifacts.json.content;
   const recommendationSeverity = getRecommendationSeverity(report);
   const riskScoreSeverity = getRiskScoreSeverity(report.riskScore);
-  const hasActiveFilters = hasActiveFindingsFilters({
-    ...filters,
-    search: searchText,
-  });
+  const ciSnippetBundle = useMemo(
+    () =>
+      createCiSnippetBundle({
+        baseSpecPath: ciBaseSpecPath.trim() || initialExplorerState.ciBaseSpecPath,
+        failBuildOnBreaking: ciFailBuildOnBreaking,
+        reportOutputPath: ciReportOutputPath.trim() || initialExplorerState.ciReportOutputPath,
+        revisionSpecPath:
+          ciRevisionSpecPath.trim() || initialExplorerState.ciRevisionSpecPath,
+        settings: report.settings,
+        target: ciTarget,
+      }),
+    [
+      ciBaseSpecPath,
+      ciFailBuildOnBreaking,
+      ciReportOutputPath,
+      ciRevisionSpecPath,
+      ciTarget,
+      initialExplorerState.ciBaseSpecPath,
+      initialExplorerState.ciReportOutputPath,
+      initialExplorerState.ciRevisionSpecPath,
+      report.settings,
+    ],
+  );
+  const ciTargetDescription =
+    ciSnippetTargetOptions.find((option) => option.value === ciTarget)?.description ??
+    ciSnippetTargetOptions[0].description;
+  const currentUiState = useMemo<ReportExplorerUiState>(
+    () => ({
+      activeTab,
+      ciBaseSpecPath,
+      ciFailBuildOnBreaking,
+      ciReportOutputPath,
+      ciRevisionSpecPath,
+      ciTarget,
+      exportPreviewFormat,
+      filters: { ...filters },
+      includeIgnoredInExport,
+      includeSafeInExport,
+      redactBeforeExport,
+    }),
+    [
+      activeTab,
+      ciBaseSpecPath,
+      ciFailBuildOnBreaking,
+      ciReportOutputPath,
+      ciRevisionSpecPath,
+      ciTarget,
+      exportPreviewFormat,
+      filters,
+      includeIgnoredInExport,
+      includeSafeInExport,
+      redactBeforeExport,
+    ],
+  );
+  const hasActiveFilters = hasActiveFindingsFilters(filters);
   const profileLabel = formatConsumerProfileLabel(report.settings.consumerProfile);
+  const shareLinkResult = useMemo(() => {
+    if (!isShareModalOpen || typeof window === "undefined") {
+      return { ok: false as const, reason: "invalid" as const, message: "" };
+    }
+
+    const baseUrl = `${window.location.origin}${window.location.pathname}`;
+
+    if (shareMode === "settings") {
+      return {
+        ok: true as const,
+        url: buildSettingsShareLink(baseUrl, report.settings, {
+          activeMobileTab,
+          reportExplorer: currentUiState,
+        }),
+      };
+    }
+
+    if (!redactBeforeExport) {
+      return {
+        ok: false as const,
+        reason: "invalid" as const,
+        message: "Turn on redaction before generating a report link.",
+      };
+    }
+
+    return buildRedactedReportShareLink(baseUrl, report, {
+      activeMobileTab,
+      reportExplorer: currentUiState,
+    });
+  }, [
+    activeMobileTab,
+    currentUiState,
+    isShareModalOpen,
+    redactBeforeExport,
+    report,
+    shareMode,
+  ]);
+
+  useEffect(() => {
+    onUiStateChange?.(cloneReportExplorerUiState(currentUiState));
+  }, [currentUiState, onUiStateChange]);
 
   const jumpToFindings = (nextFilters: Partial<FindingsExplorerFilters>) => {
-    setSearchText("");
     setFilters({
       ...createDefaultFindingsExplorerFilters(),
       ...nextFilters,
@@ -701,9 +845,9 @@ export function OpenApiDiffReportExplorer({
   };
 
   const clearFindingsFilters = () => {
-    setSearchText("");
     setFilters(createDefaultFindingsExplorerFilters());
   };
+
   const confirmPotentiallyUnsafeExport = () => {
     if (redactBeforeExport || !exportBundle.inspection.detectedSecrets) {
       return true;
@@ -767,6 +911,7 @@ export function OpenApiDiffReportExplorer({
               "security",
               "findings",
               "ignored",
+              "ci",
               "export",
             ] as const
           ).map((tab) => (
@@ -1139,10 +1284,15 @@ export function OpenApiDiffReportExplorer({
                     <input
                       aria-label="Search findings"
                       className="border-line bg-panel w-full rounded-xl border px-3 py-2 text-sm"
-                      onChange={(event) => setSearchText(event.currentTarget.value)}
+                      onChange={(event) =>
+                        setFilters((current) => ({
+                          ...current,
+                          search: event.currentTarget.value,
+                        }))
+                      }
                       placeholder="Path, operationId, schema, rule ID, message..."
                       type="search"
-                      value={searchText}
+                      value={filters.search}
                     />
                   </FilterField>
 
@@ -1372,6 +1522,152 @@ export function OpenApiDiffReportExplorer({
           </div>
         </TabsContent>
 
+        <TabsContent value="ci">
+          <div className="space-y-6">
+            <Card>
+              <CardHeader className="space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <CardTitle>CI snippet generator</CardTitle>
+                  <div className="flex flex-wrap gap-2">
+                    <Badge variant="neutral">Engine: {ciSnippetBundle.engineLabel}</Badge>
+                    <Badge variant="neutral">No login required</Badge>
+                    <Badge variant="neutral">{ciSnippetBundle.targetLabel}</Badge>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <p className="text-muted text-sm leading-6">
+                  Use CI when you want pull requests to run a repeatable breaking-change gate on
+                  every spec update. The browser tool is still the fastest place to explore
+                  one-off diffs, tweak settings, and review findings before you codify a pipeline
+                  check.
+                </p>
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                  <FilterField label="Snippet target">
+                    <select
+                      aria-label="CI snippet target"
+                      className="border-line bg-panel w-full rounded-xl border px-3 py-2 text-sm"
+                      onChange={(event) =>
+                        setCiTarget(event.currentTarget.value as CiSnippetTarget)
+                      }
+                      value={ciTarget}
+                    >
+                      {ciSnippetTargetOptions.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </FilterField>
+
+                  <FilterField label="Base spec path">
+                    <input
+                      aria-label="Base spec path placeholder"
+                      className="border-line bg-panel w-full rounded-xl border px-3 py-2 text-sm"
+                      onChange={(event) => setCiBaseSpecPath(event.currentTarget.value)}
+                      placeholder="openapi/openapi.yaml"
+                      type="text"
+                      value={ciBaseSpecPath}
+                    />
+                  </FilterField>
+
+                  <FilterField label="Revision spec path">
+                    <input
+                      aria-label="Revision spec path placeholder"
+                      className="border-line bg-panel w-full rounded-xl border px-3 py-2 text-sm"
+                      onChange={(event) => setCiRevisionSpecPath(event.currentTarget.value)}
+                      placeholder="openapi/openapi.yaml"
+                      type="text"
+                      value={ciRevisionSpecPath}
+                    />
+                  </FilterField>
+
+                  <FilterField label="Markdown report path">
+                    <input
+                      aria-label="Markdown report output path placeholder"
+                      className="border-line bg-panel w-full rounded-xl border px-3 py-2 text-sm"
+                      onChange={(event) => setCiReportOutputPath(event.currentTarget.value)}
+                      placeholder="reports/openapi-diff.md"
+                      type="text"
+                      value={ciReportOutputPath}
+                    />
+                  </FilterField>
+                </div>
+                <label className="border-line bg-panel-muted inline-flex items-center gap-3 rounded-2xl border px-4 py-3 text-sm">
+                  <input
+                    checked={ciFailBuildOnBreaking}
+                    onChange={(event) => setCiFailBuildOnBreaking(event.currentTarget.checked)}
+                    type="checkbox"
+                  />
+                  <span>Fail build on breaking changes</span>
+                </label>
+                <p className="text-muted text-sm leading-6">
+                  Keep Base and Revision paths the same for pull-request pipelines that compare the
+                  same spec file across branches. Change them when your workflow compares two
+                  different files.
+                </p>
+                <p className="text-muted text-sm leading-6">{ciTargetDescription}</p>
+              </CardContent>
+            </Card>
+
+            <Alert title="Browser vs CI parity" variant="info">
+              <div className="space-y-3">
+                <p className="leading-6">{ciSnippetBundle.parityNote}</p>
+                <p className="leading-6">{ciSnippetBundle.usageHint}</p>
+                <a
+                  className="text-sm font-medium text-foreground underline-offset-4 transition hover:underline"
+                  href="#pull-request-checks"
+                >
+                  How to add OpenAPI breaking-change checks to pull requests.
+                </a>
+              </div>
+            </Alert>
+
+            <div className="grid gap-6 xl:grid-cols-[0.88fr_1.12fr]">
+              <Card>
+                <CardHeader className="space-y-3">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <CardTitle>Selected settings notes</CardTitle>
+                    <Badge variant="neutral">Profile: {profileLabel}</Badge>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {ciSnippetBundle.settingsSummary.map((line) => (
+                    <div
+                      key={line}
+                      className="border-line bg-panel-muted rounded-2xl border px-4 py-3 text-sm leading-6"
+                    >
+                      {line}
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="space-y-3">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <CardTitle>Copyable snippet</CardTitle>
+                    <CopyButton
+                      label="Copy snippet"
+                      value={ciSnippetBundle.snippet}
+                      variant="secondary"
+                    />
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <p className="text-muted text-sm leading-6">
+                    This snippet uses the selected paths and Markdown output placeholder directly so
+                    you can paste it into your pipeline with minimal cleanup.
+                  </p>
+                  <pre className="border-line bg-panel-muted max-h-[42rem] overflow-auto rounded-2xl border p-4 text-xs leading-6 whitespace-pre-wrap">
+                    {ciSnippetBundle.snippet}
+                  </pre>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </TabsContent>
+
         <TabsContent value="export">
           <div className="space-y-6">
             <Card>
@@ -1508,7 +1804,8 @@ export function OpenApiDiffReportExplorer({
                 <CardContent className="space-y-4">
                   <p className="text-muted text-sm leading-6">
                     Markdown is tuned for GitHub PR comments. HTML is a standalone printable
-                    report, and JSON keeps the full machine-readable payload with export metadata.
+                    report, JSON keeps the full machine-readable payload with export metadata, and
+                    Share creates hash-only links without uploading raw specs.
                   </p>
                   <div className="grid gap-3 sm:grid-cols-2">
                     <CopyButton
@@ -1534,6 +1831,9 @@ export function OpenApiDiffReportExplorer({
                       variant="secondary"
                     >
                       Download JSON
+                    </Button>
+                    <Button onClick={() => setIsShareModalOpen(true)} variant="secondary">
+                      Share
                     </Button>
                   </div>
                   <p className="text-muted text-sm leading-6">
@@ -1592,16 +1892,104 @@ export function OpenApiDiffReportExplorer({
       </Tabs>
 
       <FindingDrawer
-        onAddIgnoreRule={onAddIgnoreRule}
         onOpenChange={(open) => {
           if (!open) {
             setSelectedFindingId(null);
           }
         }}
-        onRemoveIgnoreRule={onRemoveIgnoreRule}
         open={Boolean(selectedRow)}
+        readOnly={readOnly}
         row={selectedRow}
+        {...(onAddIgnoreRule ? { onAddIgnoreRule } : {})}
+        {...(onRemoveIgnoreRule ? { onRemoveIgnoreRule } : {})}
       />
+
+      <Modal
+        description="Share links stay in the URL hash so raw specs are never uploaded or stored server-side."
+        onOpenChange={setIsShareModalOpen}
+        open={isShareModalOpen}
+        title="Share safely"
+      >
+        <div className="space-y-6">
+          <Tabs
+            defaultValue="settings"
+            onValueChange={(value) => setShareMode(value as "report" | "settings")}
+            value={shareMode}
+          >
+            <TabsList aria-label="Share mode">
+              <TabsTrigger value="settings">Settings-only link</TabsTrigger>
+              <TabsTrigger value="report">Redacted report link</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="settings">
+              <div className="space-y-4">
+                <p className="text-muted text-sm leading-6">
+                  Includes the selected profile, ignore rules, filters, export toggles, and report
+                  tab state. Specs and findings are not included.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <Badge variant="neutral">Safe default</Badge>
+                  <Badge variant="neutral">No specs</Badge>
+                  <Badge variant="neutral">No findings</Badge>
+                </div>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="report">
+              <div className="space-y-4">
+                <p className="text-muted text-sm leading-6">
+                  Includes a compressed redacted <code>DiffReport</code>, current export UI
+                  toggles, and report tab state. The shared page opens in read-only mode and never
+                  includes raw spec contents.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <Badge variant="neutral">Read-only view</Badge>
+                  <Badge variant="neutral">No raw specs</Badge>
+                  <Badge variant="neutral">Compressed in hash</Badge>
+                </div>
+                {!redactBeforeExport ? (
+                  <Alert title="Redaction is required for report links" variant="warning">
+                    <div className="space-y-3">
+                      <p className="leading-6">
+                        Turn on redaction before creating a report link so emails, internal hosts,
+                        tokens, and other secret-like values are masked across the shared payload.
+                      </p>
+                      <div className="flex flex-wrap gap-3">
+                        <Button onClick={() => setRedactBeforeExport(true)} variant="secondary">
+                          Enable redaction
+                        </Button>
+                      </div>
+                    </div>
+                  </Alert>
+                ) : null}
+              </div>
+            </TabsContent>
+          </Tabs>
+
+          {shareLinkResult.ok ? (
+            <div className="space-y-3">
+              <p className="text-sm font-medium text-foreground">Share link</p>
+              <textarea
+                className="border-line bg-panel-muted min-h-28 w-full rounded-2xl border p-4 text-xs leading-6"
+                readOnly
+                value={shareLinkResult.url}
+              />
+              <div className="flex flex-wrap gap-3">
+                <CopyButton label="Copy link" value={shareLinkResult.url} variant="secondary" />
+              </div>
+            </div>
+          ) : shareLinkResult.message ? (
+            <Alert
+              title={
+                shareMode === "report" ? "Report link unavailable" : "Share link unavailable"
+              }
+              variant="warning"
+            >
+              {shareLinkResult.message}
+            </Alert>
+          ) : null}
+        </div>
+      </Modal>
     </>
   );
 }

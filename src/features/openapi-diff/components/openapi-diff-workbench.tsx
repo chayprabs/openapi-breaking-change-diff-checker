@@ -52,14 +52,34 @@ import {
   consumerProfileOptions,
   createAnalysisSettings,
   formatConsumerProfileLabel,
+  formatRemoteRefPolicyLabel,
   removeIgnoreRule,
+  remoteRefPolicyOptions,
   serializeAnalysisSettings,
 } from "@/features/openapi-diff/lib/analysis-settings";
 import { getIgnoreRuleLabel } from "@/features/openapi-diff/lib/ignore-rules";
+import {
+  BrowserProxyFallbackError,
+  type BrowserPublicSpecFetchResult,
+  fetchPublicSpecTextInBrowser,
+  fetchPublicSpecTextViaProxy,
+} from "@/features/openapi-diff/lib/public-spec-fetch-client";
+import {
+  PublicSpecFetchError,
+  validatePublicSpecUrl,
+} from "@/features/openapi-diff/lib/public-spec-url";
 import { redactTextSources } from "@/features/openapi-diff/lib/redaction";
 import {
   createTooManyFindingsWarning,
 } from "@/features/openapi-diff/lib/report-display";
+import { parseShareStateFromUrl } from "@/features/openapi-diff/lib/share-links";
+import {
+  createDefaultReportExplorerUiState,
+  parseReportExplorerUiState,
+  parseWorkspaceMobileTab,
+  type ReportExplorerUiState,
+  type WorkspaceMobileTab,
+} from "@/features/openapi-diff/lib/ui-state";
 import {
   countSpecCharacters,
   countSpecLines,
@@ -78,6 +98,7 @@ import type {
   ConsumerProfile,
   DiffReport,
   RedactionResult,
+  RemoteRefPolicy,
   SpecInput,
   SpecParserError,
   SpecParserIssue,
@@ -85,18 +106,29 @@ import type {
   WorkspacePanelId,
 } from "@/features/openapi-diff/types";
 
-type WorkspaceMobileTab = "base" | "revision" | "results";
-
 type WorkspaceSettings = {
   activeMobileTab: WorkspaceMobileTab;
   analysisSettings: AnalysisSettings;
+  rememberEditorContents: boolean;
+  reportExplorerUiState: ReportExplorerUiState;
   selectedSampleId: WorkspaceSampleId | null;
+  specs?: Record<WorkspacePanelId, SpecInput>;
+};
+
+type WorkspaceShareState = {
+  errorMessage: string | null;
+  mode: "invalid" | "none" | "report" | "settings";
+  report: DiffReport | null;
+  toolVersion: string | null;
 };
 
 type WorkspaceStateSnapshot = {
   activeMobileTab: WorkspaceMobileTab;
   analysisSettings: AnalysisSettings;
+  rememberEditorContents: boolean;
+  reportExplorerUiState: ReportExplorerUiState;
   selectedSampleId: WorkspaceSampleId | null;
+  shareState: WorkspaceShareState;
   specs: Record<WorkspacePanelId, SpecInput>;
 };
 
@@ -106,6 +138,14 @@ type WorkspaceSpecOverrides = {
   url?: string;
 };
 
+type UrlImportState = {
+  channel?: BrowserPublicSpecFetchResult["channel"];
+  finalUrl?: string;
+  isLoading: boolean;
+  redirected?: boolean;
+  requestedUrl?: string;
+};
+
 type WorkspaceEditorPanelProps = {
   errors: SpecParserError[];
   label: string;
@@ -113,23 +153,29 @@ type WorkspaceEditorPanelProps = {
   onClipboardRead: () => void;
   onContentChange: (content: string) => void;
   onFileSelected: (file: File) => void;
+  onImportFromUrl: (url: string) => void;
   panelId: WorkspacePanelId;
   placeholder: string;
   readClipboardSupported: boolean;
   sizeWarning?: string | undefined;
   spec: SpecInput;
+  urlImportState: UrlImportState;
   warnings: SpecWarning[];
 };
 
 type WorkspaceResultsPanelProps = {
+  activeMobileTab: WorkspaceMobileTab;
   analysisState: AnalysisWorkerState;
   baseSpec: SpecInput;
   editorStates: Record<WorkspacePanelId, EditorWorkerState>;
   onAddIgnoreRule: (ignoreRule: AnalysisSettings["ignoreRules"][number]) => void;
   onAnalyze: () => void;
+  onReportExplorerUiStateChange: (uiState: ReportExplorerUiState) => void;
   onRemoveIgnoreRule: (ignoreRuleId: string) => void;
   progress: WorkerProgressState;
   report: DiffReport | null;
+  reportExplorerKey: number;
+  reportExplorerUiState: ReportExplorerUiState;
   revisionSpec: SpecInput;
   selectedSampleId: WorkspaceSampleId | null;
 };
@@ -137,6 +183,8 @@ type WorkspaceResultsPanelProps = {
 const DEFAULT_SETTINGS: WorkspaceSettings = {
   activeMobileTab: "base",
   analysisSettings: createAnalysisSettings(),
+  rememberEditorContents: false,
+  reportExplorerUiState: createDefaultReportExplorerUiState(),
   selectedSampleId: null,
 };
 
@@ -305,6 +353,11 @@ function parseStoredAnalysisSettings(
   )
     ? (value.consumerProfile as ConsumerProfile)
     : legacyConsumerProfile ?? DEFAULT_SETTINGS.analysisSettings.consumerProfile;
+  const remoteRefPolicy = remoteRefPolicyOptions.some(
+    (option) => option.value === value.remoteRefPolicy,
+  )
+    ? (value.remoteRefPolicy as RemoteRefPolicy)
+    : DEFAULT_SETTINGS.analysisSettings.remoteRefPolicy;
   const exportFormats = Array.isArray(value.exportFormats)
     ? value.exportFormats.filter(
         (entry): entry is AnalysisSettings["exportFormats"][number] =>
@@ -403,6 +456,7 @@ function parseStoredAnalysisSettings(
 
   return createAnalysisSettings({
     consumerProfile,
+    remoteRefPolicy,
     ...(exportFormats ? { exportFormats } : {}),
     ...(failOnSeverities ? { failOnSeverities } : {}),
     ...(customRedactionRules ? { customRedactionRules } : {}),
@@ -428,6 +482,112 @@ function parseStoredAnalysisSettings(
   });
 }
 
+function parseStoredSpecs(
+  value: unknown,
+): Record<WorkspacePanelId, SpecInput> | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  const baseSpec = parseStoredSpecInput("base", value.base);
+  const revisionSpec = parseStoredSpecInput("revision", value.revision);
+
+  if (!baseSpec || !revisionSpec) {
+    return null;
+  }
+
+  return {
+    base: baseSpec,
+    revision: revisionSpec,
+  };
+}
+
+function parseStoredSpecInput(
+  panelId: WorkspacePanelId,
+  value: unknown,
+): SpecInput | null {
+  if (!isRecord(value) || typeof value.content !== "string") {
+    return null;
+  }
+
+  const nextFilename = typeof value.filename === "string" ? value.filename : undefined;
+  const nextSource =
+    value.source === "paste" ||
+    value.source === "sample" ||
+    value.source === "upload" ||
+    value.source === "url"
+      ? value.source
+      : "paste";
+  const nextUrl = typeof value.url === "string" ? value.url : undefined;
+
+  return {
+    content: value.content,
+    ...(nextFilename ? { filename: nextFilename } : {}),
+    format: inferSpecFormat(value.content, nextFilename),
+    id: panelId,
+    label: panelId === "base" ? "Base spec" : "Revision spec",
+    source: nextSource,
+    ...(nextUrl ? { url: nextUrl } : {}),
+  };
+}
+
+function readWorkspaceShareState(): WorkspaceShareState & {
+  analysisSettings?: AnalysisSettings;
+  reportExplorerUiState?: ReportExplorerUiState;
+  sharedActiveMobileTab?: WorkspaceMobileTab;
+} {
+  if (typeof window === "undefined") {
+    return {
+      errorMessage: null,
+      mode: "none",
+      report: null,
+      toolVersion: null,
+    };
+  }
+
+  const parsedShareState = parseShareStateFromUrl(window.location.href);
+
+  if (parsedShareState.mode === "none") {
+    return {
+      errorMessage: null,
+      mode: "none",
+      report: null,
+      toolVersion: null,
+    };
+  }
+
+  if (parsedShareState.mode === "invalid") {
+    return {
+      errorMessage: parsedShareState.message,
+      mode: "invalid",
+      report: null,
+      toolVersion: null,
+    };
+  }
+
+  if (parsedShareState.mode === "settings") {
+    return {
+      analysisSettings: parsedShareState.analysisSettings,
+      errorMessage: null,
+      mode: "settings",
+      report: null,
+      reportExplorerUiState: parsedShareState.ui.reportExplorer,
+      sharedActiveMobileTab: parsedShareState.ui.activeMobileTab,
+      toolVersion: null,
+    };
+  }
+
+  return {
+    analysisSettings: parsedShareState.report.settings,
+    errorMessage: null,
+    mode: "report",
+    report: parsedShareState.report,
+    reportExplorerUiState: parsedShareState.ui.reportExplorer,
+    sharedActiveMobileTab: parsedShareState.ui.activeMobileTab,
+    toolVersion: parsedShareState.toolVersion,
+  };
+}
+
 function readStoredWorkspaceSettings(): WorkspaceSettings {
   if (typeof window === "undefined") {
     return DEFAULT_SETTINGS;
@@ -443,17 +603,17 @@ function readStoredWorkspaceSettings(): WorkspaceSettings {
     }
 
     const parsed = JSON.parse(rawSettings) as Partial<WorkspaceSettings>;
-    const activeMobileTab =
-      parsed.activeMobileTab === "base" ||
-      parsed.activeMobileTab === "revision" ||
-      parsed.activeMobileTab === "results"
-        ? parsed.activeMobileTab
-        : DEFAULT_SETTINGS.activeMobileTab;
+    const activeMobileTab = parseWorkspaceMobileTab(
+      parsed.activeMobileTab,
+      DEFAULT_SETTINGS.activeMobileTab,
+    );
     const selectedSampleId =
       parsed.selectedSampleId &&
       workspaceSamples.some((sample) => sample.id === parsed.selectedSampleId)
         ? parsed.selectedSampleId
         : null;
+    const rememberEditorContents = parsed.rememberEditorContents === true;
+    const specs = rememberEditorContents ? parseStoredSpecs(parsed.specs) : null;
 
     return {
       activeMobileTab,
@@ -465,7 +625,10 @@ function readStoredWorkspaceSettings(): WorkspaceSettings {
           ? ((parsed as { consumerProfile?: ConsumerProfile }).consumerProfile as ConsumerProfile)
           : undefined,
       ),
+      rememberEditorContents,
+      reportExplorerUiState: parseReportExplorerUiState(parsed.reportExplorerUiState),
       selectedSampleId,
+      ...(specs ? { specs } : {}),
     };
   } catch {
     return DEFAULT_SETTINGS;
@@ -474,17 +637,53 @@ function readStoredWorkspaceSettings(): WorkspaceSettings {
 
 function createInitialWorkspaceState(): WorkspaceStateSnapshot {
   const settings = readStoredWorkspaceSettings();
-
-  return {
-    activeMobileTab: settings.activeMobileTab,
-    analysisSettings: settings.analysisSettings,
-    selectedSampleId: settings.selectedSampleId,
-    specs: settings.selectedSampleId
+  const shareState = readWorkspaceShareState();
+  const rememberedSpecs = settings.rememberEditorContents ? settings.specs ?? null : null;
+  const baseSnapshot = rememberedSpecs
+    ? rememberedSpecs
+    : settings.selectedSampleId
       ? createSpecsFromSample(getWorkspaceSample(settings.selectedSampleId))
       : {
           base: createEmptySpecInput("base"),
           revision: createEmptySpecInput("revision"),
-        },
+        };
+
+  if (shareState.mode === "report" && shareState.report) {
+    return {
+      activeMobileTab: "results",
+      analysisSettings: shareState.analysisSettings ?? settings.analysisSettings,
+      rememberEditorContents: settings.rememberEditorContents,
+      reportExplorerUiState:
+        shareState.reportExplorerUiState ?? settings.reportExplorerUiState,
+      selectedSampleId: null,
+      shareState: {
+        errorMessage: null,
+        mode: "report",
+        report: shareState.report,
+        toolVersion: shareState.toolVersion,
+      },
+      specs: {
+        base: createEmptySpecInput("base"),
+        revision: createEmptySpecInput("revision"),
+      },
+    };
+  }
+
+  return {
+    activeMobileTab:
+      shareState.sharedActiveMobileTab ?? settings.activeMobileTab,
+    analysisSettings: shareState.analysisSettings ?? settings.analysisSettings,
+    rememberEditorContents: settings.rememberEditorContents,
+    reportExplorerUiState:
+      shareState.reportExplorerUiState ?? settings.reportExplorerUiState,
+    selectedSampleId: settings.selectedSampleId,
+    shareState: {
+      errorMessage: shareState.errorMessage,
+      mode: shareState.mode,
+      report: null,
+      toolVersion: null,
+    },
+    specs: baseSnapshot,
   };
 }
 
@@ -506,6 +705,35 @@ function getSourceLabel(source: SpecInput["source"]) {
   }
 
   return "Paste or type";
+}
+
+function createPanelError(
+  panelId: WorkspacePanelId,
+  code: string,
+  message: string,
+): SpecParserError {
+  return {
+    code,
+    editorId: panelId,
+    message,
+    source: "worker",
+  };
+}
+
+function formatFetchChannelLabel(channel: BrowserPublicSpecFetchResult["channel"]) {
+  return channel === "browser" ? "Browser fetch" : "Safe server proxy";
+}
+
+function getImportFilenameFromUrl(url: string) {
+  try {
+    const parsed = new URL(url);
+    const segments = parsed.pathname.split("/");
+    const lastSegment = segments.at(-1);
+
+    return lastSegment ? decodeURIComponent(lastSegment) : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 function dedupeIssues<T extends SpecParserIssue>(issues: T[]) {
@@ -822,15 +1050,19 @@ function WorkspaceEditorPanel({
   onClipboardRead,
   onContentChange,
   onFileSelected,
+  onImportFromUrl,
   panelId,
   placeholder,
   readClipboardSupported,
   sizeWarning,
   spec,
+  urlImportState,
   warnings,
 }: WorkspaceEditorPanelProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const urlInputRef = useRef<HTMLInputElement>(null);
   const [isDragActive, setIsDragActive] = useState(false);
+  const [isUrlImportOpen, setIsUrlImportOpen] = useState(Boolean(spec.url));
   const firstError = errors[0];
   const visibleWarnings = warnings.filter((warning) => warning.code !== "large-spec");
 
@@ -885,6 +1117,12 @@ function WorkspaceEditorPanel({
     }
   };
 
+  const handleUrlImport = () => {
+    onImportFromUrl(urlInputRef.current?.value?.trim() ?? "");
+  };
+
+  const showUrlImport = isUrlImportOpen || Boolean(spec.url);
+
   return (
     <Card className="h-full">
       <CardHeader className="space-y-4">
@@ -924,10 +1162,76 @@ function WorkspaceEditorPanel({
           >
             Paste clipboard
           </Button>
+          <Button
+            onClick={() => setIsUrlImportOpen((current) => !current)}
+            variant="outline"
+          >
+            Import from URL
+          </Button>
           <Button disabled={!spec.content} onClick={onClear} variant="ghost">
             Clear
           </Button>
         </div>
+
+        {showUrlImport ? (
+          <div className="border-line bg-panel-muted space-y-3 rounded-2xl border p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-medium text-foreground">Import from URL</p>
+                <p className="text-muted mt-1 text-sm leading-6">
+                  Public raw GitHub URLs, public docs URLs, and public API endpoints are
+                  supported. Authenticated and private URLs are not supported in the free
+                  web tool.
+                </p>
+              </div>
+              {urlImportState.channel ? (
+                <Badge
+                  variant={
+                    urlImportState.channel === "browser" ? "safe" : "info"
+                  }
+                >
+                  {formatFetchChannelLabel(urlImportState.channel)}
+                </Badge>
+              ) : null}
+            </div>
+
+            <div className="flex flex-col gap-3 md:flex-row">
+              <input
+                aria-label={`${label} import URL`}
+                className="border-line bg-panel min-w-0 flex-1 rounded-xl border px-3 py-2 text-sm"
+                defaultValue={spec.url ?? urlImportState.requestedUrl ?? ""}
+                key={`${panelId}:${spec.url ?? urlImportState.requestedUrl ?? ""}`}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    handleUrlImport();
+                  }
+                }}
+                placeholder="https://raw.githubusercontent.com/org/repo/main/openapi.yaml"
+                ref={urlInputRef}
+                spellCheck={false}
+              />
+              <Button
+                disabled={urlImportState.isLoading}
+                onClick={handleUrlImport}
+                variant="secondary"
+              >
+                {urlImportState.isLoading ? "Importing..." : "Fetch URL"}
+              </Button>
+            </div>
+
+            <div className="text-muted flex flex-wrap items-center gap-3 text-xs">
+              <span>Browser fetch is tried first where CORS allows.</span>
+              <span>Fallback uses the safe server proxy.</span>
+              {urlImportState.finalUrl ? (
+                <span className="break-all">
+                  Last import: {urlImportState.finalUrl}
+                  {urlImportState.redirected ? " (redirected)" : ""}
+                </span>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
       </CardHeader>
 
       <CardContent className="space-y-4">
@@ -960,6 +1264,7 @@ function WorkspaceEditorPanel({
           <div className="text-muted flex flex-wrap gap-3">
             <span>{getSourceLabel(spec.source)}</span>
             {spec.filename ? <span>{spec.filename}</span> : null}
+            {spec.url ? <span className="break-all">{spec.url}</span> : null}
             <span>{lineCount} lines</span>
             <span>{characterCount.toLocaleString()} chars</span>
             <span>{formatBytes(byteCount)}</span>
@@ -997,14 +1302,18 @@ function WorkspaceEditorPanel({
 }
 
 function WorkspaceResultsPanel({
+  activeMobileTab,
   analysisState,
   baseSpec,
   editorStates,
   onAddIgnoreRule,
   onAnalyze,
+  onReportExplorerUiStateChange,
   onRemoveIgnoreRule,
   progress,
   report,
+  reportExplorerKey,
+  reportExplorerUiState,
   revisionSpec,
   selectedSampleId,
 }: WorkspaceResultsPanelProps) {
@@ -1205,8 +1514,12 @@ function WorkspaceResultsPanel({
                 </Alert>
 
                 <OpenApiDiffReportExplorer
+                  activeMobileTab={activeMobileTab}
+                  initialUiState={reportExplorerUiState}
+                  key={reportExplorerKey}
                   onAddIgnoreRule={onAddIgnoreRule}
                   onRemoveIgnoreRule={onRemoveIgnoreRule}
+                  onUiStateChange={onReportExplorerUiStateChange}
                   report={report}
                 />
               </div>
@@ -1238,9 +1551,61 @@ function WorkspaceResultsPanel({
   );
 }
 
+function SharedReportReadOnlyPanel({
+  onOpenEditableWorkspace,
+  onReportExplorerUiStateChange,
+  report,
+  reportExplorerKey,
+  reportExplorerUiState,
+  sharedToolVersion,
+}: {
+  onOpenEditableWorkspace: () => void;
+  onReportExplorerUiStateChange: (uiState: ReportExplorerUiState) => void;
+  report: DiffReport;
+  reportExplorerKey: number;
+  reportExplorerUiState: ReportExplorerUiState;
+  sharedToolVersion: string | null;
+}) {
+  return (
+    <div className="space-y-6">
+      <Alert title="Read-only shared report" variant="info">
+        <div className="space-y-4">
+          <p className="leading-6">
+            This view came from a redacted share link. Raw specs are not included here, and ignore
+            rules or editor contents cannot be changed from this shared view.
+          </p>
+          <div className="flex flex-wrap items-center gap-3">
+            <Button onClick={onOpenEditableWorkspace} variant="secondary">
+              Open editable workspace
+            </Button>
+            {sharedToolVersion ? (
+              <span className="text-muted text-sm">
+                Shared from Authos v{sharedToolVersion}
+              </span>
+            ) : null}
+          </div>
+        </div>
+      </Alert>
+
+      <OpenApiDiffReportExplorer
+        activeMobileTab="results"
+        initialUiState={reportExplorerUiState}
+        key={reportExplorerKey}
+        onUiStateChange={onReportExplorerUiStateChange}
+        readOnly
+        report={report}
+      />
+    </div>
+  );
+}
+
 export function OpenApiDiffWorkbench() {
   const { notify } = useToast();
   const initialState = useMemo(() => createInitialWorkspaceState(), []);
+  const workspaceShareState = initialState.shareState;
+  const isReadOnlySharedReport =
+    workspaceShareState.mode === "report" && workspaceShareState.report !== null;
+  const sharedReport = workspaceShareState.report;
   const [workspaceSpecs, setWorkspaceSpecs] = useState(() => initialState.specs);
   const [selectedSampleId, setSelectedSampleId] = useState<WorkspaceSampleId | null>(
     () => initialState.selectedSampleId,
@@ -1248,6 +1613,13 @@ export function OpenApiDiffWorkbench() {
   const [analysisSettingsState, setAnalysisSettingsState] = useState<AnalysisSettings>(
     () => initialState.analysisSettings,
   );
+  const [rememberEditorContents, setRememberEditorContents] = useState(
+    () => initialState.rememberEditorContents,
+  );
+  const [reportExplorerUiState, setReportExplorerUiState] = useState<ReportExplorerUiState>(
+    () => initialState.reportExplorerUiState,
+  );
+  const [reportExplorerRenderKey, setReportExplorerRenderKey] = useState(0);
   const [activeMobileTab, setActiveMobileTab] = useState<WorkspaceMobileTab>(
     () => initialState.activeMobileTab,
   );
@@ -1256,6 +1628,12 @@ export function OpenApiDiffWorkbench() {
   const [clientErrors, setClientErrors] = useState<
     Partial<Record<WorkspacePanelId, SpecParserError[]>>
   >({});
+  const [urlImportStates, setUrlImportStates] = useState<
+    Record<WorkspacePanelId, UrlImportState>
+  >({
+    base: { isLoading: false },
+    revision: { isLoading: false },
+  });
   const {
     analysisState,
     clearAllStates,
@@ -1274,10 +1652,12 @@ export function OpenApiDiffWorkbench() {
   const deferredAnalysisResult = useDeferredValue(analysisState.result);
   const displayReport = useMemo(
     () =>
-      deferredAnalysisResult
+      sharedReport
+        ? sharedReport
+        : deferredAnalysisResult
         ? reclassifyDiffReport(deferredAnalysisResult.report, analysisSettings)
         : null,
-    [analysisSettings, deferredAnalysisResult],
+    [analysisSettings, deferredAnalysisResult, sharedReport],
   );
 
   const readClipboardSupported =
@@ -1344,6 +1724,18 @@ export function OpenApiDiffWorkbench() {
     [],
   );
 
+  const handleReportExplorerUiStateChange = useCallback((uiState: ReportExplorerUiState) => {
+    setReportExplorerUiState(uiState);
+  }, []);
+
+  const handleOpenEditableWorkspace = useCallback(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    window.location.assign(`${window.location.origin}${window.location.pathname}`);
+  }, []);
+
   const setClientPanelErrors = useCallback(
     (panelId: WorkspacePanelId, errors: SpecParserError[]) => {
       setClientErrors((current) => ({
@@ -1360,6 +1752,20 @@ export function OpenApiDiffWorkbench() {
       [panelId]: undefined,
     }));
   }, []);
+
+  const setUrlImportState = useCallback(
+    (panelId: WorkspacePanelId, nextState: UrlImportState) => {
+      setUrlImportStates((current) => ({
+        ...current,
+        [panelId]: nextState,
+      }));
+    },
+    [],
+  );
+
+  const clearUrlImportState = useCallback((panelId: WorkspacePanelId) => {
+    setUrlImportState(panelId, { isLoading: false });
+  }, [setUrlImportState]);
 
   const handleAddIgnoreRule = useCallback(
     (ignoreRule: AnalysisSettings["ignoreRules"][number]) => {
@@ -1490,6 +1896,12 @@ export function OpenApiDiffWorkbench() {
           overrides && "filename" in overrides
             ? overrides.filename
             : currentSpec.filename;
+        const nextUrl =
+          overrides && "url" in overrides
+            ? overrides.url
+            : overrides?.source && overrides.source !== "url"
+              ? undefined
+              : currentSpec.url;
 
         return {
           ...current,
@@ -1498,21 +1910,29 @@ export function OpenApiDiffWorkbench() {
             ...(overrides ?? {}),
             content: nextContent,
             format: inferSpecFormat(nextContent, nextFilename),
+            url: nextUrl,
           },
         };
       });
 
       clearClientPanelErrors(panelId);
+      if (overrides?.source && overrides.source !== "url") {
+        clearUrlImportState(panelId);
+      }
       setSelectedSampleId(null);
       return true;
     },
-    [clearClientPanelErrors, notify, setClientPanelErrors],
+    [clearClientPanelErrors, clearUrlImportState, notify, setClientPanelErrors],
   );
 
   const applySample = useCallback(
     (sampleId: WorkspaceSampleId) => {
       const sample = getWorkspaceSample(sampleId);
       setWorkspaceSpecs(createSpecsFromSample(sample));
+      setUrlImportStates({
+        base: { isLoading: false },
+        revision: { isLoading: false },
+      });
       setSelectedSampleId(sampleId);
       setActiveMobileTab("base");
       setClientErrors({});
@@ -1533,11 +1953,12 @@ export function OpenApiDiffWorkbench() {
         [panelId]: createEmptySpecInput(panelId),
       }));
       clearClientPanelErrors(panelId);
+      clearUrlImportState(panelId);
       clearEditorState(panelId);
       resetAnalysisState();
       setSelectedSampleId(null);
     },
-    [clearClientPanelErrors, clearEditorState, resetAnalysisState],
+    [clearClientPanelErrors, clearEditorState, clearUrlImportState, resetAnalysisState],
   );
 
   const handleAnalyze = useCallback(() => {
@@ -1575,7 +1996,21 @@ export function OpenApiDiffWorkbench() {
   });
 
   useEffect(() => {
-    if (typeof window === "undefined") {
+    if (typeof window === "undefined" || isReadOnlySharedReport) {
+      return;
+    }
+
+    const shouldPersistSettings =
+      activeMobileTab !== DEFAULT_SETTINGS.activeMobileTab ||
+      selectedSampleId !== DEFAULT_SETTINGS.selectedSampleId ||
+      rememberEditorContents ||
+      serializeAnalysisSettings(analysisSettings) !==
+        serializeAnalysisSettings(DEFAULT_SETTINGS.analysisSettings) ||
+      JSON.stringify(reportExplorerUiState) !==
+        JSON.stringify(DEFAULT_SETTINGS.reportExplorerUiState);
+
+    if (!shouldPersistSettings) {
+      window.localStorage.removeItem(OPENAPI_WORKSPACE_SETTINGS_STORAGE_KEY);
       return;
     }
 
@@ -1584,12 +2019,27 @@ export function OpenApiDiffWorkbench() {
       JSON.stringify({
         activeMobileTab,
         analysisSettings,
+        rememberEditorContents,
+        reportExplorerUiState,
         selectedSampleId,
+        ...(rememberEditorContents ? { specs: workspaceSpecs } : {}),
       } satisfies WorkspaceSettings),
     );
-  }, [activeMobileTab, analysisSettings, selectedSampleId]);
+  }, [
+    activeMobileTab,
+    analysisSettings,
+    isReadOnlySharedReport,
+    rememberEditorContents,
+    reportExplorerUiState,
+    selectedSampleId,
+    workspaceSpecs,
+  ]);
 
   useEffect(() => {
+    if (isReadOnlySharedReport) {
+      return;
+    }
+
     const handleKeyDown = (event: KeyboardEvent) => {
       if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
         event.preventDefault();
@@ -1599,9 +2049,13 @@ export function OpenApiDiffWorkbench() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
+  }, [isReadOnlySharedReport]);
 
   useEffect(() => {
+    if (isReadOnlySharedReport) {
+      return;
+    }
+
     if (!workspaceSpecs.base.content.trim().length) {
       clearEditorState("base");
       return;
@@ -1612,9 +2066,13 @@ export function OpenApiDiffWorkbench() {
     }, 250);
 
     return () => window.clearTimeout(timeoutId);
-  }, [clearEditorState, requestParse, workspaceSpecs.base]);
+  }, [clearEditorState, isReadOnlySharedReport, requestParse, workspaceSpecs.base]);
 
   useEffect(() => {
+    if (isReadOnlySharedReport) {
+      return;
+    }
+
     if (!workspaceSpecs.revision.content.trim().length) {
       clearEditorState("revision");
       return;
@@ -1625,7 +2083,7 @@ export function OpenApiDiffWorkbench() {
     }, 250);
 
     return () => window.clearTimeout(timeoutId);
-  }, [clearEditorState, requestParse, workspaceSpecs.revision]);
+  }, [clearEditorState, isReadOnlySharedReport, requestParse, workspaceSpecs.revision]);
 
   const handleSwapSpecs = useCallback(() => {
     setWorkspaceSpecs((current) => ({
@@ -1639,6 +2097,10 @@ export function OpenApiDiffWorkbench() {
         id: "revision",
         label: "Revision spec",
       },
+    }));
+    setUrlImportStates((current) => ({
+      base: { ...current.revision },
+      revision: { ...current.base },
     }));
     setSelectedSampleId(null);
     setClientErrors({});
@@ -1655,6 +2117,10 @@ export function OpenApiDiffWorkbench() {
     setWorkspaceSpecs({
       base: createEmptySpecInput("base"),
       revision: createEmptySpecInput("revision"),
+    });
+    setUrlImportStates({
+      base: { isLoading: false },
+      revision: { isLoading: false },
     });
     setSelectedSampleId(null);
     setClientErrors({});
@@ -1676,6 +2142,49 @@ export function OpenApiDiffWorkbench() {
       variant: "info",
     });
   }, [notify, updateAnalysisSettings]);
+
+  const handleSetRememberEditorContents = useCallback(
+    (enabled: boolean) => {
+      setRememberEditorContents(enabled);
+      notify({
+        description: enabled
+          ? "Editor contents will be stored in this browser until you clear local data or turn this off."
+          : "Editor contents will no longer be persisted on this device.",
+        title: enabled ? "Editor memory enabled" : "Editor memory disabled",
+        variant: enabled ? "info" : "success",
+      });
+    },
+    [notify],
+  );
+
+  const handleClearLocalData = useCallback(() => {
+    if (typeof window !== "undefined") {
+      window.localStorage.removeItem(OPENAPI_WORKSPACE_SETTINGS_STORAGE_KEY);
+    }
+
+    setRememberEditorContents(false);
+    setWorkspaceSpecs({
+      base: createEmptySpecInput("base"),
+      revision: createEmptySpecInput("revision"),
+    });
+    setUrlImportStates({
+      base: { isLoading: false },
+      revision: { isLoading: false },
+    });
+    setSelectedSampleId(null);
+    setClientErrors({});
+    setReportExplorerUiState(createDefaultReportExplorerUiState());
+    setReportExplorerRenderKey((current) => current + 1);
+    setActiveMobileTab("base");
+    updateAnalysisSettings(createAnalysisSettings());
+    clearAllStates();
+    notify({
+      description:
+        "Saved settings and remembered editor contents were removed from this browser.",
+      title: "Local data cleared",
+      variant: "success",
+    });
+  }, [clearAllStates, notify, updateAnalysisSettings]);
 
   const handleFileSelected = useCallback(
     async (panelId: WorkspacePanelId, file: File) => {
@@ -1777,6 +2286,107 @@ export function OpenApiDiffWorkbench() {
     [notify, readClipboardSupported, updateWorkspaceSpec],
   );
 
+  const handleImportFromUrl = useCallback(
+    async (panelId: WorkspacePanelId, rawUrl: string) => {
+      const panelLabel = panelId === "base" ? "Base" : "Revision";
+
+      try {
+        validatePublicSpecUrl(rawUrl);
+      } catch (error) {
+        const message =
+          error instanceof PublicSpecFetchError
+            ? error.message
+            : "Enter a valid public http or https URL.";
+
+        setClientPanelErrors(panelId, [
+          createPanelError(panelId, "url-import-blocked", message),
+        ]);
+        notify({
+          description: message,
+          title: "URL import blocked",
+          variant: "error",
+        });
+        return;
+      }
+
+      setUrlImportState(panelId, {
+        isLoading: true,
+        requestedUrl: rawUrl.trim(),
+      });
+      clearClientPanelErrors(panelId);
+
+      try {
+        let result: BrowserPublicSpecFetchResult;
+
+        try {
+          result = await fetchPublicSpecTextInBrowser(rawUrl);
+        } catch (error) {
+          if (!(error instanceof BrowserProxyFallbackError)) {
+            throw error;
+          }
+
+          result = await fetchPublicSpecTextViaProxy(rawUrl);
+        }
+
+        const importedFilename = getImportFilenameFromUrl(result.finalUrl);
+        const imported = updateWorkspaceSpec(panelId, result.content, {
+          source: "url",
+          url: result.finalUrl,
+          ...(typeof importedFilename === "string"
+            ? { filename: importedFilename }
+            : {}),
+        });
+
+        if (!imported) {
+          setUrlImportState(panelId, { isLoading: false });
+          return;
+        }
+
+        setUrlImportState(panelId, {
+          channel: result.channel,
+          finalUrl: result.finalUrl,
+          isLoading: false,
+          redirected: result.redirected,
+          requestedUrl: rawUrl.trim(),
+        });
+        notify({
+          description: `${panelLabel} spec loaded through ${formatFetchChannelLabel(
+            result.channel,
+          ).toLowerCase()}.`,
+          title: "URL imported",
+          variant: "success",
+        });
+      } catch (error) {
+        const message =
+          error instanceof PublicSpecFetchError
+            ? error.message
+            : error instanceof Error && error.message
+              ? error.message
+              : "The remote document could not be imported.";
+
+        setUrlImportState(panelId, {
+          isLoading: false,
+          requestedUrl: rawUrl.trim(),
+        });
+        setClientPanelErrors(panelId, [
+          createPanelError(panelId, "url-import-failed", message),
+        ]);
+        notify({
+          description: message,
+          title: "URL import failed",
+          variant: "error",
+        });
+      }
+    },
+    [
+      clearClientPanelErrors,
+      notify,
+      setClientPanelErrors,
+      setUrlImportState,
+      updateWorkspaceSpec,
+    ],
+  );
+
   const baseWarning =
     getSpecContentBytes(workspaceSpecs.base.content) > SPEC_SIZE_WARNING_BYTES
       ? "This editor is holding more than 5 MB of content. The worker keeps parsing off the main thread, but validation may feel slower."
@@ -1816,15 +2426,30 @@ export function OpenApiDiffWorkbench() {
           })
         }
         onFileSelected={(file) => handleFileSelected(panelId, file)}
+        onImportFromUrl={(url) => handleImportFromUrl(panelId, url)}
         panelId={panelId}
         placeholder={placeholder}
         readClipboardSupported={readClipboardSupported}
         sizeWarning={panelId === "base" ? baseWarning : revisionWarning}
         spec={spec}
+        urlImportState={urlImportStates[panelId]}
         warnings={workerState.warnings}
       />
     );
   };
+
+  if (isReadOnlySharedReport && sharedReport) {
+    return (
+      <SharedReportReadOnlyPanel
+        onOpenEditableWorkspace={handleOpenEditableWorkspace}
+        onReportExplorerUiStateChange={handleReportExplorerUiStateChange}
+        report={sharedReport}
+        reportExplorerKey={reportExplorerRenderKey}
+        reportExplorerUiState={reportExplorerUiState}
+        sharedToolVersion={workspaceShareState.toolVersion}
+      />
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -1854,11 +2479,19 @@ export function OpenApiDiffWorkbench() {
         onImportSettingsJson={handleImportSettingsJson}
         onOpenChange={setIsSettingsDrawerOpen}
         onRemoveIgnoreRule={handleRemoveIgnoreRule}
+        onClearLocalData={handleClearLocalData}
         onResetSettings={handleResetAnalysisSettings}
+        onSetRememberEditorContents={handleSetRememberEditorContents}
         onSetConsumerProfile={(nextProfile) =>
           updateAnalysisSettings((current) => ({
             ...current,
             consumerProfile: nextProfile,
+          }))
+        }
+        onSetRemoteRefPolicy={(nextPolicy) =>
+          updateAnalysisSettings((current) => ({
+            ...current,
+            remoteRefPolicy: nextPolicy,
           }))
         }
         onSetTreatEnumAdditionsAsDangerous={(enabled) =>
@@ -1868,9 +2501,24 @@ export function OpenApiDiffWorkbench() {
           }))
         }
         open={isSettingsDrawerOpen}
+        rememberEditorContents={rememberEditorContents}
         settings={analysisSettings}
         settingsJson={settingsJson}
       />
+
+      {workspaceShareState.mode === "invalid" && workspaceShareState.errorMessage ? (
+        <Alert title="Shared link could not be loaded" variant="warning">
+          {workspaceShareState.errorMessage}
+        </Alert>
+      ) : null}
+
+      {workspaceShareState.mode === "settings" ? (
+        <Alert title="Shared settings loaded" variant="info">
+          The current profile, ignore rules, and findings explorer state came from a settings-only
+          link. Raw specs were not included, so you can paste, upload, or import your own inputs
+          before running analysis.
+        </Alert>
+      ) : null}
 
       <Toolbar
         label="OpenAPI diff workspace actions"
@@ -1948,6 +2596,9 @@ export function OpenApiDiffWorkbench() {
         </label>
         <span className="text-muted inline-flex items-center gap-2 text-sm">
           {consumerProfileOptions.find((option) => option.value === consumerProfile)?.description}
+        </span>
+        <span className="text-muted inline-flex items-center gap-2 text-sm">
+          Remote refs: {formatRemoteRefPolicyLabel(analysisSettings.remoteRefPolicy)}
         </span>
         {analysisSettings.treatEnumAdditionsAsDangerous ? (
           <Badge variant="dangerous">Enum additions stay dangerous</Badge>
@@ -2029,14 +2680,18 @@ export function OpenApiDiffWorkbench() {
           </TabsContent>
           <TabsContent value="results">
             <WorkspaceResultsPanel
+              activeMobileTab={activeMobileTab}
               analysisState={analysisState}
               baseSpec={workspaceSpecs.base}
               editorStates={editorStates}
               onAddIgnoreRule={handleAddIgnoreRule}
               onAnalyze={handleAnalyze}
+              onReportExplorerUiStateChange={handleReportExplorerUiStateChange}
               onRemoveIgnoreRule={handleRemoveIgnoreRule}
               progress={progress}
               report={displayReport}
+              reportExplorerKey={reportExplorerRenderKey}
+              reportExplorerUiState={reportExplorerUiState}
               revisionSpec={workspaceSpecs.revision}
               selectedSampleId={selectedSampleId}
             />
@@ -2057,14 +2712,18 @@ export function OpenApiDiffWorkbench() {
         </div>
 
         <WorkspaceResultsPanel
+          activeMobileTab={activeMobileTab}
           analysisState={analysisState}
           baseSpec={workspaceSpecs.base}
           editorStates={editorStates}
           onAddIgnoreRule={handleAddIgnoreRule}
           onAnalyze={handleAnalyze}
+          onReportExplorerUiStateChange={handleReportExplorerUiStateChange}
           onRemoveIgnoreRule={handleRemoveIgnoreRule}
           progress={progress}
           report={displayReport}
+          reportExplorerKey={reportExplorerRenderKey}
+          reportExplorerUiState={reportExplorerUiState}
           revisionSpec={workspaceSpecs.revision}
           selectedSampleId={selectedSampleId}
         />

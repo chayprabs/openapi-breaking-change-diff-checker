@@ -31,6 +31,7 @@ import type {
   RedactionPlaceholderKind,
   RedactionPreview,
   RedactionResult,
+  RemoteRefPolicy,
   RuleId,
 } from "@/features/openapi-diff/types";
 
@@ -69,6 +70,10 @@ const diffSeverityValues = [
 ] as const satisfies readonly DiffSeverity[];
 
 const exportFormatValues = ["json", "markdown", "html", "csv"] as const;
+const remoteRefPolicyValues = [
+  "localOnly",
+  "publicRemote",
+] as const satisfies readonly RemoteRefPolicy[];
 const redactionPlaceholderKinds = [
   "API_KEY",
   "BASIC_AUTH",
@@ -235,6 +240,7 @@ const analysisSettingsSchema = z.object({
   includeInfoFindings: z.boolean(),
   redactExamples: z.boolean(),
   redactServerUrls: z.boolean(),
+  remoteRefPolicy: z.enum(remoteRefPolicyValues),
   resolveLocalRefs: z.boolean(),
   treatEnumAdditionsAsDangerous: z.boolean(),
 });

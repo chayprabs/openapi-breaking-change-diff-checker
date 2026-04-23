@@ -3,6 +3,7 @@ import type { ToolCategory, ToolDirectoryItem } from "@/types/tool";
 
 export const siteConfig = {
   name: "Authos",
+  url: "https://authos.dev",
   tagline: "Developer tools for API, schema, and release confidence",
   description:
     "Authos is a multi-tool workspace for developers who need clear signals around contract changes, release risk, and schema evolution. The first tool compares OpenAPI specs semantically and fits into a broader iLovePDF-style directory for technical workflows.",

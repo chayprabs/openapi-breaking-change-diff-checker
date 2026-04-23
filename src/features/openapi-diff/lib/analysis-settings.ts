@@ -4,6 +4,7 @@ import type {
   DiffCategory,
   IgnoreRule,
   IgnoreRuleSource,
+  RemoteRefPolicy,
 } from "@/features/openapi-diff/types";
 import { cloneIgnoreRules } from "@/features/openapi-diff/lib/ignore-rules";
 
@@ -52,6 +53,25 @@ export const consumerProfileOptions = [
   value: ConsumerProfile;
 }>;
 
+export const remoteRefPolicyOptions = [
+  {
+    description:
+      "Default and safest mode. Only in-document JSON Pointer refs are resolved during analysis.",
+    label: "Local refs only",
+    value: "localOnly",
+  },
+  {
+    description:
+      "Allows public remote refs through the safe server proxy. Private, localhost, and metadata targets stay blocked.",
+    label: "Allow public remote refs",
+    value: "publicRemote",
+  },
+] as const satisfies ReadonlyArray<{
+  description: string;
+  label: string;
+  value: RemoteRefPolicy;
+}>;
+
 export const defaultAnalysisSettings: AnalysisSettings = {
   customRedactionRules: [],
   consumerProfile: "publicApi",
@@ -62,6 +82,7 @@ export const defaultAnalysisSettings: AnalysisSettings = {
   includeInfoFindings: true,
   redactExamples: false,
   redactServerUrls: false,
+  remoteRefPolicy: "localOnly",
   resolveLocalRefs: true,
   treatEnumAdditionsAsDangerous: false,
 };
@@ -77,6 +98,7 @@ export function cloneAnalysisSettings(settings: AnalysisSettings): AnalysisSetti
     includeInfoFindings: settings.includeInfoFindings,
     redactExamples: settings.redactExamples,
     redactServerUrls: settings.redactServerUrls,
+    remoteRefPolicy: settings.remoteRefPolicy,
     resolveLocalRefs: settings.resolveLocalRefs,
     treatEnumAdditionsAsDangerous: settings.treatEnumAdditionsAsDangerous,
   };
@@ -105,6 +127,9 @@ export function createAnalysisSettings(
     ...(overrides.includeCategories ? { includeCategories: [...overrides.includeCategories] } : {}),
     ...(overrides.redactServerUrls !== undefined
       ? { redactServerUrls: overrides.redactServerUrls }
+      : {}),
+    ...(overrides.remoteRefPolicy !== undefined
+      ? { remoteRefPolicy: overrides.remoteRefPolicy }
       : {}),
     ...(overrides.treatEnumAdditionsAsDangerous !== undefined
       ? {
@@ -155,4 +180,11 @@ export function getConsumerProfileOption(profile: ConsumerProfile) {
 
 export function formatConsumerProfileLabel(profile: ConsumerProfile) {
   return getConsumerProfileOption(profile).label;
+}
+
+export function formatRemoteRefPolicyLabel(policy: RemoteRefPolicy) {
+  return (
+    remoteRefPolicyOptions.find((option) => option.value === policy)?.label ??
+    remoteRefPolicyOptions[0].label
+  );
 }

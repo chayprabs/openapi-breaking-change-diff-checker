@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { PageShell } from "@/components/shell/page-shell";
+import { Badge } from "@/components/ui/badge";
 import { Section } from "@/components/ui/section";
 import { apiSchemaTools } from "@/data/site";
+import { relatedCompatibilityToolPlaceholders } from "@/features/openapi-diff/lib/tool-page-content";
 import { buildPageMetadata } from "@/lib/metadata";
 
 export const metadata = buildPageMetadata({
@@ -64,6 +66,31 @@ export default function ApiAndSchemaToolsPage() {
               </div>
             ),
           )}
+        </div>
+      </Section>
+
+      <Section
+        eyebrow="Planned next"
+        title="Compatibility placeholders linked from OpenAPI Diff"
+        description="These are not live tools yet, but the placeholder destinations exist so internal links from the OpenAPI Diff page point to a real crawlable section instead of a dead end."
+      >
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          {relatedCompatibilityToolPlaceholders.map((tool) => (
+            <article
+              id={tool.anchorId}
+              key={tool.anchorId}
+              className="border-line bg-panel rounded-[1.5rem] border p-6 shadow-[var(--shadow-card)]"
+            >
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant="info">Placeholder</Badge>
+                <span className="text-muted font-mono text-[0.68rem] tracking-[0.18em] uppercase">
+                  API and Schema
+                </span>
+              </div>
+              <h2 className="mt-4 text-xl font-semibold">{tool.title}</h2>
+              <p className="text-muted mt-3 text-sm leading-6">{tool.summary}</p>
+            </article>
+          ))}
         </div>
       </Section>
     </PageShell>

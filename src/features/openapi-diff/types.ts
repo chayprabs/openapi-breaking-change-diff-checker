@@ -512,6 +512,8 @@ export type RedactionResult = {
 
 export type ExportFormat = "json" | "markdown" | "html" | "csv";
 
+export type RemoteRefPolicy = "localOnly" | "publicRemote";
+
 export type AnalysisSettings = {
   customRedactionRules: CustomRedactionRule[];
   consumerProfile: ConsumerProfile;
@@ -522,6 +524,7 @@ export type AnalysisSettings = {
   includeInfoFindings: boolean;
   redactExamples: boolean;
   redactServerUrls: boolean;
+  remoteRefPolicy: RemoteRefPolicy;
   resolveLocalRefs: boolean;
   treatEnumAdditionsAsDangerous: boolean;
 };

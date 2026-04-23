@@ -1070,6 +1070,99 @@ function escapeRedactionPlaceholders(value: string) {
   return value.replace(/<([A-Z_]+_\d+)>/g, "&lt;$1&gt;");
 }
 
+function createRedactedJsonContent(value: string, report: DiffReport) {
+  const parsed = JSON.parse(value) as unknown;
+  const stringLeaves = collectJsonStringLeaves(parsed);
+
+  if (!stringLeaves.length) {
+    return value;
+  }
+
+  const redactionSession = redactTextSources(
+    stringLeaves.map((leaf) => ({
+      label: leaf.label,
+      value: leaf.value,
+    })),
+    report.settings,
+    {
+      previewLimit: 0,
+      redactedSource: "OpenAPI diff export",
+    },
+  );
+  const redactedValue = applyRedactedJsonLeaves(
+    parsed,
+    new Map(
+      redactionSession.sources.map((source) => [source.label, source.redactedValue]),
+    ),
+  );
+
+  return JSON.stringify(redactedValue, null, 2);
+}
+
+function collectJsonStringLeaves(
+  value: unknown,
+  path: Array<number | string> = [],
+): Array<{ label: string; value: string }> {
+  if (typeof value === "string") {
+    return [{ label: serializeJsonPath(path), value }];
+  }
+
+  if (Array.isArray(value)) {
+    return value.flatMap((entry, index) => collectJsonStringLeaves(entry, [...path, index]));
+  }
+
+  if (!isRecord(value)) {
+    return [];
+  }
+
+  return Object.entries(value).flatMap(([key, entry]) =>
+    collectJsonStringLeaves(entry, [...path, key]),
+  );
+}
+
+function applyRedactedJsonLeaves(
+  value: unknown,
+  redactedValues: Map<string, string>,
+  path: Array<number | string> = [],
+): unknown {
+  if (typeof value === "string") {
+    return redactedValues.get(serializeJsonPath(path)) ?? value;
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((entry, index) =>
+      applyRedactedJsonLeaves(entry, redactedValues, [...path, index]),
+    );
+  }
+
+  if (!isRecord(value)) {
+    return value;
+  }
+
+  return Object.fromEntries(
+    Object.entries(value).map(([key, entry]) => [
+      key,
+      applyRedactedJsonLeaves(entry, redactedValues, [...path, key]),
+    ]),
+  );
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function serializeJsonPath(path: Array<number | string>) {
+  if (!path.length) {
+    return "$";
+  }
+
+  return path
+    .map((segment) =>
+      typeof segment === "number" ? `[${segment}]` : `.${segment}`,
+    )
+    .join("");
+}
+
 function severityClassForRecommendation(
   recommendationCode: DiffReport["recommendation"]["code"],
 ): DiffSeverity {

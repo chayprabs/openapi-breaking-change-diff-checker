@@ -9,6 +9,7 @@ import { CopyButton } from "@/components/ui/copy-button";
 import { Drawer } from "@/components/ui/drawer";
 import {
   consumerProfileOptions,
+  remoteRefPolicyOptions,
 } from "@/features/openapi-diff/lib/analysis-settings";
 import {
   createDeprecatedEndpointIgnoreRule,
@@ -21,17 +22,29 @@ import {
   getIgnoreRuleLabel,
 } from "@/features/openapi-diff/lib/ignore-rules";
 import { ruleCatalog } from "@/features/openapi-diff/data/rule-catalog";
-import { ruleIds, type AnalysisSettings, type ConsumerProfile, type IgnoreRule, type OpenApiHttpMethod, type RuleId } from "@/features/openapi-diff/types";
+import {
+  ruleIds,
+  type AnalysisSettings,
+  type ConsumerProfile,
+  type IgnoreRule,
+  type OpenApiHttpMethod,
+  type RemoteRefPolicy,
+  type RuleId,
+} from "@/features/openapi-diff/types";
 
 type OpenApiDiffSettingsDrawerProps = {
   onAddIgnoreRule: (ignoreRule: IgnoreRule) => void;
+  onClearLocalData: () => void;
   onImportSettingsJson: (settingsJson: string) => void;
   onOpenChange: (open: boolean) => void;
   onRemoveIgnoreRule: (ignoreRuleId: string) => void;
   onResetSettings: () => void;
   onSetConsumerProfile: (consumerProfile: ConsumerProfile) => void;
+  onSetRememberEditorContents: (enabled: boolean) => void;
+  onSetRemoteRefPolicy: (policy: RemoteRefPolicy) => void;
   onSetTreatEnumAdditionsAsDangerous: (enabled: boolean) => void;
   open: boolean;
+  rememberEditorContents: boolean;
   settings: AnalysisSettings;
   settingsJson: string;
 };
@@ -71,13 +84,17 @@ function RuleChip({
 
 export function OpenApiDiffSettingsDrawer({
   onAddIgnoreRule,
+  onClearLocalData,
   onImportSettingsJson,
   onOpenChange,
   onRemoveIgnoreRule,
   onResetSettings,
   onSetConsumerProfile,
+  onSetRememberEditorContents,
+  onSetRemoteRefPolicy,
   onSetTreatEnumAdditionsAsDangerous,
   open,
+  rememberEditorContents,
   settings,
   settingsJson,
 }: OpenApiDiffSettingsDrawerProps) {
@@ -174,6 +191,72 @@ export function OpenApiDiffSettingsDrawer({
                 <span>Treat enum additions as dangerous</span>
               </label>
             </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="space-y-3">
+            <CardTitle className="text-base">Reference resolution</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <label className="space-y-2 text-sm">
+              <span className="block font-medium text-foreground">Remote $ref policy</span>
+              <select
+                aria-label="Remote ref policy"
+                className="border-line bg-panel w-full rounded-xl border px-3 py-2 text-sm"
+                onChange={(event) =>
+                  onSetRemoteRefPolicy(event.currentTarget.value as RemoteRefPolicy)
+                }
+                value={settings.remoteRefPolicy}
+              >
+                {remoteRefPolicyOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <p className="text-muted text-sm leading-6">
+              {
+                remoteRefPolicyOptions.find(
+                  (option) => option.value === settings.remoteRefPolicy,
+                )?.description
+              }
+            </p>
+            <p className="text-muted text-sm leading-6">
+              Authenticated URLs, localhost targets, private networks, and cloud metadata
+              endpoints stay blocked even when public remote refs are enabled.
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="space-y-3">
+            <CardTitle className="text-base">Local persistence</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <label className="border-line bg-panel-muted inline-flex items-center gap-3 rounded-2xl border px-4 py-3 text-sm">
+              <input
+                checked={rememberEditorContents}
+                onChange={(event) => onSetRememberEditorContents(event.currentTarget.checked)}
+                type="checkbox"
+              />
+              <span>Remember editor contents on this device</span>
+            </label>
+            <p className="text-muted text-sm leading-6">
+              Off by default. When enabled, the current Base and Revision editor contents are saved
+              to this browser so the workspace restores after a refresh. Leave it off on shared or
+              untrusted devices.
+            </p>
+            <div className="flex flex-wrap gap-3">
+              <Button onClick={onClearLocalData} variant="outline">
+                Clear local data
+              </Button>
+            </div>
+            <p className="text-muted text-sm leading-6">
+              Clearing local data removes saved settings and any remembered editor contents from
+              this browser.
+            </p>
           </CardContent>
         </Card>
 
