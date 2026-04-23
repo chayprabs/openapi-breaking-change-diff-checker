@@ -2,7 +2,6 @@ import { diffReportSchema } from "@/features/openapi-diff/engine/report";
 import { formatConsumerProfileLabel } from "@/features/openapi-diff/lib/analysis-settings";
 import {
   formatCategoryLabel,
-  formatEndpointLabel,
   formatSeverityLabel,
   type ReportFindingRow,
 } from "@/features/openapi-diff/lib/report-explorer";
@@ -108,7 +107,7 @@ export function createReportExportBundle(
 
   return {
     artifacts: options.redactBeforeExport
-      ? applyInspectionToArtifacts(unredactedArtifacts, inspectionSession)
+      ? applyInspectionToArtifacts(unredactedArtifacts, inspectionSession, report)
       : unredactedArtifacts,
     fileBaseName,
     includedRows,
@@ -160,25 +159,27 @@ function inspectArtifacts(
 function applyInspectionToArtifacts(
   artifacts: ReportExportArtifacts,
   inspectionSession: ReturnType<typeof redactTextSources>,
+  report: DiffReport,
 ): ReportExportArtifacts {
+  const markdownContent =
+    inspectionSession.sources.find((source) => source.label === "Markdown export")
+      ?.redactedValue ?? artifacts.markdown.content;
+  const htmlContent =
+    inspectionSession.sources.find((source) => source.label === "HTML export")
+      ?.redactedValue ?? artifacts.html.content;
+
   return {
     html: {
       ...artifacts.html,
-      content:
-        inspectionSession.sources.find((source) => source.label === "HTML export")
-          ?.redactedValue ?? artifacts.html.content,
+      content: escapeRedactionPlaceholders(htmlContent),
     },
     json: {
       ...artifacts.json,
-      content:
-        inspectionSession.sources.find((source) => source.label === "JSON export")
-          ?.redactedValue ?? artifacts.json.content,
+      content: createRedactedJsonContent(artifacts.json.content, report),
     },
     markdown: {
       ...artifacts.markdown,
-      content:
-        inspectionSession.sources.find((source) => source.label === "Markdown export")
-          ?.redactedValue ?? artifacts.markdown.content,
+      content: escapeRedactionPlaceholders(markdownContent),
     },
   };
 }
@@ -1063,6 +1064,10 @@ function escapeHtml(value: string) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
+}
+
+function escapeRedactionPlaceholders(value: string) {
+  return value.replace(/<([A-Z_]+_\d+)>/g, "&lt;$1&gt;");
 }
 
 function severityClassForRecommendation(

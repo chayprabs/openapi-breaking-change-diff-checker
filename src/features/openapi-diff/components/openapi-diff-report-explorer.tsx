@@ -660,14 +660,6 @@ export function OpenApiDiffReportExplorer({
       }),
     [deferredSearchText, filters, ignoredRows],
   );
-  const filteredAllRows = useMemo(
-    () =>
-      filterAndSortFindingRows(allRows, {
-        ...filters,
-        search: deferredSearchText,
-      }),
-    [allRows, deferredSearchText, filters],
-  );
   const securityRows = useMemo(
     () => activeRows.filter((row) => row.finding.category === "security"),
     [activeRows],
@@ -1390,20 +1382,28 @@ export function OpenApiDiffReportExplorer({
                     variant={
                       redactBeforeExport
                         ? "safe"
-                        : redactedExports.inspection.detectedSecrets
+                        : exportBundle.inspection.detectedSecrets
                           ? "dangerous"
                           : "neutral"
                     }
                   >
                     {redactBeforeExport
                       ? "Redacted before export"
-                      : redactedExports.inspection.detectedSecrets
+                      : exportBundle.inspection.detectedSecrets
                         ? "Unredacted export"
                         : "No redaction needed"}
                   </Badge>
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
+                <label className="border-line bg-panel-muted inline-flex items-center gap-3 rounded-2xl border px-4 py-3 text-sm">
+                  <input
+                    checked={includeSafeInExport}
+                    onChange={(event) => setIncludeSafeInExport(event.currentTarget.checked)}
+                    type="checkbox"
+                  />
+                  <span>Include safe changes</span>
+                </label>
                 <label className="border-line bg-panel-muted inline-flex items-center gap-3 rounded-2xl border px-4 py-3 text-sm">
                   <input
                     checked={redactBeforeExport}
@@ -1418,13 +1418,21 @@ export function OpenApiDiffReportExplorer({
                     onChange={(event) => setIncludeIgnoredInExport(event.currentTarget.checked)}
                     type="checkbox"
                   />
-                  <span>Include ignored findings in CSV and Markdown exports</span>
+                  <span>Include ignored findings</span>
                 </label>
                 <p className="text-muted text-sm leading-6">
-                  Ignored findings remain auditable. Turn this on when you want exports to carry
-                  suppressed rows and their matched ignore rules alongside the active report.
+                  Exports use the full report instead of the current findings table filters, so the
+                  preview stays stable while you search and review findings elsewhere in the
+                  workbench.
                 </p>
-                {redactedExports.inspection.detectedSecrets && !redactBeforeExport ? (
+                <div className="flex flex-wrap gap-2">
+                  <Badge variant="neutral">
+                    Includes {exportBundle.includedRows.length} finding
+                    {exportBundle.includedRows.length === 1 ? "" : "s"}
+                  </Badge>
+                  <Badge variant="neutral">{exportBundle.fileBaseName}</Badge>
+                </div>
+                {exportBundle.inspection.detectedSecrets && !redactBeforeExport ? (
                   <Alert title="Secret-like values detected in this export" variant="warning">
                     <div className="space-y-4">
                       <p className="leading-6">
@@ -1443,19 +1451,19 @@ export function OpenApiDiffReportExplorer({
               </CardContent>
             </Card>
 
-            {redactedExports.inspection.previews.length ? (
+            {exportBundle.inspection.previews.length ? (
               <Card>
                 <CardHeader className="space-y-3">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <CardTitle>Redaction preview</CardTitle>
                     <Badge variant="neutral">
-                      Showing {redactedExports.inspection.previews.length} snippet
-                      {redactedExports.inspection.previews.length === 1 ? "" : "s"}
+                      Showing {exportBundle.inspection.previews.length} snippet
+                      {exportBundle.inspection.previews.length === 1 ? "" : "s"}
                     </Badge>
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {redactedExports.inspection.previews.map((preview) => (
+                  {exportBundle.inspection.previews.map((preview) => (
                     <div
                       key={preview.id}
                       className="border-line bg-panel-muted rounded-2xl border p-4"
@@ -1489,75 +1497,93 @@ export function OpenApiDiffReportExplorer({
               </Card>
             ) : null}
 
-            <div className="grid gap-6 xl:grid-cols-3">
+            <div className="grid gap-6 xl:grid-cols-[0.92fr_1.08fr]">
               <Card>
-                <CardHeader>
-                  <CardTitle>Filtered findings CSV</CardTitle>
+                <CardHeader className="space-y-3">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <CardTitle>Export actions</CardTitle>
+                    <Badge variant="neutral">PR-ready Markdown</Badge>
+                  </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <p className="text-muted text-sm leading-6">
-                    Export the currently filtered findings table with severity, target, rule,
-                    pointer, and ignore metadata.
+                    Markdown is tuned for GitHub PR comments. HTML is a standalone printable
+                    report, and JSON keeps the full machine-readable payload with export metadata.
                   </p>
-                  <CopyButton
-                    label="Copy CSV"
-                    onBeforeCopy={confirmPotentiallyUnsafeCopy}
-                    value={filteredCsv}
-                    variant="secondary"
-                  />
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <CopyButton
+                      label="Copy Markdown"
+                      onBeforeCopy={confirmPotentiallyUnsafeExport}
+                      value={markdownExport}
+                      variant="secondary"
+                    />
+                    <Button
+                      onClick={() => handleDownloadExport("markdown")}
+                      variant="secondary"
+                    >
+                      Download Markdown
+                    </Button>
+                    <Button
+                      onClick={() => handleDownloadExport("html")}
+                      variant="secondary"
+                    >
+                      Download HTML
+                    </Button>
+                    <Button
+                      onClick={() => handleDownloadExport("json")}
+                      variant="secondary"
+                    >
+                      Download JSON
+                    </Button>
+                  </div>
+                  <p className="text-muted text-sm leading-6">
+                    File base name: <code>{exportBundle.fileBaseName}</code>
+                  </p>
                 </CardContent>
               </Card>
 
               <Card>
-                <CardHeader>
-                  <CardTitle>Markdown summary</CardTitle>
+                <CardHeader className="space-y-3">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <CardTitle>Preview export</CardTitle>
+                    <Badge variant="neutral">{exportPreviewFormat.toUpperCase()}</Badge>
+                  </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <p className="text-muted text-sm leading-6">
-                    Copy a concise Markdown report with the current filtered findings selection and
-                    ignored-state markers.
-                  </p>
-                  <CopyButton
-                    label="Copy Markdown"
-                    onBeforeCopy={confirmPotentiallyUnsafeCopy}
-                    value={filteredMarkdown}
-                    variant="secondary"
-                  />
-                </CardContent>
-              </Card>
+                  <Tabs
+                    defaultValue="markdown"
+                    onValueChange={(value) => setExportPreviewFormat(value as ReportExportFormat)}
+                    value={exportPreviewFormat}
+                  >
+                    <TabsList aria-label="Export preview format">
+                      <TabsTrigger value="markdown">Markdown</TabsTrigger>
+                      <TabsTrigger value="html">HTML</TabsTrigger>
+                      <TabsTrigger value="json">JSON</TabsTrigger>
+                    </TabsList>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle>HTML export</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <p className="text-muted text-sm leading-6">
-                    Copy a standalone HTML snapshot. Exported HTML escapes report content to avoid
-                    injecting active markup into the shared file.
-                  </p>
-                  <CopyButton
-                    label="Copy HTML"
-                    onBeforeCopy={confirmPotentiallyUnsafeCopy}
-                    value={filteredHtml}
-                    variant="secondary"
-                  />
-                </CardContent>
-              </Card>
+                    <TabsContent value="markdown">
+                      <pre className="border-line bg-panel-muted max-h-[40rem] overflow-auto rounded-2xl border p-4 text-xs leading-6 whitespace-pre-wrap">
+                        {markdownExport}
+                      </pre>
+                    </TabsContent>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle>Full report JSON</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <p className="text-muted text-sm leading-6">
-                    Copy the full structured report payload for downstream tooling or deeper review.
-                  </p>
-                  <CopyButton
-                    label="Copy JSON"
-                    onBeforeCopy={confirmPotentiallyUnsafeCopy}
-                    value={reportJson}
-                    variant="secondary"
-                  />
+                    <TabsContent value="html">
+                      <div className="border-line overflow-hidden rounded-2xl border bg-white">
+                        <iframe
+                          className="h-[40rem] w-full"
+                          sandbox=""
+                          srcDoc={htmlExport}
+                          title="HTML export preview"
+                        />
+                      </div>
+                    </TabsContent>
+
+                    <TabsContent value="json">
+                      <pre className="border-line bg-panel-muted max-h-[40rem] overflow-auto rounded-2xl border p-4 text-xs leading-6 whitespace-pre-wrap">
+                        {jsonExport}
+                      </pre>
+                    </TabsContent>
+                  </Tabs>
                 </CardContent>
               </Card>
             </div>
