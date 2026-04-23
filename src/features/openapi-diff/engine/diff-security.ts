@@ -27,6 +27,9 @@ export function diffOperationSecurity(
   const findings: DiffFinding[] = [];
   const baseSnapshot = getEffectiveSecuritySnapshot(baseModel, baseOperation);
   const revisionSnapshot = getEffectiveSecuritySnapshot(revisionModel, revisionOperation);
+  const operationId = revisionOperation.operationId ?? baseOperation.operationId;
+  const operationTags = [...new Set([...baseOperation.tags, ...revisionOperation.tags])];
+  const operationDeprecated = baseOperation.deprecated || revisionOperation.deprecated;
   const schemeNames = [...new Set([
     ...Object.keys(baseSnapshot.requirements),
     ...Object.keys(revisionSnapshot.requirements),
@@ -49,8 +52,10 @@ export function diffOperationSecurity(
           jsonPointer: appendJsonPointer(revisionSnapshot.jsonPointer, schemeName),
           message: `${operationLabel} now requires the "${schemeName}" security scheme.`,
           method: revisionOperation.method,
-          operationId: revisionOperation.operationId ?? baseOperation.operationId,
+          operationDeprecated,
+          operationId,
           path: revisionOperation.path,
+          tags: operationTags,
           title: `${operationLabel}: security requirement added`,
         }),
       );
@@ -69,8 +74,10 @@ export function diffOperationSecurity(
           jsonPointer: appendJsonPointer(baseSnapshot.jsonPointer, schemeName),
           message: `${operationLabel} no longer requires the "${schemeName}" security scheme.`,
           method: revisionOperation.method,
-          operationId: revisionOperation.operationId ?? baseOperation.operationId,
+          operationDeprecated,
+          operationId,
           path: revisionOperation.path,
+          tags: operationTags,
           title: `${operationLabel}: security requirement removed`,
         }),
       );
@@ -103,8 +110,10 @@ export function diffOperationSecurity(
           ),
           message: `${operationLabel} now also requires the "${scope}" scope on "${schemeName}".`,
           method: revisionOperation.method,
-          operationId: revisionOperation.operationId ?? baseOperation.operationId,
+          operationDeprecated,
+          operationId,
           path: revisionOperation.path,
+          tags: operationTags,
           title: `${operationLabel}: security scope added`,
         }),
       );
@@ -125,8 +134,10 @@ export function diffOperationSecurity(
           ),
           message: `${operationLabel} no longer requires the "${scope}" scope on "${schemeName}".`,
           method: revisionOperation.method,
-          operationId: revisionOperation.operationId ?? baseOperation.operationId,
+          operationDeprecated,
+          operationId,
           path: revisionOperation.path,
+          tags: operationTags,
           title: `${operationLabel}: security scope removed`,
         }),
       );

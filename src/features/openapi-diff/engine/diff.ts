@@ -45,10 +45,14 @@ export function collectOpenApiDiffFindings(
   baseModel: NormalizedOpenApiModel,
   revisionModel: NormalizedOpenApiModel,
 ): DiffFinding[] {
-  return [
+  return attachOperationContextToFindings(
+    [
     ...diffPathsAndOperations(baseModel, revisionModel),
     ...diffOperationDetailsAcrossPaths(baseModel, revisionModel),
-  ];
+    ],
+    baseModel,
+    revisionModel,
+  );
 }
 
 export function classifyOpenApiDiffFindings(
@@ -56,4 +60,44 @@ export function classifyOpenApiDiffFindings(
   settings: AnalysisSettings,
 ): DiffFinding[] {
   return sortDiffFindings(applyAnalysisSettingsToFindings(findings, settings));
+}
+
+export function attachOperationContextToFindings(
+  findings: readonly DiffFinding[],
+  baseModel: NormalizedOpenApiModel,
+  revisionModel: NormalizedOpenApiModel,
+): DiffFinding[] {
+  return findings.map((finding) => {
+    if (!finding.path || !finding.method) {
+      return finding;
+    }
+
+    const operationKey = `${finding.method} ${finding.path}`;
+    const baseOperation = baseModel.operations[operationKey];
+    const revisionOperation = revisionModel.operations[operationKey];
+
+    if (!baseOperation && !revisionOperation) {
+      return finding;
+    }
+
+    const tags = [...new Set([
+      ...(finding.tags ?? []),
+      ...(baseOperation?.tags ?? []),
+      ...(revisionOperation?.tags ?? []),
+    ])].sort((left, right) => left.localeCompare(right));
+    const operationDeprecated =
+      finding.operationDeprecated ??
+      Boolean(baseOperation?.deprecated || revisionOperation?.deprecated);
+    const operationId =
+      finding.operationId ??
+      revisionOperation?.operationId ??
+      baseOperation?.operationId;
+
+    return {
+      ...finding,
+      ...(tags.length ? { tags } : {}),
+      ...(operationDeprecated !== undefined ? { operationDeprecated } : {}),
+      ...(operationId ? { operationId } : {}),
+    };
+  });
 }

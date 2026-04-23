@@ -39,6 +39,19 @@ export type FindingsFilterOptions = {
   schemas: string[];
 };
 
+const categoryLabels: Record<DiffCategory, string> = {
+  docs: "Docs",
+  enum: "Enum",
+  metadata: "Metadata",
+  operation: "Operation",
+  parameter: "Parameter",
+  path: "Path",
+  requestBody: "Request body",
+  response: "Response",
+  schema: "Schema",
+  security: "Security",
+};
+
 const diffSeverityRank: Record<DiffSeverity, number> = {
   breaking: 0,
   dangerous: 1,
@@ -96,6 +109,16 @@ export function createFindingCopyValue(row: ReportFindingRow): string {
       ruleId: finding.ruleId,
       category: finding.category,
       operationId: finding.operationId ?? null,
+      tags: finding.tags ?? [],
+      deprecatedEndpoint: finding.operationDeprecated ?? false,
+      ignored: finding.ignored ?? false,
+      ignoredBy:
+        finding.ignoredBy?.map((ignoreRule) => ({
+          id: ignoreRule.id,
+          label: ignoreRule.label,
+          reason: ignoreRule.reason,
+          source: ignoreRule.source,
+        })) ?? [],
       jsonPointer: finding.jsonPointer,
       humanPath: finding.humanPath ?? null,
       severityReason: finding.severityReason,
@@ -125,6 +148,8 @@ export function createFindingCopyValue(row: ReportFindingRow): string {
 export function createFindingsCsv(rows: readonly ReportFindingRow[]): string {
   const headers = [
     "Severity",
+    "Ignored",
+    "Ignored By",
     "Change",
     "Endpoint/Schema",
     "Rule",
@@ -133,11 +158,17 @@ export function createFindingsCsv(rows: readonly ReportFindingRow[]): string {
     "Path",
     "Schema",
     "Operation ID",
+    "Tags",
+    "Deprecated Endpoint",
     "Pointer",
     "Message",
+    "Severity Reason",
+    "Why It Matters",
   ];
   const dataRows = rows.map((row) => [
     row.finding.severity,
+    row.finding.ignored ? "yes" : "no",
+    row.finding.ignoredBy?.map((ignoreRule) => ignoreRule.label).join(" | ") ?? "",
     row.finding.title,
     row.targetLabel,
     row.finding.ruleId,
@@ -146,8 +177,12 @@ export function createFindingsCsv(rows: readonly ReportFindingRow[]): string {
     row.finding.path ?? "",
     row.schemaLabel ?? "",
     row.finding.operationId ?? "",
+    row.finding.tags?.join(" | ") ?? "",
+    row.finding.operationDeprecated ? "yes" : "no",
     row.finding.jsonPointer,
     row.finding.message,
+    row.finding.severityReason,
+    row.finding.whyItMatters,
   ]);
 
   return [headers, ...dataRows]
@@ -182,7 +217,7 @@ export function createReportFindingRows(report: DiffReport): ReportFindingRow[] 
       null;
     const targetLabel =
       endpointLabel && schemaLabel
-        ? `${endpointLabel} · ${schemaLabel}`
+        ? `${endpointLabel} / ${schemaLabel}`
         : endpointLabel ??
           schemaLabel ??
           finding.humanPath ??
@@ -218,7 +253,8 @@ export function createReportMarkdown(
     `- Dangerous: ${summary.bySeverity.dangerous}`,
     `- Safe: ${summary.bySeverity.safe}`,
     `- Info: ${summary.bySeverity.info}`,
-    `- Total findings: ${summary.totalFindings}`,
+    `- Active findings: ${summary.totalFindings}`,
+    `- Ignored findings: ${summary.ignoredFindings}`,
     "",
     report.executiveSummary,
     "",
@@ -238,12 +274,169 @@ export function createReportMarkdown(
       `   - Target: ${row.targetLabel}`,
       `   - Rule: ${finding.ruleId}`,
       `   - Category: ${finding.category}`,
+      `   - Ignored: ${finding.ignored ? "Yes" : "No"}`,
+      ...(finding.ignoredBy?.length
+        ? [`   - Ignored by: ${finding.ignoredBy.map((ignoreRule) => ignoreRule.label).join(", ")}`]
+        : []),
       `   - Pointer: ${finding.jsonPointer}`,
       `   - Message: ${finding.message}`,
     );
   });
 
   return lines.join("\n");
+}
+
+export function createReportHtml(
+  report: DiffReport,
+  rows: readonly ReportFindingRow[],
+): string {
+  const summary = report.summary;
+  const summaryItems: Array<[string, string]> = [
+    ["Recommendation", report.recommendation.label],
+    ["Risk score", `${report.riskScore}/100`],
+    ["Consumer profile", report.settings.consumerProfile],
+    ["Breaking", String(summary.bySeverity.breaking)],
+    ["Dangerous", String(summary.bySeverity.dangerous)],
+    ["Safe", String(summary.bySeverity.safe)],
+    ["Info", String(summary.bySeverity.info)],
+    ["Active findings", String(summary.totalFindings)],
+    ["Ignored findings", String(summary.ignoredFindings)],
+  ];
+  const findingRows = rows.length
+    ? rows
+        .map((row) => {
+          const ignoredBy =
+            row.finding.ignoredBy?.map((ignoreRule) => ignoreRule.label).join(", ") ?? "";
+
+          return `<tr>
+  <td>${escapeHtml(formatSeverityLabel(row.finding.severity))}</td>
+  <td>${escapeHtml(row.finding.ignored ? "Yes" : "No")}</td>
+  <td>${escapeHtml(row.finding.title)}</td>
+  <td>${escapeHtml(row.targetLabel)}</td>
+  <td>${escapeHtml(row.finding.ruleId)}</td>
+  <td>${escapeHtml(formatCategoryLabel(row.finding.category))}</td>
+  <td>${escapeHtml(row.finding.jsonPointer)}</td>
+  <td>${escapeHtml(row.finding.message)}</td>
+  <td>${escapeHtml(ignoredBy)}</td>
+</tr>`;
+        })
+        .join("\n")
+    : `<tr><td colspan="9">No findings matched the current selection.</td></tr>`;
+
+  return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>OpenAPI Diff Report</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+      }
+      body {
+        margin: 0;
+        padding: 32px;
+        background: #f5f1e8;
+        color: #1c1811;
+      }
+      main {
+        max-width: 1120px;
+        margin: 0 auto;
+      }
+      h1, h2 {
+        margin: 0 0 16px;
+      }
+      p {
+        line-height: 1.6;
+      }
+      .panel {
+        background: #fffaf0;
+        border: 1px solid #d7c7aa;
+        border-radius: 20px;
+        padding: 20px;
+        margin-bottom: 20px;
+      }
+      .summary-grid {
+        display: grid;
+        gap: 12px;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      }
+      .summary-item {
+        background: #f8f3e8;
+        border: 1px solid #e4d8c4;
+        border-radius: 16px;
+        padding: 12px 14px;
+      }
+      .summary-item strong {
+        display: block;
+        font-size: 12px;
+        letter-spacing: 0.08em;
+        margin-bottom: 6px;
+        text-transform: uppercase;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 14px;
+      }
+      th, td {
+        border-bottom: 1px solid #e4d8c4;
+        padding: 12px;
+        text-align: left;
+        vertical-align: top;
+      }
+      th {
+        background: #f2eadb;
+        font-size: 12px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      code {
+        font-family: "IBM Plex Mono", "SFMono-Regular", monospace;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <section class="panel">
+        <h1>OpenAPI Diff Report</h1>
+        <p>${escapeHtml(report.executiveSummary)}</p>
+      </section>
+      <section class="panel">
+        <h2>Summary</h2>
+        <div class="summary-grid">
+          ${summaryItems
+            .map(
+              ([label, value]) => `<div class="summary-item"><strong>${escapeHtml(label)}</strong>${escapeHtml(value)}</div>`,
+            )
+            .join("")}
+        </div>
+      </section>
+      <section class="panel">
+        <h2>Findings</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Severity</th>
+              <th>Ignored</th>
+              <th>Change</th>
+              <th>Endpoint/Schema</th>
+              <th>Rule</th>
+              <th>Category</th>
+              <th>Pointer</th>
+              <th>Message</th>
+              <th>Ignored By</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${findingRows}
+          </tbody>
+        </table>
+      </section>
+    </main>
+  </body>
+</html>`;
 }
 
 export function filterAndSortFindingRows(
@@ -291,7 +484,7 @@ export function filterAndSortFindingRows(
 }
 
 export function formatCategoryLabel(category: DiffCategory): string {
-  return `${category[0]?.toUpperCase()}${category.slice(1)}`;
+  return categoryLabels[category];
 }
 
 export function formatEndpointLabel(
@@ -422,11 +615,16 @@ function createSearchText(
     finding.path,
     finding.operationId,
     finding.ruleId,
+    finding.severityReason,
     finding.message,
     finding.title,
     finding.humanPath,
     finding.jsonPointer,
+    ...(finding.tags ?? []),
+    ...(finding.ignoredBy?.flatMap((ignoreRule) => [ignoreRule.label, ignoreRule.reason]) ?? []),
+    metadata.title,
     metadata.explanation,
+    metadata.whyItMatters,
   ]
     .filter((value): value is string => Boolean(value))
     .join(" ")
@@ -467,6 +665,15 @@ function deriveSchemaLabelFromFinding(finding: DiffFinding): string | null {
 
 function escapeCsvCell(value: string) {
   return `"${value.replaceAll('"', '""')}"`;
+}
+
+function escapeHtml(value: string) {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
 }
 
 function isSchemaRelatedFinding(finding: DiffFinding) {

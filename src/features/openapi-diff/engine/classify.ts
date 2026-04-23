@@ -5,9 +5,9 @@ import {
   createAnalysisSettings,
   formatConsumerProfileLabel,
 } from "@/features/openapi-diff/lib/analysis-settings";
+import { getMatchingIgnoreRules } from "@/features/openapi-diff/lib/ignore-rules";
 import type {
   AnalysisSettings,
-  ConsumerProfile,
   DiffFinding,
   DiffReport,
   DiffSeverity,
@@ -45,7 +45,8 @@ export function applyAnalysisSettingsToFindings(
 
   return findings
     .map((finding) => classifyChange(finding, normalizedSettings))
-    .filter((finding) => shouldIncludeFinding(finding, normalizedSettings));
+    .filter((finding) => shouldIncludeFindingInReport(finding, normalizedSettings))
+    .map((finding) => applyIgnoreSettings(finding, normalizedSettings));
 }
 
 export function classifyChange(
@@ -128,53 +129,58 @@ function classifyByProfile(
   if (change.ruleId === "schema.enum.value.added") {
     if (schemaDirection === "parameter" || schemaDirection === "request") {
       if (profile === "sdkStrict") {
-        return {
+        return applyEnumAdditionDangerousSetting(change, settings, {
           severity: "dangerous",
           severityReason:
             "The SDK strict profile keeps widened input enums at dangerous because generated enum types and validators still change even when the server accepts more values.",
-        };
+        });
       }
 
-      return {
+      return applyEnumAdditionDangerousSetting(change, settings, {
         severity: "safe",
         severityReason: `The ${formatConsumerProfileLabel(profile)} profile lowers this to safe because widening accepted input values is usually additive for callers.`,
-      };
+      });
     }
 
     if (schemaDirection === "response") {
       if (profile === "sdkStrict") {
-        return {
+        return applyEnumAdditionDangerousSetting(change, settings, {
           severity: "breaking",
           severityReason:
             "The SDK strict profile raises this to breaking because generated enums and exhaustive switches often fail when a response starts returning a new literal.",
           whyItMatters:
             "Strict SDKs and exhaustive client code often compile a closed enum set, so a newly returned value can become a source or runtime break.",
-        };
+        });
       }
 
       if (profile === "internalApi" || profile === "tolerantClient") {
-        return {
+        return applyEnumAdditionDangerousSetting(change, settings, {
           severity: "safe",
           severityReason: `The ${formatConsumerProfileLabel(profile)} profile lowers this to safe because additive response enum values are usually tolerable for coordinated or tolerant consumers.`,
-        };
+        });
       }
 
-      return {
+      return applyEnumAdditionDangerousSetting(change, settings, {
         severity: "dangerous",
         severityReason:
           profile === "mobileClient"
             ? "The mobile client profile keeps this at dangerous because older app releases often ship exhaustive enum handling and cannot update instantly."
             : `The ${formatConsumerProfileLabel(profile)} profile keeps this at dangerous because older deployed clients may reject or mishandle a new response enum value even though the wire contract only expanded.`,
-      };
+      });
     }
 
     if (profile === "sdkStrict") {
-      return {
+      return applyEnumAdditionDangerousSetting(change, settings, {
         severity: "breaking",
         severityReason:
           "The SDK strict profile raises shared-schema enum additions to breaking because those components often feed generated client models on both request and response paths.",
-      };
+      });
     }
+
+    return applyEnumAdditionDangerousSetting(change, settings, {
+      severity: baseSeverity,
+      severityReason: `The ${formatConsumerProfileLabel(profile)} profile keeps this at ${baseSeverity} because additive enum growth is only risky when consumers treat the value set as closed.`,
+    });
   }
 
   if (
@@ -296,7 +302,49 @@ function lowercaseFirst(value: string) {
   return lowerCaseFirstCharacter(value.endsWith(".") ? value.slice(0, -1) : value);
 }
 
-function shouldIncludeFinding(finding: DiffFinding, settings: AnalysisSettings) {
+function applyEnumAdditionDangerousSetting(
+  change: DiffFinding,
+  settings: AnalysisSettings,
+  classification: ClassificationResult,
+): ClassificationResult {
+  if (
+    change.ruleId !== "schema.enum.value.added" ||
+    !settings.treatEnumAdditionsAsDangerous ||
+    classification.severity === "breaking" ||
+    classification.severity === "dangerous"
+  ) {
+    return classification;
+  }
+
+  return {
+    ...classification,
+    severity: "dangerous",
+    severityReason: `The enum additions toggle raises this from ${classification.severity} to dangerous so newly added enum literals stay reviewable even when they are otherwise additive.`,
+  };
+}
+
+function applyIgnoreSettings(finding: DiffFinding, settings: AnalysisSettings): DiffFinding {
+  const nextFinding = { ...finding };
+  delete nextFinding.ignored;
+  delete nextFinding.ignoredBy;
+  const ignoredBy = getMatchingIgnoreRules(
+    nextFinding,
+    settings.consumerProfile,
+    settings.ignoreRules,
+  );
+
+  if (!ignoredBy.length) {
+    return nextFinding;
+  }
+
+  return {
+    ...nextFinding,
+    ignored: true,
+    ignoredBy,
+  };
+}
+
+function shouldIncludeFindingInReport(finding: DiffFinding, settings: AnalysisSettings) {
   if (!settings.includeCategories.includes(finding.category)) {
     return false;
   }
@@ -305,41 +353,5 @@ function shouldIncludeFinding(finding: DiffFinding, settings: AnalysisSettings) 
     return false;
   }
 
-  if (matchesIgnoreRule(finding, settings.consumerProfile, settings.ignoreRules)) {
-    return false;
-  }
-
   return true;
-}
-
-function matchesIgnoreRule(
-  finding: DiffFinding,
-  consumerProfile: ConsumerProfile,
-  ignoreRules: AnalysisSettings["ignoreRules"],
-) {
-  return ignoreRules.some((ignoreRule) => {
-    if (ignoreRule.ruleId !== finding.ruleId) {
-      return false;
-    }
-
-    if (
-      ignoreRule.consumerProfiles &&
-      !ignoreRule.consumerProfiles.includes(consumerProfile)
-    ) {
-      return false;
-    }
-
-    if (ignoreRule.operationId && ignoreRule.operationId !== finding.operationId) {
-      return false;
-    }
-
-    if (
-      ignoreRule.jsonPathPrefix &&
-      !finding.jsonPointer.startsWith(ignoreRule.jsonPathPrefix)
-    ) {
-      return false;
-    }
-
-    return true;
-  });
 }

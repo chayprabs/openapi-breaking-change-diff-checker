@@ -2,7 +2,10 @@ import type {
   AnalysisSettings,
   ConsumerProfile,
   DiffCategory,
+  IgnoreRule,
+  IgnoreRuleSource,
 } from "@/features/openapi-diff/types";
+import { cloneIgnoreRules } from "@/features/openapi-diff/lib/ignore-rules";
 
 const analysisCategories = [
   "docs",
@@ -50,6 +53,7 @@ export const consumerProfileOptions = [
 }>;
 
 export const defaultAnalysisSettings: AnalysisSettings = {
+  customRedactionRules: [],
   consumerProfile: "publicApi",
   exportFormats: [],
   failOnSeverities: ["breaking"],
@@ -57,22 +61,24 @@ export const defaultAnalysisSettings: AnalysisSettings = {
   includeCategories: [...analysisCategories],
   includeInfoFindings: true,
   redactExamples: false,
+  redactServerUrls: false,
   resolveLocalRefs: true,
+  treatEnumAdditionsAsDangerous: false,
 };
 
 export function cloneAnalysisSettings(settings: AnalysisSettings): AnalysisSettings {
   return {
+    customRedactionRules: settings.customRedactionRules.map((rule) => ({ ...rule })),
     consumerProfile: settings.consumerProfile,
     exportFormats: [...settings.exportFormats],
     failOnSeverities: [...settings.failOnSeverities],
-    ignoreRules: settings.ignoreRules.map((rule) => ({
-      ...rule,
-      ...(rule.consumerProfiles ? { consumerProfiles: [...rule.consumerProfiles] } : {}),
-    })),
+    ignoreRules: cloneIgnoreRules(settings.ignoreRules),
     includeCategories: [...settings.includeCategories],
     includeInfoFindings: settings.includeInfoFindings,
     redactExamples: settings.redactExamples,
+    redactServerUrls: settings.redactServerUrls,
     resolveLocalRefs: settings.resolveLocalRefs,
+    treatEnumAdditionsAsDangerous: settings.treatEnumAdditionsAsDangerous,
   };
 }
 
@@ -86,18 +92,61 @@ export function createAnalysisSettings(
     ...(overrides.failOnSeverities
       ? { failOnSeverities: [...overrides.failOnSeverities] }
       : {}),
-    ...(overrides.ignoreRules
+    ...(overrides.customRedactionRules
       ? {
-          ignoreRules: overrides.ignoreRules.map((rule) => ({
-            ...rule,
-            ...(rule.consumerProfiles ? { consumerProfiles: [...rule.consumerProfiles] } : {}),
-          })),
+          customRedactionRules: overrides.customRedactionRules.map((rule) => ({ ...rule })),
         }
       : {}),
-    ...(overrides.includeCategories
-      ? { includeCategories: [...overrides.includeCategories] }
+    ...(overrides.ignoreRules
+      ? {
+          ignoreRules: cloneIgnoreRules(overrides.ignoreRules),
+        }
+      : {}),
+    ...(overrides.includeCategories ? { includeCategories: [...overrides.includeCategories] } : {}),
+    ...(overrides.redactServerUrls !== undefined
+      ? { redactServerUrls: overrides.redactServerUrls }
+      : {}),
+    ...(overrides.treatEnumAdditionsAsDangerous !== undefined
+      ? {
+          treatEnumAdditionsAsDangerous:
+            overrides.treatEnumAdditionsAsDangerous,
+        }
       : {}),
   };
+}
+
+export function addIgnoreRule(
+  settings: AnalysisSettings,
+  ignoreRule: IgnoreRule,
+): AnalysisSettings {
+  const nextSettings = cloneAnalysisSettings(settings);
+
+  nextSettings.ignoreRules = [
+    ...nextSettings.ignoreRules.filter((rule) => rule.id !== ignoreRule.id),
+    { ...ignoreRule },
+  ].sort((left, right) => left.id.localeCompare(right.id));
+
+  return nextSettings;
+}
+
+export function removeIgnoreRule(
+  settings: AnalysisSettings,
+  ignoreRuleId: string,
+): AnalysisSettings {
+  const nextSettings = cloneAnalysisSettings(settings);
+  nextSettings.ignoreRules = nextSettings.ignoreRules.filter((rule) => rule.id !== ignoreRuleId);
+  return nextSettings;
+}
+
+export function hasIgnoreRuleSource(
+  settings: AnalysisSettings,
+  source: IgnoreRuleSource,
+) {
+  return settings.ignoreRules.some((rule) => rule.source === source);
+}
+
+export function serializeAnalysisSettings(settings: AnalysisSettings) {
+  return JSON.stringify(cloneAnalysisSettings(settings), null, 2);
 }
 
 export function getConsumerProfileOption(profile: ConsumerProfile) {

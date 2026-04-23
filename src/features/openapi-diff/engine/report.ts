@@ -9,6 +9,10 @@ import {
   createAnalysisSettings,
   formatConsumerProfileLabel,
 } from "@/features/openapi-diff/lib/analysis-settings";
+import {
+  getIgnoreRuleLabel,
+  matchesIgnoreRule,
+} from "@/features/openapi-diff/lib/ignore-rules";
 import type {
   AnalysisSettings,
   ConsumerProfile,
@@ -23,6 +27,9 @@ import type {
   JsonValue,
   OpenApiHttpMethod,
   ParsedSpec,
+  RedactionMatch,
+  RedactionPlaceholderKind,
+  RedactionPreview,
   RedactionResult,
   RuleId,
 } from "@/features/openapi-diff/types";
@@ -62,6 +69,21 @@ const diffSeverityValues = [
 ] as const satisfies readonly DiffSeverity[];
 
 const exportFormatValues = ["json", "markdown", "html", "csv"] as const;
+const redactionPlaceholderKinds = [
+  "API_KEY",
+  "BASIC_AUTH",
+  "CUSTOM",
+  "EMAIL",
+  "EXAMPLE",
+  "INTERNAL_DOMAIN",
+  "JWT",
+  "PASSWORD",
+  "PRIVATE_IP",
+  "PRIVATE_KEY",
+  "SECRET",
+  "SERVER_URL",
+  "TOKEN",
+] as const satisfies readonly RedactionPlaceholderKind[];
 const openApiVersionFamilyValues = [
   "swagger-2.0",
   "openapi-3.0.x",
@@ -172,23 +194,49 @@ const parsedSpecSchema = z.object({
 });
 
 const analysisSettingsSchema = z.object({
+  customRedactionRules: z.array(
+    z.object({
+      flags: z.string().optional(),
+      id: z.string().min(1),
+      label: z.string().min(1).optional(),
+      pattern: z.string().min(1),
+    }),
+  ),
   consumerProfile: z.enum(consumerProfileValues),
   exportFormats: z.array(z.enum(exportFormatValues)),
   failOnSeverities: z.array(z.enum(diffSeverityValues)),
   ignoreRules: z.array(
     z.object({
+      id: z.string().min(1),
+      label: z.string().min(1).optional(),
       consumerProfiles: z.array(z.enum(consumerProfileValues)).optional(),
       expiresAt: z.string().min(1).optional(),
+      findingId: z.string().min(1).optional(),
       jsonPathPrefix: z.string().min(1).optional(),
+      method: z.enum(openApiHttpMethodValues).optional(),
       operationId: z.string().min(1).optional(),
+      pathPattern: z.string().min(1).optional(),
       reason: z.string().min(1),
-      ruleId: z.string().min(1),
+      ruleId: z.string().min(1).optional(),
+      source: z.enum([
+        "deprecatedEndpoint",
+        "docsOnly",
+        "finding",
+        "method",
+        "operationId",
+        "pathPattern",
+        "ruleId",
+        "tag",
+      ]),
+      tag: z.string().min(1).optional(),
     }),
   ),
   includeCategories: z.array(z.enum(diffCategoryValues)),
   includeInfoFindings: z.boolean(),
   redactExamples: z.boolean(),
+  redactServerUrls: z.boolean(),
   resolveLocalRefs: z.boolean(),
+  treatEnumAdditionsAsDangerous: z.boolean(),
 });
 
 const diffFindingSchema = z.object({
@@ -234,15 +282,36 @@ const diffFindingSchema = z.object({
   humanPath: z.string().min(1).optional(),
   id: z.string().min(1),
   ignored: z.boolean().optional(),
+  ignoredBy: z
+    .array(
+      z.object({
+        id: z.string().min(1),
+        label: z.string().min(1),
+        reason: z.string().min(1),
+        source: z.enum([
+          "deprecatedEndpoint",
+          "docsOnly",
+          "finding",
+          "method",
+          "operationId",
+          "pathPattern",
+          "ruleId",
+          "tag",
+        ]),
+      }),
+    )
+    .optional(),
   jsonPointer: z.string().min(1),
   message: z.string().min(1),
   method: z.enum(openApiHttpMethodValues).nullable(),
+  operationDeprecated: z.boolean().optional(),
   operationId: z.string().min(1).optional(),
   path: z.string().min(1).nullable(),
   ruleId: z.string().min(1),
   saferAlternative: z.string().min(1).optional(),
   severity: z.enum(diffSeverityValues),
   severityReason: z.string().min(1),
+  tags: z.array(z.string().min(1)).optional(),
   title: z.string().min(1),
   whyItMatters: z.string().min(1),
 });
@@ -282,6 +351,28 @@ const diffReportSchema = z.object({
   }),
   redaction: z
     .object({
+      detectedSecrets: z.boolean(),
+      matches: z.array(
+        z.object({
+          id: z.string().min(1),
+          kind: z.enum(redactionPlaceholderKinds),
+          occurrences: z.number().int().positive(),
+          placeholder: z.string().min(1),
+          preview: z.string(),
+          reason: z.string().min(1),
+          sourceLabels: z.array(z.string().min(1)),
+        }),
+      ),
+      previews: z.array(
+        z.object({
+          after: z.string(),
+          before: z.string(),
+          id: z.string().min(1),
+          kind: z.enum(redactionPlaceholderKinds),
+          placeholder: z.string().min(1),
+          sourceLabel: z.string().min(1),
+        }),
+      ),
       redactedKeys: z.array(z.string().min(1)),
       redactedSource: z.string().min(1),
       replacements: z.number().int().nonnegative(),
@@ -343,13 +434,14 @@ export function buildReport(
 ): DiffReport {
   const normalizedSettings = createAnalysisSettings(settings);
   const sortedFindings = sortDiffFindings(findings);
+  const activeFindings = sortedFindings.filter((finding) => !finding.ignored);
   const summary = buildDiffSummary(sortedFindings);
-  const affectedEndpoints = buildAffectedEndpoints(sortedFindings);
-  const affectedSchemas = buildAffectedSchemas(sortedFindings);
-  const securityFindingCount = sortedFindings.filter(
+  const affectedEndpoints = buildAffectedEndpoints(activeFindings);
+  const affectedSchemas = buildAffectedSchemas(activeFindings);
+  const securityFindingCount = activeFindings.filter(
     (finding) => finding.category === "security",
   ).length;
-  const sdkFindingCount = sortedFindings.filter(isSdkRelevantFinding).length;
+  const sdkFindingCount = activeFindings.filter(isSdkRelevantFinding).length;
   const recommendation = buildRecommendation(summary);
   const riskScore = buildRiskScore(
     summary,
@@ -359,13 +451,17 @@ export function buildReport(
     sdkFindingCount,
   );
   const successState = buildSuccessState(summary);
-  const securitySummary = buildSecuritySummary(sortedFindings);
+  const securitySummary = buildSecuritySummary(activeFindings);
   const sdkImpactSummary = buildSdkImpactSummary(
-    sortedFindings,
+    activeFindings,
     normalizedSettings.consumerProfile,
   );
-  const migrationNotes = buildMigrationNotes(sortedFindings);
-  const topReviewItems = buildTopReviewItems(sortedFindings);
+  const migrationNotes = buildMigrationNotes(activeFindings);
+  const topReviewItems = buildTopReviewItems(activeFindings);
+  const warnings = sortUniqueStrings([
+    ...(options.warnings ?? []),
+    ...buildIgnoreWarnings(sortedFindings, normalizedSettings),
+  ]);
   const report: DiffReport = {
     affectedEndpoints,
     affectedSchemas,
@@ -389,7 +485,7 @@ export function buildReport(
     successState,
     summary,
     topReviewItems,
-    warnings: sortUniqueStrings(options.warnings ?? []),
+    warnings,
     ...(options.redaction ? { redaction: cloneRedactionResult(options.redaction) } : {}),
   };
 
@@ -498,22 +594,30 @@ function buildExecutiveSummary(
   const schemaPhrase = countLabel(affectedSchemas.length, "affected schema");
 
   if (summary.totalFindings === 0) {
-    return `No semantic contract changes were detected for the ${profileLabel} profile. This comparison is likely safe to release.`;
+    return summary.ignoredFindings > 0
+      ? `No active semantic contract changes remain for the ${profileLabel} profile, but ${countLabel(summary.ignoredFindings, "ignored finding")} is still available for audit.`
+      : `No semantic contract changes were detected for the ${profileLabel} profile. This comparison is likely safe to release.`;
   }
 
   if (recommendation.code === "blockRelease") {
-    return `This comparison found ${summary.bySeverity.breaking} breaking and ${summary.bySeverity.dangerous} dangerous changes across ${endpointPhrase} and ${schemaPhrase}. Existing consumers can fail without coordination, so the recommendation is to block release.`;
+    return `This comparison found ${summary.bySeverity.breaking} breaking and ${summary.bySeverity.dangerous} dangerous changes across ${endpointPhrase} and ${schemaPhrase}. Existing consumers can fail without coordination, so the recommendation is to block release.${buildIgnoredSummarySuffix(summary)}`;
   }
 
   if (recommendation.code === "reviewBeforeRelease") {
-    return `No breaking changes were found for the ${profileLabel} profile, but ${summary.bySeverity.dangerous} dangerous changes still affect ${endpointPhrase} and ${schemaPhrase}. Review rollout risk before release.`;
+    return `No breaking changes were found for the ${profileLabel} profile, but ${summary.bySeverity.dangerous} dangerous changes still affect ${endpointPhrase} and ${schemaPhrase}. Review rollout risk before release.${buildIgnoredSummarySuffix(summary)}`;
   }
 
   if (summary.bySeverity.safe || summary.bySeverity.info) {
-    return `Only safe or informational changes were detected for the ${profileLabel} profile across ${endpointPhrase} and ${schemaPhrase}. This release is likely safe with normal verification.`;
+    return `Only safe or informational changes were detected for the ${profileLabel} profile across ${endpointPhrase} and ${schemaPhrase}. This release is likely safe with normal verification.${buildIgnoredSummarySuffix(summary)}`;
   }
 
-  return `The report did not find release-blocking compatibility issues for the ${profileLabel} profile. This release is likely safe.`;
+  return `The report did not find release-blocking compatibility issues for the ${profileLabel} profile. This release is likely safe.${buildIgnoredSummarySuffix(summary)}`;
+}
+
+function buildIgnoredSummarySuffix(summary: DiffReportSummary) {
+  return summary.ignoredFindings > 0
+    ? ` ${countLabel(summary.ignoredFindings, "ignored finding")} remains available in the Ignored tab.`
+    : "";
 }
 
 function buildMigrationNotes(findings: readonly DiffFinding[]) {
@@ -567,6 +671,55 @@ function buildRecommendation(summary: DiffReportSummary): DiffReportRecommendati
         ? "No semantic contract changes were detected."
         : "Only safe and informational findings remain for the selected compatibility profile.",
   };
+}
+
+function buildIgnoreWarnings(
+  findings: readonly DiffFinding[],
+  settings: AnalysisSettings,
+) {
+  if (!findings.length || settings.ignoreRules.length === 0) {
+    return [];
+  }
+
+  const warnings: string[] = [];
+  const breakingFindings = findings.filter((finding) => finding.severity === "breaking");
+
+  for (const ignoreRule of settings.ignoreRules) {
+    const matchedFindings = findings.filter((finding) =>
+      matchesIgnoreRule(ignoreRule, finding, settings.consumerProfile),
+    );
+
+    if (!matchedFindings.length) {
+      continue;
+    }
+
+    const ruleLabel = getIgnoreRuleLabel(ignoreRule);
+    const matchedBreaking = matchedFindings.filter(
+      (finding) => finding.severity === "breaking",
+    );
+
+    if (
+      breakingFindings.length > 0 &&
+      matchedBreaking.length === breakingFindings.length
+    ) {
+      warnings.push(
+        `${ruleLabel} hides all breaking findings in the current report. Review the Ignored tab before treating this diff as safe.`,
+      );
+    }
+
+    if (
+      matchedFindings.length === findings.length ||
+      (findings.length >= 5 &&
+        matchedFindings.length / findings.length >= 0.6) ||
+      matchedFindings.length >= 12
+    ) {
+      warnings.push(
+        `${ruleLabel} matches ${countLabel(matchedFindings.length, "finding")}, which is broad enough to deserve a manual sanity check.`,
+      );
+    }
+  }
+
+  return warnings;
 }
 
 function buildRiskScore(
@@ -698,10 +851,36 @@ function buildTopReviewItems(findings: readonly DiffFinding[]): DiffReportReview
 
 function cloneRedactionResult(redaction: RedactionResult): RedactionResult {
   return {
+    detectedSecrets: redaction.detectedSecrets,
+    matches: redaction.matches.map(cloneRedactionMatch),
+    previews: redaction.previews.map(cloneRedactionPreview),
     redactedKeys: [...redaction.redactedKeys],
     redactedSource: redaction.redactedSource,
     replacements: redaction.replacements,
     warnings: [...redaction.warnings],
+  };
+}
+
+function cloneRedactionMatch(redactionMatch: RedactionMatch): RedactionMatch {
+  return {
+    id: redactionMatch.id,
+    kind: redactionMatch.kind,
+    occurrences: redactionMatch.occurrences,
+    placeholder: redactionMatch.placeholder,
+    preview: redactionMatch.preview,
+    reason: redactionMatch.reason,
+    sourceLabels: [...redactionMatch.sourceLabels],
+  };
+}
+
+function cloneRedactionPreview(redactionPreview: RedactionPreview): RedactionPreview {
+  return {
+    after: redactionPreview.after,
+    before: redactionPreview.before,
+    id: redactionPreview.id,
+    kind: redactionPreview.kind,
+    placeholder: redactionPreview.placeholder,
+    sourceLabel: redactionPreview.sourceLabel,
   };
 }
 

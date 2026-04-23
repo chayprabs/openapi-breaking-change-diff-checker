@@ -4,7 +4,6 @@ import {
   startTransition,
   useCallback,
   useEffect,
-  useEffectEvent,
   useMemo,
   useRef,
   useState,
@@ -134,7 +133,7 @@ export function useOpenApiDiffWorker() {
     [],
   );
 
-  const handleWorkerRuntimeFailure = useEffectEvent(
+  const handleWorkerRuntimeFailure = useCallback(
     (code: string, message: string, options?: { preserveProgress?: boolean }) => {
       clearAnalysisTimeout();
       analyzeInFlightRef.current = false;
@@ -167,124 +166,131 @@ export function useOpenApiDiffWorker() {
         }
       });
     },
+    [clearAnalysisTimeout, setEditorState],
   );
 
-  const handleAnalyzeTimeout = useEffectEvent((requestId: string) => {
-    if (
-      !analyzeInFlightRef.current ||
-      analyzeRequestIdRef.current !== requestId
-    ) {
-      return;
-    }
-
-    workerRef.current?.terminate();
-    workerRef.current = null;
-    handleWorkerRuntimeFailure(
-      "analysis-timeout",
-      "Analysis took longer than 20 seconds. Try smaller specs here or use the CLI for larger contracts.",
-      {
-        preserveProgress: true,
-      },
-    );
-  });
-
-  const handleWorkerMessage = useEffectEvent((message: OpenApiDiffWorkerMessage) => {
-    startTransition(() => {
-      if (message.type === "progress") {
-        if (message.action === "parse" && analyzeInFlightRef.current) {
-          return;
-        }
-
-        if (
-          message.action === "parse" &&
-          message.editorId &&
-          parseRequestIdsRef.current[message.editorId] !== message.requestId
-        ) {
-          return;
-        }
-
-        if (
-          message.action === "analyze" &&
-          analyzeRequestIdRef.current !== message.requestId
-        ) {
-          return;
-        }
-
-        setProgress({
-          action: message.action,
-          label: message.label,
-          requestId: message.requestId,
-          ...(message.editorId ? { editorId: message.editorId } : {}),
-        });
+  const handleAnalyzeTimeout = useCallback(
+    (requestId: string) => {
+      if (
+        !analyzeInFlightRef.current ||
+        analyzeRequestIdRef.current !== requestId
+      ) {
         return;
       }
 
-      if (message.type === "success" && message.action === "parse") {
-        if (parseRequestIdsRef.current[message.editorId] !== message.requestId) {
+      workerRef.current?.terminate();
+      workerRef.current = null;
+      handleWorkerRuntimeFailure(
+        "analysis-timeout",
+        "Analysis took longer than 20 seconds. Try smaller specs here or use the CLI for larger contracts.",
+        {
+          preserveProgress: true,
+        },
+      );
+    },
+    [handleWorkerRuntimeFailure],
+  );
+
+  const handleWorkerMessage = useCallback(
+    (message: OpenApiDiffWorkerMessage) => {
+      startTransition(() => {
+        if (message.type === "progress") {
+          if (message.action === "parse" && analyzeInFlightRef.current) {
+            return;
+          }
+
+          if (
+            message.action === "parse" &&
+            message.editorId &&
+            parseRequestIdsRef.current[message.editorId] !== message.requestId
+          ) {
+            return;
+          }
+
+          if (
+            message.action === "analyze" &&
+            analyzeRequestIdRef.current !== message.requestId
+          ) {
+            return;
+          }
+
+          setProgress({
+            action: message.action,
+            label: message.label,
+            requestId: message.requestId,
+            ...(message.editorId ? { editorId: message.editorId } : {}),
+          });
           return;
         }
 
-        parseRequestIdsRef.current[message.editorId] = null;
-        setEditorState(message.editorId, {
-          errors: [],
-          parsed: message.result,
-          status: "success",
-          warnings: message.result.warnings,
-        });
-        return;
-      }
+        if (message.type === "success" && message.action === "parse") {
+          if (parseRequestIdsRef.current[message.editorId] !== message.requestId) {
+            return;
+          }
 
-      if (message.type === "success" && message.action === "analyze") {
-        if (analyzeRequestIdRef.current !== message.requestId) {
+          parseRequestIdsRef.current[message.editorId] = null;
+          setEditorState(message.editorId, {
+            errors: [],
+            parsed: message.result,
+            status: "success",
+            warnings: message.result.warnings,
+          });
           return;
         }
 
-        clearAnalysisTimeout();
-        analyzeInFlightRef.current = false;
-        analyzeRequestIdRef.current = null;
-        setAnalysisState({
-          errors: [],
-          result: message.result,
-          status: "success",
-          warnings: message.result.warnings,
-        });
-        return;
-      }
+        if (message.type === "success" && message.action === "analyze") {
+          if (analyzeRequestIdRef.current !== message.requestId) {
+            return;
+          }
 
-      if (message.type === "error" && message.action === "parse") {
-        const editorId = message.editorId;
-
-        if (!editorId || parseRequestIdsRef.current[editorId] !== message.requestId) {
+          clearAnalysisTimeout();
+          analyzeInFlightRef.current = false;
+          analyzeRequestIdRef.current = null;
+          setAnalysisState({
+            errors: [],
+            result: message.result,
+            status: "success",
+            warnings: message.result.warnings,
+          });
           return;
         }
 
-        parseRequestIdsRef.current[editorId] = null;
-        setEditorState(editorId, {
-          errors: message.errors,
-          parsed: null,
-          status: "error",
-          warnings: message.warnings,
-        });
-        return;
-      }
+        if (message.type === "error" && message.action === "parse") {
+          const editorId = message.editorId;
 
-      if (message.type === "error" && message.action === "analyze") {
-        if (analyzeRequestIdRef.current !== message.requestId) {
+          if (!editorId || parseRequestIdsRef.current[editorId] !== message.requestId) {
+            return;
+          }
+
+          parseRequestIdsRef.current[editorId] = null;
+          setEditorState(editorId, {
+            errors: message.errors,
+            parsed: null,
+            status: "error",
+            warnings: message.warnings,
+          });
           return;
         }
 
-        clearAnalysisTimeout();
-        analyzeInFlightRef.current = false;
-        analyzeRequestIdRef.current = null;
-        setAnalysisState((current) => ({
-          errors: message.errors,
-          result: current.result,
-          status: "error",
-          warnings: message.warnings,
-        }));
-      }
-    });
-  });
+        if (message.type === "error" && message.action === "analyze") {
+          if (analyzeRequestIdRef.current !== message.requestId) {
+            return;
+          }
+
+          clearAnalysisTimeout();
+          analyzeInFlightRef.current = false;
+          analyzeRequestIdRef.current = null;
+          setAnalysisState((current) => ({
+            errors: message.errors,
+            result: current.result,
+            status: "error",
+            warnings: message.warnings,
+          }));
+        }
+      });
+    },
+    [clearAnalysisTimeout, setEditorState],
+  );
 
   const createWorker = useCallback(() => {
     if (workerRef.current) {

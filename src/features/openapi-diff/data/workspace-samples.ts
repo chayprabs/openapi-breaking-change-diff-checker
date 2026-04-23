@@ -198,11 +198,98 @@ components:
             accounts:export: Export account data
 `;
 
+const privacySensitiveBaseSample = `openapi: 3.1.0
+info:
+  title: Partner Admin API
+  version: 1.0.0
+servers:
+  - url: https://partner-admin.corp.local/v1
+    description: Internal partner gateway
+paths:
+  /partners:
+    get:
+      operationId: listPartners
+      parameters:
+        - in: header
+          name: Authorization
+          required: false
+          schema:
+            type: string
+          example: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.aW50ZXJuYWxQYXlsb2FkMTIzNDU2.c2lnbmF0dXJlMTIzNDU2
+        - in: header
+          name: x-api-key
+          required: false
+          schema:
+            type: string
+          example: stripe_live_key_redacted_example
+      responses:
+        "200":
+          description: Partner payload
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  supportEmail:
+                    type: string
+                    example: ops@partner-admin.corp.local
+                  internalHost:
+                    type: string
+                    example: partner-admin.corp.local
+                  nodeIp:
+                    type: string
+                    example: 10.24.8.15
+`;
+
+const privacySensitiveRevisionSample = `openapi: 3.1.0
+info:
+  title: Partner Admin API
+  version: 1.1.0
+servers:
+  - url: https://partner-admin.corp.local/v2
+    description: Internal partner gateway
+paths:
+  /partners:
+    get:
+      operationId: listPartners
+      parameters:
+        - in: header
+          name: Authorization
+          required: false
+          schema:
+            type: string
+          example: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.cm90YXRlZFBheWxvYWQ3ODkwMTI.zXBkYXRlZFNpZ25hdHVyZTY3ODkw
+        - in: header
+          name: x-api-key
+          required: false
+          schema:
+            type: string
+          example: stripe_live_key_redacted_example
+      responses:
+        "200":
+          description: Partner payload
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  supportEmail:
+                    type: string
+                    example: admin@partner-admin.corp.local
+                  internalHost:
+                    type: string
+                    example: partner-admin.corp.local
+                  nodeIp:
+                    type: string
+                    example: 10.24.9.22
+`;
+
 export type WorkspaceSampleId =
   | "auth-scope-change"
   | "breaking-change"
   | "enum-change"
   | "invalid-yaml"
+  | "privacy-sensitive"
   | "safe-additive";
 
 export type WorkspaceSample = {
@@ -253,6 +340,14 @@ export const workspaceSamples: WorkspaceSample[] = [
       "Pairs a valid baseline with malformed YAML in the revision editor to exercise validation handling.",
     base: baseSampleOpenApi31,
     revision: malformedYamlSample,
+  },
+  {
+    id: "privacy-sensitive",
+    label: "Privacy-sensitive sample",
+    description:
+      "Includes internal hostnames, emails, private IPs, and auth examples so the redaction preview and export guardrails have something real to detect.",
+    base: privacySensitiveBaseSample,
+    revision: privacySensitiveRevisionSample,
   },
 ];
 

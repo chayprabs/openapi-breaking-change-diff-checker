@@ -40,9 +40,11 @@ type CreateFindingOptions = {
   jsonPointer: string;
   message: string;
   method?: OpenApiHttpMethod | null | undefined;
+  operationDeprecated?: boolean | undefined;
   operationId?: string | undefined;
   path?: string | null | undefined;
   severity?: DiffSeverity | undefined;
+  tags?: readonly string[] | undefined;
   title?: string;
   whyItMatters?: string | undefined;
 };
@@ -67,8 +69,14 @@ export function buildDiffSummary(findings: readonly DiffFinding[]): DiffReport["
     schemas: 0,
     security: 0,
   };
+  let ignoredFindings = 0;
 
   for (const finding of findings) {
+    if (finding.ignored) {
+      ignoredFindings += 1;
+      continue;
+    }
+
     bySeverity[finding.severity] += 1;
     byCategory[toReportCategory(finding.category)] += 1;
   }
@@ -76,8 +84,8 @@ export function buildDiffSummary(findings: readonly DiffFinding[]): DiffReport["
   return {
     byCategory,
     bySeverity,
-    ignoredFindings: 0,
-    totalFindings: findings.length,
+    ignoredFindings,
+    totalFindings: findings.length - ignoredFindings,
   };
 }
 
@@ -121,10 +129,14 @@ export function createFinding(ruleId: RuleId, options: CreateFindingOptions): Di
     jsonPointer: options.jsonPointer,
     message: options.message,
     method: options.method ?? null,
+    ...(options.operationDeprecated !== undefined
+      ? { operationDeprecated: options.operationDeprecated }
+      : {}),
     path: options.path ?? null,
     ruleId,
     severity: baseSeverity,
     severityReason: `Default rule classification: ${baseSeverity}.`,
+    ...(options.tags?.length ? { tags: [...new Set(options.tags)].sort() } : {}),
     title: options.title ?? rule.title,
     whyItMatters: options.whyItMatters ?? rule.whyItMatters,
     ...(options.operationId ? { operationId: options.operationId } : {}),

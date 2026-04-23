@@ -29,6 +29,8 @@ export function diffOperationParameters(
   const findings: DiffFinding[] = [];
   const operationLabel = `${toMethodLabel(revisionOperation.method)} ${revisionOperation.path}`;
   const operationId = revisionOperation.operationId ?? baseOperation.operationId;
+  const operationTags = [...new Set([...baseOperation.tags, ...revisionOperation.tags])];
+  const operationDeprecated = baseOperation.deprecated || revisionOperation.deprecated;
   const baseKeys = new Set(Object.keys(baseOperation.parameters));
   const revisionKeys = new Set(Object.keys(revisionOperation.parameters));
 
@@ -52,6 +54,8 @@ export function diffOperationParameters(
         revisionOperation.path,
         revisionOperation.method,
         operationId,
+        operationTags,
+        operationDeprecated,
       ),
     );
     baseKeys.delete(parameterKey);
@@ -106,8 +110,10 @@ export function diffOperationParameters(
         jsonPointer: appendJsonPointer(pair.revision.evidence.originPath, "in"),
         message: `${operationLabel} moved parameter "${pair.base.name}" from "${pair.base.in}" to "${pair.revision.in}".`,
         method: revisionOperation.method,
+        operationDeprecated,
         operationId,
         path: revisionOperation.path,
+        tags: operationTags,
         title: `${operationLabel}: parameter location changed`,
       }),
     );
@@ -131,8 +137,10 @@ export function diffOperationParameters(
         jsonPointer: appendJsonPointer(pair.revision.evidence.originPath, "name"),
         message: `${operationLabel} renamed the "${pair.base.in}" parameter from "${pair.base.name}" to "${pair.revision.name}".`,
         method: revisionOperation.method,
+        operationDeprecated,
         operationId,
         path: revisionOperation.path,
+        tags: operationTags,
         title: `${operationLabel}: parameter name changed`,
       }),
     );
@@ -152,8 +160,10 @@ export function diffOperationParameters(
         jsonPointer: parameter.evidence.originPath,
         message: `${operationLabel} no longer supports the "${parameter.name}" parameter in "${parameter.in}".`,
         method: revisionOperation.method,
+        operationDeprecated,
         operationId,
         path: revisionOperation.path,
+        tags: operationTags,
         title: `${operationLabel}: parameter removed`,
       }),
     );
@@ -175,8 +185,10 @@ export function diffOperationParameters(
           ? `${operationLabel} now requires the "${parameter.name}" parameter in "${parameter.in}".`
           : `${operationLabel} now accepts an optional "${parameter.name}" parameter in "${parameter.in}".`,
         method: revisionOperation.method,
+        operationDeprecated,
         operationId,
         path: revisionOperation.path,
+        tags: operationTags,
         title: parameter.required
           ? `${operationLabel}: required parameter added`
           : `${operationLabel}: optional parameter added`,
@@ -194,6 +206,8 @@ function diffMatchedParameter(
   path: string,
   method: NormalizedOperation["method"],
   operationId?: string,
+  operationTags: readonly string[] = [],
+  operationDeprecated = false,
 ): DiffFinding[] {
   const findings: DiffFinding[] = [];
   const baseEvidence = createEvidenceLocation(baseParameter.evidence.originPath, baseParameter.evidence);
@@ -223,8 +237,10 @@ function diffMatchedParameter(
             ? `${operationLabel} now requires the "${revisionParameter.name}" parameter in "${revisionParameter.in}".`
             : `${operationLabel} no longer requires the "${revisionParameter.name}" parameter in "${revisionParameter.in}".`,
           method,
+          operationDeprecated,
           operationId,
           path,
+          tags: operationTags,
           title: revisionParameter.required
             ? `${operationLabel}: parameter became required`
             : `${operationLabel}: parameter became optional`,
@@ -248,8 +264,10 @@ function diffMatchedParameter(
         jsonPointer: appendJsonPointer(revisionParameter.evidence.originPath, "style"),
         message: `${operationLabel} changed the serialization style for "${revisionParameter.name}".`,
         method,
+        operationDeprecated,
         operationId,
         path,
+        tags: operationTags,
         title: `${operationLabel}: parameter style changed`,
       }),
     );
@@ -270,8 +288,10 @@ function diffMatchedParameter(
         jsonPointer: appendJsonPointer(revisionParameter.evidence.originPath, "explode"),
         message: `${operationLabel} changed the explode behavior for "${revisionParameter.name}".`,
         method,
+        operationDeprecated,
         operationId,
         path,
+        tags: operationTags,
         title: `${operationLabel}: parameter explode changed`,
       }),
     );
@@ -292,8 +312,10 @@ function diffMatchedParameter(
         jsonPointer: appendJsonPointer(revisionParameter.evidence.originPath, "description"),
         message: `${operationLabel} changed the description for "${revisionParameter.name}".`,
         method,
+        operationDeprecated,
         operationId,
         path,
+        tags: operationTags,
         title: `${operationLabel}: parameter description changed`,
       }),
     );
@@ -314,8 +336,10 @@ function diffMatchedParameter(
         jsonPointer: appendJsonPointer(revisionParameter.evidence.originPath, "examples"),
         message: `${operationLabel} changed the example set for "${revisionParameter.name}".`,
         method,
+        operationDeprecated,
         operationId,
         path,
+        tags: operationTags,
         title: `${operationLabel}: parameter examples changed`,
       }),
     );
@@ -333,9 +357,11 @@ function diffMatchedParameter(
             direction: "parameter",
             humanPathPrefix: schemaHumanPathPrefix,
             method,
+            operationDeprecated,
             operationId,
             path,
             revisionSchema: revisionParameter.schema,
+            tags: operationTags,
           })
         : [];
 
@@ -368,8 +394,10 @@ function diffMatchedParameter(
             appendJsonPointer(revisionParameter.evidence.originPath, "schema"),
           message: `${operationLabel} changed the contract for parameter "${revisionParameter.name}", but exact compatibility could not be determined from the supported schema features alone.`,
           method,
+          operationDeprecated,
           operationId,
           path,
+          tags: operationTags,
           title: `${operationLabel}: parameter schema changed`,
         }),
       );

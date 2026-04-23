@@ -12,6 +12,7 @@ import {
   inferSpecFormat,
 } from "@/features/openapi-diff/lib/workspace";
 import {
+  attachOperationContextToFindings,
   classifyOpenApiDiffFindings,
 } from "@/features/openapi-diff/engine/diff";
 import {
@@ -22,6 +23,7 @@ import { getDiffReportWarnings } from "@/features/openapi-diff/engine/diff-suppo
 import { normalizeOpenApiDocument } from "@/features/openapi-diff/engine/normalize";
 import { buildReport } from "@/features/openapi-diff/engine/report";
 import { createAnalysisSettings } from "@/features/openapi-diff/lib/analysis-settings";
+import { redactText } from "@/features/openapi-diff/lib/redaction";
 import type {
   AnalysisSettings,
   OpenApiAnalysisResult,
@@ -420,6 +422,11 @@ export async function analyzeOpenApiSpecs(
       ...rawFindings,
       ...diffOperationDetailsAcrossPaths(normalizedBase.model, normalizedRevision.model),
     ];
+    rawFindings = attachOperationContextToFindings(
+      rawFindings,
+      normalizedBase.model,
+      normalizedRevision.model,
+    );
   } catch (error) {
     return {
       ok: false,
@@ -1097,7 +1104,19 @@ function detectJsonDuplicateKeys(source: string, editorId: WorkspacePanelId) {
 
 function getErrorMessage(error: unknown) {
   if (error instanceof Error && error.message) {
-    return error.message;
+    const sanitizedMessage = redactText(error.message, createAnalysisSettings(), {
+      previewLimit: 0,
+      redactedSource: "Worker error",
+      sourceLabel: "Worker error",
+    }).redactedValue.replace(/\s+/g, " ").trim();
+
+    if (!sanitizedMessage.length) {
+      return "Unexpected internal error";
+    }
+
+    return sanitizedMessage.length > 220
+      ? `${sanitizedMessage.slice(0, 217)}...`
+      : sanitizedMessage;
   }
 
   return "Unknown error";

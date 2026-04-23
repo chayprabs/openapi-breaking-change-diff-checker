@@ -24,6 +24,8 @@ export function diffOperationResponses(
   const findings: DiffFinding[] = [];
   const operationLabel = `${toMethodLabel(revisionOperation.method)} ${revisionOperation.path}`;
   const operationId = revisionOperation.operationId ?? baseOperation.operationId;
+  const operationTags = [...new Set([...baseOperation.tags, ...revisionOperation.tags])];
+  const operationDeprecated = baseOperation.deprecated || revisionOperation.deprecated;
   const allStatusCodes = [...new Set([
     ...Object.keys(baseOperation.responses),
     ...Object.keys(revisionOperation.responses),
@@ -50,8 +52,10 @@ export function diffOperationResponses(
               ? `${operationLabel} now documents a default response.`
               : `${operationLabel} now documents the "${statusCode}" response.`,
           method: revisionOperation.method,
+          operationDeprecated,
           operationId,
           path: revisionOperation.path,
+          tags: operationTags,
           title:
             statusCode === "default"
               ? `${operationLabel}: default response added`
@@ -77,8 +81,10 @@ export function diffOperationResponses(
                 ? `${operationLabel} no longer documents a default response.`
                 : `${operationLabel} no longer documents the "${statusCode}" response.`,
             method: revisionOperation.method,
+            operationDeprecated,
             operationId,
             path: revisionOperation.path,
+            tags: operationTags,
             title:
               statusCode === "default"
                 ? `${operationLabel}: default response removed`
@@ -111,8 +117,10 @@ export function diffOperationResponses(
           jsonPointer: appendJsonPointer(revisionResponse.evidence.originPath, "description"),
           message: `${operationLabel} changed the description for the "${statusCode}" response.`,
           method: revisionOperation.method,
+          operationDeprecated,
           operationId,
           path: revisionOperation.path,
+          tags: operationTags,
           title: `${operationLabel}: response description changed`,
         }),
       );
@@ -141,8 +149,10 @@ export function diffOperationResponses(
             jsonPointer: revisionMediaType.evidence.originPath,
             message: `${operationLabel} now documents "${mediaType}" for the "${statusCode}" response.`,
             method: revisionOperation.method,
+            operationDeprecated,
             operationId,
             path: revisionOperation.path,
+            tags: operationTags,
             title: `${operationLabel}: response media type added`,
           }),
         );
@@ -160,8 +170,10 @@ export function diffOperationResponses(
             jsonPointer: baseMediaType.evidence.originPath,
             message: `${operationLabel} no longer documents "${mediaType}" for the "${statusCode}" response.`,
             method: revisionOperation.method,
+            operationDeprecated,
             operationId,
             path: revisionOperation.path,
+            tags: operationTags,
             title: `${operationLabel}: response media type removed`,
           }),
         );
@@ -184,9 +196,11 @@ export function diffOperationResponses(
                 direction: "response",
                 humanPathPrefix: schemaHumanPathPrefix,
                 method: revisionOperation.method,
+                operationDeprecated,
                 operationId,
                 path: revisionOperation.path,
                 revisionSchema: revisionMediaType.schema,
+                tags: operationTags,
               })
             : [];
 
@@ -218,8 +232,10 @@ export function diffOperationResponses(
                 appendJsonPointer(revisionMediaType.evidence.originPath, "schema"),
               message: `${operationLabel} changed the response schema for "${statusCode}" and "${mediaType}", but exact compatibility could not be determined from the supported schema features alone.`,
               method: revisionOperation.method,
+              operationDeprecated,
               operationId,
               path: revisionOperation.path,
+              tags: operationTags,
               title: `${operationLabel}: response schema changed`,
             }),
           );

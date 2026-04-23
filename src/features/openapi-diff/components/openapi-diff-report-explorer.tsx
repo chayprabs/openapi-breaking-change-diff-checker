@@ -1,6 +1,7 @@
 "use client";
 
-import { useDeferredValue, useEffect, useMemo, useState } from "react";
+import type { ReactNode } from "react";
+import { useDeferredValue, useMemo, useState } from "react";
 import { MetricCard } from "@/components/devtools/metric-card";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -10,14 +11,18 @@ import { CopyButton } from "@/components/ui/copy-button";
 import { Drawer } from "@/components/ui/drawer";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useToast } from "@/components/ui/toast";
 import { formatConsumerProfileLabel } from "@/features/openapi-diff/lib/analysis-settings";
+import {
+  createFindingIgnoreRule,
+  createPathPatternIgnoreRule,
+  createRuleIdIgnoreRule,
+} from "@/features/openapi-diff/lib/ignore-rules";
 import {
   createDefaultFindingsExplorerFilters,
   createFindingCopyValue,
-  createFindingsCsv,
   createFindingsFilterOptions,
   createReportFindingRows,
-  createReportMarkdown,
   filterAndSortFindingRows,
   formatCategoryLabel,
   formatEndpointLabel,
@@ -29,14 +34,21 @@ import {
   type FindingsSortOption,
   type ReportFindingRow,
 } from "@/features/openapi-diff/lib/report-explorer";
+import {
+  createReportExportBundle,
+  type ReportExportFormat,
+} from "@/features/openapi-diff/lib/report-export";
 import type {
-  DiffFinding,
+  DiffReportCategory,
   DiffReport,
   DiffSeverity,
+  IgnoreRule,
   JsonValue,
 } from "@/features/openapi-diff/types";
 
 type OpenApiDiffReportExplorerProps = {
+  onAddIgnoreRule: (ignoreRule: IgnoreRule) => void;
+  onRemoveIgnoreRule: (ignoreRuleId: string) => void;
   report: DiffReport;
 };
 
@@ -50,7 +62,7 @@ type ReportExplorerTab =
   | "export";
 
 type FilterFieldProps = {
-  children: React.ReactNode;
+  children: ReactNode;
   label: string;
 };
 
@@ -69,6 +81,23 @@ const recommendationCardStyles: Record<DiffSeverity, string> = {
   dangerous: "border-dangerous-border bg-dangerous-surface",
   info: "border-info-border bg-info-surface",
   safe: "border-safe-border bg-safe-surface",
+};
+
+const riskMeterStyles: Record<DiffSeverity, string> = {
+  breaking: "bg-breaking-border",
+  dangerous: "bg-dangerous-border",
+  info: "bg-info-border",
+  safe: "bg-safe-border",
+};
+
+const reportCategoryLabels: Record<DiffReportCategory, string> = {
+  docs: "Docs",
+  operations: "Operations",
+  parameters: "Parameters",
+  paths: "Paths",
+  responses: "Responses",
+  schemas: "Schemas",
+  security: "Security",
 };
 
 const severityDescriptions: Record<DiffSeverity, string> = {
@@ -160,6 +189,9 @@ function FindingsTable({
     <>
       <div className="hidden overflow-x-auto lg:block">
         <table className="min-w-full border-separate border-spacing-0">
+          <caption className="sr-only">
+            Findings matching the current OpenAPI diff report filters.
+          </caption>
           <thead>
             <tr>
               {["Severity", "Change", "Endpoint/Schema", "Rule", "Category"].map((label) => (
@@ -188,7 +220,7 @@ function FindingsTable({
                 </td>
                 <td className="border-line border-b px-4 py-4 align-top">
                   <button
-                    className="text-left"
+                    className="focus-visible:ring-accent/30 rounded-xl text-left transition hover:opacity-90 focus-visible:ring-2"
                     onClick={() => onOpenFinding(row.finding.id)}
                     type="button"
                   >
@@ -206,6 +238,15 @@ function FindingsTable({
                     <p className="text-muted mt-2 text-xs leading-5">
                       operationId: {row.finding.operationId}
                     </p>
+                  ) : null}
+                  {row.finding.ignoredBy?.length ? (
+                    <div className="mt-2 flex flex-wrap gap-1">
+                      {row.finding.ignoredBy.map((ignoreRule) => (
+                        <Badge key={ignoreRule.id} variant="neutral">
+                          {ignoreRule.label}
+                        </Badge>
+                      ))}
+                    </div>
                   ) : null}
                 </td>
                 <td className="border-line border-b px-4 py-4 align-top">
@@ -234,6 +275,15 @@ function FindingsTable({
               <div>{renderFindingTargetText(row)}</div>
               <p className="text-muted text-sm leading-6">{row.finding.message}</p>
               <p className="text-muted text-xs leading-5">{row.finding.jsonPointer}</p>
+              {row.finding.ignoredBy?.length ? (
+                <div className="flex flex-wrap gap-2">
+                  {row.finding.ignoredBy.map((ignoreRule) => (
+                    <Badge key={ignoreRule.id} variant="neutral">
+                      {ignoreRule.label}
+                    </Badge>
+                  ))}
+                </div>
+              ) : null}
               <Button onClick={() => onOpenFinding(row.finding.id)} variant="secondary">
                 View details
               </Button>
@@ -364,11 +414,15 @@ function SchemaList({
 }
 
 function FindingDrawer({
+  onAddIgnoreRule,
   onOpenChange,
+  onRemoveIgnoreRule,
   open,
   row,
 }: {
+  onAddIgnoreRule: (ignoreRule: IgnoreRule) => void;
   onOpenChange: (open: boolean) => void;
+  onRemoveIgnoreRule: (ignoreRuleId: string) => void;
   open: boolean;
   row: ReportFindingRow | null;
 }) {
@@ -378,6 +432,7 @@ function FindingDrawer({
 
   const { finding, metadata } = row;
   const saferAlternative = finding.saferAlternative ?? metadata.saferAlternative;
+  const findingPath = finding.path;
 
   return (
     <Drawer
@@ -385,6 +440,26 @@ function FindingDrawer({
       footer={
         <div className="flex flex-wrap gap-3">
           <CopyButton label="Copy finding" value={createFindingCopyValue(row)} variant="secondary" />
+          {findingPath ? (
+            <Button
+              onClick={() => onAddIgnoreRule(createPathPatternIgnoreRule(findingPath))}
+              variant="outline"
+            >
+              Ignore this path
+            </Button>
+          ) : null}
+          <Button
+            onClick={() => onAddIgnoreRule(createRuleIdIgnoreRule(finding.ruleId))}
+            variant="outline"
+          >
+            Ignore this rule
+          </Button>
+          <Button
+            onClick={() => onAddIgnoreRule(createFindingIgnoreRule(finding))}
+            variant="outline"
+          >
+            Ignore this finding
+          </Button>
           <Button onClick={() => onOpenChange(false)} variant="ghost">
             Close
           </Button>
@@ -413,6 +488,12 @@ function FindingDrawer({
             ) : null}
             {finding.humanPath ? (
               <p className="text-muted leading-6">Human path: {finding.humanPath}</p>
+            ) : null}
+            {finding.tags?.length ? (
+              <p className="text-muted leading-6">Tags: {finding.tags.join(", ")}</p>
+            ) : null}
+            {finding.operationDeprecated ? (
+              <p className="text-muted leading-6">Endpoint status: Deprecated</p>
             ) : null}
             {finding.evidence.base ? (
               <p className="text-muted leading-6">
@@ -449,6 +530,33 @@ function FindingDrawer({
             </CardContent>
           </Card>
         </div>
+
+        {finding.ignoredBy?.length ? (
+          <Card>
+            <CardHeader className="space-y-2">
+              <CardTitle className="text-base">Ignored by</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3 text-sm">
+              {finding.ignoredBy.map((ignoreRule) => (
+                <div
+                  key={ignoreRule.id}
+                  className="border-line bg-panel-muted flex flex-wrap items-center justify-between gap-3 rounded-2xl border p-4"
+                >
+                  <div className="space-y-1">
+                    <p className="font-medium text-foreground">{ignoreRule.label}</p>
+                    <p className="text-muted leading-6">{ignoreRule.reason}</p>
+                  </div>
+                  <Button
+                    onClick={() => onRemoveIgnoreRule(ignoreRule.id)}
+                    variant="ghost"
+                  >
+                    Remove rule
+                  </Button>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        ) : null}
 
         <Card>
           <CardHeader className="space-y-2">
@@ -508,9 +616,17 @@ function FindingDrawer({
 }
 
 export function OpenApiDiffReportExplorer({
+  onAddIgnoreRule,
+  onRemoveIgnoreRule,
   report,
 }: OpenApiDiffReportExplorerProps) {
+  const { notify } = useToast();
   const [activeTab, setActiveTab] = useState<ReportExplorerTab>("summary");
+  const [includeIgnoredInExport, setIncludeIgnoredInExport] = useState(false);
+  const [includeSafeInExport, setIncludeSafeInExport] = useState(false);
+  const [exportPreviewFormat, setExportPreviewFormat] =
+    useState<ReportExportFormat>("markdown");
+  const [redactBeforeExport, setRedactBeforeExport] = useState(false);
   const [searchText, setSearchText] = useState("");
   const [selectedFindingId, setSelectedFindingId] = useState<string | null>(null);
   const [filters, setFilters] = useState<FindingsExplorerFilters>(
@@ -519,8 +635,32 @@ export function OpenApiDiffReportExplorer({
   const deferredSearchText = useDeferredValue(searchText);
 
   const allRows = useMemo(() => createReportFindingRows(report), [report]);
+  const activeRows = useMemo(
+    () => allRows.filter((row) => !row.finding.ignored),
+    [allRows],
+  );
+  const ignoredRows = useMemo(
+    () => allRows.filter((row) => row.finding.ignored),
+    [allRows],
+  );
   const filterOptions = useMemo(() => createFindingsFilterOptions(allRows), [allRows]);
   const filteredRows = useMemo(
+    () =>
+      filterAndSortFindingRows(activeRows, {
+        ...filters,
+        search: deferredSearchText,
+      }),
+    [activeRows, deferredSearchText, filters],
+  );
+  const filteredIgnoredRows = useMemo(
+    () =>
+      filterAndSortFindingRows(ignoredRows, {
+        ...filters,
+        search: deferredSearchText,
+      }),
+    [deferredSearchText, filters, ignoredRows],
+  );
+  const filteredAllRows = useMemo(
     () =>
       filterAndSortFindingRows(allRows, {
         ...filters,
@@ -528,13 +668,9 @@ export function OpenApiDiffReportExplorer({
       }),
     [allRows, deferredSearchText, filters],
   );
-  const ignoredRows = useMemo(
-    () => allRows.filter((row) => row.finding.ignored),
-    [allRows],
-  );
   const securityRows = useMemo(
-    () => allRows.filter((row) => row.finding.category === "security"),
-    [allRows],
+    () => activeRows.filter((row) => row.finding.category === "security"),
+    [activeRows],
   );
   const selectedRow = useMemo(
     () =>
@@ -543,12 +679,18 @@ export function OpenApiDiffReportExplorer({
         : null,
     [allRows, selectedFindingId],
   );
-  const filteredCsv = useMemo(() => createFindingsCsv(filteredRows), [filteredRows]);
-  const filteredMarkdown = useMemo(
-    () => createReportMarkdown(report, filteredRows),
-    [filteredRows, report],
+  const exportBundle = useMemo(
+    () =>
+      createReportExportBundle(report, allRows, {
+        includeIgnoredFindings: includeIgnoredInExport,
+        includeSafeChanges: includeSafeInExport,
+        redactBeforeExport,
+      }),
+    [allRows, includeIgnoredInExport, includeSafeInExport, redactBeforeExport, report],
   );
-  const reportJson = useMemo(() => JSON.stringify(report, null, 2), [report]);
+  const markdownExport = exportBundle.artifacts.markdown.content;
+  const htmlExport = exportBundle.artifacts.html.content;
+  const jsonExport = exportBundle.artifacts.json.content;
   const recommendationSeverity = getRecommendationSeverity(report);
   const riskScoreSeverity = getRiskScoreSeverity(report.riskScore);
   const hasActiveFilters = hasActiveFindingsFilters({
@@ -556,12 +698,6 @@ export function OpenApiDiffReportExplorer({
     search: searchText,
   });
   const profileLabel = formatConsumerProfileLabel(report.settings.consumerProfile);
-
-  useEffect(() => {
-    if (selectedFindingId && !selectedRow) {
-      setSelectedFindingId(null);
-    }
-  }, [selectedFindingId, selectedRow]);
 
   const jumpToFindings = (nextFilters: Partial<FindingsExplorerFilters>) => {
     setSearchText("");
@@ -575,6 +711,52 @@ export function OpenApiDiffReportExplorer({
   const clearFindingsFilters = () => {
     setSearchText("");
     setFilters(createDefaultFindingsExplorerFilters());
+  };
+  const confirmPotentiallyUnsafeExport = () => {
+    if (redactBeforeExport || !exportBundle.inspection.detectedSecrets) {
+      return true;
+    }
+
+    const confirmed = window.confirm(
+      "Secret-like values were detected in this export. Copy the unredacted version anyway?",
+    );
+
+    if (!confirmed) {
+      notify({
+        description: "Switch to redacted export mode to mask tokens, emails, internal hosts, and other detected values before copying.",
+        title: "Unredacted export cancelled",
+        variant: "warning",
+      });
+    }
+
+    return confirmed;
+  };
+
+  const handleDownloadExport = (format: ReportExportFormat) => {
+    if (!confirmPotentiallyUnsafeExport()) {
+      return;
+    }
+
+    const artifact = exportBundle.artifacts[format];
+    const blob = new Blob([artifact.content], { type: artifact.mimeType });
+    const downloadUrl = window.URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+
+    anchor.href = downloadUrl;
+    anchor.download = artifact.fileName;
+    document.body.append(anchor);
+    anchor.click();
+    anchor.remove();
+
+    window.setTimeout(() => {
+      window.URL.revokeObjectURL(downloadUrl);
+    }, 0);
+
+    notify({
+      description: `${artifact.fileName} was prepared for download.`,
+      title: `Downloaded ${format.toUpperCase()}`,
+      variant: "success",
+    });
   };
 
   return (
@@ -617,6 +799,22 @@ export function OpenApiDiffReportExplorer({
                   <p className="text-sm leading-6">{report.recommendation.reason}</p>
                   <p className="text-sm leading-6">{report.securitySummary}</p>
                   <p className="text-sm leading-6">{report.sdkImpactSummary}</p>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="border-line bg-panel rounded-2xl border px-4 py-3">
+                      <p className="text-xs font-semibold tracking-[0.18em] text-muted uppercase">
+                        Risk score
+                      </p>
+                      <p className="mt-2 text-2xl font-semibold">{report.riskScore}/100</p>
+                    </div>
+                    <div className="border-line bg-panel rounded-2xl border px-4 py-3">
+                      <p className="text-xs font-semibold tracking-[0.18em] text-muted uppercase">
+                        Findings
+                      </p>
+                      <p className="mt-2 text-2xl font-semibold">
+                        {report.summary.totalFindings}
+                      </p>
+                    </div>
+                  </div>
                   <p className="text-muted text-sm leading-6">
                     Last successful analysis:{" "}
                     {new Date(report.generatedAt).toLocaleString()}
@@ -638,7 +836,7 @@ export function OpenApiDiffReportExplorer({
                   <div className="border-line bg-panel-muted overflow-hidden rounded-full border">
                     <div
                       aria-hidden="true"
-                      className="bg-accent h-3 rounded-full"
+                      className={`h-3 rounded-full ${riskMeterStyles[riskScoreSeverity]}`}
                       style={{ width: getProgressMeterWidth(report.riskScore) }}
                     />
                   </div>
@@ -668,7 +866,7 @@ export function OpenApiDiffReportExplorer({
               </Card>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
               {(["breaking", "dangerous", "safe", "info"] as const).map((severity) => (
                 <MetricCard
                   key={severity}
@@ -688,16 +886,42 @@ export function OpenApiDiffReportExplorer({
                   value={report.summary.bySeverity[severity]}
                 />
               ))}
+              <MetricCard
+                description="Ignored findings stay available in the Ignored tab and export flows."
+                label="Ignored"
+                meta={
+                  report.summary.ignoredFindings > 0 ? (
+                    <Button onClick={() => setActiveTab("ignored")} variant="ghost">
+                      Review
+                    </Button>
+                  ) : null
+                }
+                severity={report.summary.ignoredFindings > 0 ? "info" : "safe"}
+                value={report.summary.ignoredFindings}
+              />
             </div>
+
+            {report.successState ? (
+              <Alert
+                title={report.successState.title}
+                variant={report.successState.emphasis === "success" ? "success" : "info"}
+              >
+                {report.successState.message}
+              </Alert>
+            ) : null}
 
             {report.summary.totalFindings === 0 ? (
               <EmptyState
-                description="The semantic diff engine did not find any contract changes in the current comparison."
+                description={
+                  report.summary.ignoredFindings > 0
+                    ? "No active findings remain after the current ignore rules were applied. Hidden findings are still visible in the Ignored tab."
+                    : "The semantic diff engine did not find any contract changes in the current comparison."
+                }
                 title="No findings"
               />
             ) : null}
 
-            {report.summary.bySeverity.breaking === 0 ? (
+            {report.summary.totalFindings > 0 && report.summary.bySeverity.breaking === 0 ? (
               <EmptyState
                 description="This run does not include any release-blocking findings for the selected compatibility profile."
                 title="No breaking changes"
@@ -733,6 +957,14 @@ export function OpenApiDiffReportExplorer({
                           <p className="text-muted mt-2 text-xs leading-5">
                             {item.jsonPointer}
                           </p>
+                          <div className="mt-4">
+                            <Button
+                              onClick={() => setSelectedFindingId(item.id)}
+                              variant="secondary"
+                            >
+                              Open details
+                            </Button>
+                          </div>
                         </li>
                       ))}
                     </ol>
@@ -824,15 +1056,27 @@ export function OpenApiDiffReportExplorer({
                 </CardHeader>
                 <CardContent>
                   <div className="grid gap-3 sm:grid-cols-2">
-                    {Object.entries(report.summary.byCategory).map(([category, count]) => (
+                    {(
+                      [
+                        "paths",
+                        "operations",
+                        "parameters",
+                        "schemas",
+                        "responses",
+                        "security",
+                        "docs",
+                      ] as const
+                    ).map((category) => (
                       <div
                         key={category}
                         className="border-line bg-panel-muted rounded-2xl border p-4"
                       >
                         <p className="text-xs font-semibold tracking-[0.18em] text-muted uppercase">
-                          {category}
+                          {reportCategoryLabels[category]}
                         </p>
-                        <p className="mt-2 text-2xl font-semibold">{count}</p>
+                        <p className="mt-2 text-2xl font-semibold">
+                          {report.summary.byCategory[category]}
+                        </p>
                       </div>
                     ))}
                   </div>
@@ -893,7 +1137,7 @@ export function OpenApiDiffReportExplorer({
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <CardTitle>All findings</CardTitle>
                   <Badge variant="neutral">
-                    Showing {filteredRows.length} of {report.findings.length}
+                    Showing {filteredRows.length} of {report.summary.totalFindings}
                   </Badge>
                 </div>
               </CardHeader>
@@ -1075,9 +1319,9 @@ export function OpenApiDiffReportExplorer({
               </CardContent>
             </Card>
 
-            {report.findings.length === 0 ? (
+            {report.summary.totalFindings === 0 ? (
               <EmptyState
-                description="The semantic diff engine did not produce any findings for this run."
+                description="No active findings remain after the current ignore and scope settings were applied."
                 title="No findings"
               />
             ) : filteredRows.length === 0 ? (
@@ -1097,85 +1341,238 @@ export function OpenApiDiffReportExplorer({
         </TabsContent>
 
         <TabsContent value="ignored">
-          {ignoredRows.length ? (
-            <FindingsTable
-              emptyDescription="No ignored findings are available."
-              emptyTitle="No ignored findings"
-              onOpenFinding={setSelectedFindingId}
-              rows={ignoredRows}
-            />
-          ) : (
-            <EmptyState
-              description={
-                report.summary.ignoredFindings > 0
-                  ? "Ignored findings are counted in the report summary, but this build does not retain row-level ignored details for inspection yet."
-                  : "No findings are currently marked ignored in this report."
-              }
-              title="No ignored findings"
-            />
-          )}
+          <div className="space-y-6">
+            <Card>
+              <CardHeader className="space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <CardTitle>Ignored findings</CardTitle>
+                  <Badge variant="neutral">
+                    Showing {filteredIgnoredRows.length} of {report.summary.ignoredFindings}
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted text-sm leading-6">
+                  Ignore rules never delete findings. They land here with the matched rule so you
+                  can audit what was suppressed and remove a rule whenever it grows too broad.
+                </p>
+              </CardContent>
+            </Card>
+
+            {report.summary.ignoredFindings === 0 ? (
+              <EmptyState
+                description="No findings are currently marked ignored in this report."
+                title="No ignored findings"
+              />
+            ) : filteredIgnoredRows.length === 0 ? (
+              <EmptyState
+                description="Try broadening the search text or clearing one or more filters."
+                title="No search results"
+              />
+            ) : (
+              <FindingsTable
+                emptyDescription="No ignored findings matched the current selection."
+                emptyTitle="No ignored findings"
+                onOpenFinding={setSelectedFindingId}
+                rows={filteredIgnoredRows}
+              />
+            )}
+          </div>
         </TabsContent>
 
         <TabsContent value="export">
-          <div className="grid gap-6 xl:grid-cols-3">
+          <div className="space-y-6">
             <Card>
-              <CardHeader>
-                <CardTitle>Filtered findings CSV</CardTitle>
+              <CardHeader className="space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <CardTitle>Export options</CardTitle>
+                  <Badge
+                    variant={
+                      redactBeforeExport
+                        ? "safe"
+                        : redactedExports.inspection.detectedSecrets
+                          ? "dangerous"
+                          : "neutral"
+                    }
+                  >
+                    {redactBeforeExport
+                      ? "Redacted before export"
+                      : redactedExports.inspection.detectedSecrets
+                        ? "Unredacted export"
+                        : "No redaction needed"}
+                  </Badge>
+                </div>
               </CardHeader>
               <CardContent className="space-y-4">
+                <label className="border-line bg-panel-muted inline-flex items-center gap-3 rounded-2xl border px-4 py-3 text-sm">
+                  <input
+                    checked={redactBeforeExport}
+                    onChange={(event) => setRedactBeforeExport(event.currentTarget.checked)}
+                    type="checkbox"
+                  />
+                  <span>Redact before export</span>
+                </label>
+                <label className="border-line bg-panel-muted inline-flex items-center gap-3 rounded-2xl border px-4 py-3 text-sm">
+                  <input
+                    checked={includeIgnoredInExport}
+                    onChange={(event) => setIncludeIgnoredInExport(event.currentTarget.checked)}
+                    type="checkbox"
+                  />
+                  <span>Include ignored findings in CSV and Markdown exports</span>
+                </label>
                 <p className="text-muted text-sm leading-6">
-                  Export the currently filtered findings table with severity, target, rule, and
-                  pointer fields.
+                  Ignored findings remain auditable. Turn this on when you want exports to carry
+                  suppressed rows and their matched ignore rules alongside the active report.
                 </p>
-                <CopyButton
-                  label="Copy CSV"
-                  value={filteredCsv}
-                  variant="secondary"
-                />
+                {redactedExports.inspection.detectedSecrets && !redactBeforeExport ? (
+                  <Alert title="Secret-like values detected in this export" variant="warning">
+                    <div className="space-y-4">
+                      <p className="leading-6">
+                        Tokens, internal hosts, emails, private IPs, or custom regex matches are
+                        present in the current export payload. Copying the unredacted version can
+                        leak internal contract data.
+                      </p>
+                      <div className="flex flex-wrap gap-3">
+                        <Button onClick={() => setRedactBeforeExport(true)} variant="secondary">
+                          Redact before export
+                        </Button>
+                      </div>
+                    </div>
+                  </Alert>
+                ) : null}
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Markdown summary</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <p className="text-muted text-sm leading-6">
-                  Copy a concise Markdown report with the current filtered findings selection.
-                </p>
-                <CopyButton
-                  label="Copy Markdown"
-                  value={filteredMarkdown}
-                  variant="secondary"
-                />
-              </CardContent>
-            </Card>
+            {redactedExports.inspection.previews.length ? (
+              <Card>
+                <CardHeader className="space-y-3">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <CardTitle>Redaction preview</CardTitle>
+                    <Badge variant="neutral">
+                      Showing {redactedExports.inspection.previews.length} snippet
+                      {redactedExports.inspection.previews.length === 1 ? "" : "s"}
+                    </Badge>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {redactedExports.inspection.previews.map((preview) => (
+                    <div
+                      key={preview.id}
+                      className="border-line bg-panel-muted rounded-2xl border p-4"
+                    >
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge variant="neutral">{preview.placeholder}</Badge>
+                        <Badge variant="neutral">{preview.kind}</Badge>
+                        <span className="text-muted text-xs">{preview.sourceLabel}</span>
+                      </div>
+                      <div className="mt-4 grid gap-4 xl:grid-cols-2">
+                        <div className="space-y-2">
+                          <p className="text-xs font-semibold tracking-[0.18em] text-muted uppercase">
+                            Before
+                          </p>
+                          <pre className="border-line bg-panel overflow-x-auto rounded-2xl border p-4 text-xs leading-6 whitespace-pre-wrap">
+                            {preview.before}
+                          </pre>
+                        </div>
+                        <div className="space-y-2">
+                          <p className="text-xs font-semibold tracking-[0.18em] text-muted uppercase">
+                            After
+                          </p>
+                          <pre className="border-line bg-panel overflow-x-auto rounded-2xl border p-4 text-xs leading-6 whitespace-pre-wrap">
+                            {preview.after}
+                          </pre>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            ) : null}
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Full report JSON</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <p className="text-muted text-sm leading-6">
-                  Copy the full structured report payload for downstream tooling or deeper review.
-                </p>
-                <CopyButton
-                  label="Copy JSON"
-                  value={reportJson}
-                  variant="secondary"
-                />
-              </CardContent>
-            </Card>
+            <div className="grid gap-6 xl:grid-cols-3">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Filtered findings CSV</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <p className="text-muted text-sm leading-6">
+                    Export the currently filtered findings table with severity, target, rule,
+                    pointer, and ignore metadata.
+                  </p>
+                  <CopyButton
+                    label="Copy CSV"
+                    onBeforeCopy={confirmPotentiallyUnsafeCopy}
+                    value={filteredCsv}
+                    variant="secondary"
+                  />
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Markdown summary</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <p className="text-muted text-sm leading-6">
+                    Copy a concise Markdown report with the current filtered findings selection and
+                    ignored-state markers.
+                  </p>
+                  <CopyButton
+                    label="Copy Markdown"
+                    onBeforeCopy={confirmPotentiallyUnsafeCopy}
+                    value={filteredMarkdown}
+                    variant="secondary"
+                  />
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>HTML export</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <p className="text-muted text-sm leading-6">
+                    Copy a standalone HTML snapshot. Exported HTML escapes report content to avoid
+                    injecting active markup into the shared file.
+                  </p>
+                  <CopyButton
+                    label="Copy HTML"
+                    onBeforeCopy={confirmPotentiallyUnsafeCopy}
+                    value={filteredHtml}
+                    variant="secondary"
+                  />
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Full report JSON</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <p className="text-muted text-sm leading-6">
+                    Copy the full structured report payload for downstream tooling or deeper review.
+                  </p>
+                  <CopyButton
+                    label="Copy JSON"
+                    onBeforeCopy={confirmPotentiallyUnsafeCopy}
+                    value={reportJson}
+                    variant="secondary"
+                  />
+                </CardContent>
+              </Card>
+            </div>
           </div>
         </TabsContent>
       </Tabs>
 
       <FindingDrawer
+        onAddIgnoreRule={onAddIgnoreRule}
         onOpenChange={(open) => {
           if (!open) {
             setSelectedFindingId(null);
           }
         }}
+        onRemoveIgnoreRule={onRemoveIgnoreRule}
         open={Boolean(selectedRow)}
         row={selectedRow}
       />

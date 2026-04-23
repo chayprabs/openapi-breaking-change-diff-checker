@@ -3,6 +3,10 @@ import { reclassifyDiffReport } from "@/features/openapi-diff/engine/classify";
 import { buildOpenApiDiffReport } from "@/features/openapi-diff/engine/diff";
 import { normalizeOpenApiDocument } from "@/features/openapi-diff/engine/normalize";
 import { createAnalysisSettings } from "@/features/openapi-diff/lib/analysis-settings";
+import {
+  createPathPatternIgnoreRule,
+  createRuleIdIgnoreRule,
+} from "@/features/openapi-diff/lib/ignore-rules";
 import { parseOpenApiSpec } from "@/features/openapi-diff/lib/parser";
 import type {
   ConsumerProfile,
@@ -328,6 +332,136 @@ paths:
     expect(getFinding(publicReport, "schema.property.added.optional").severity).toBe("safe");
     expect(getFinding(firstSdkStrictReport, "schema.property.added.optional").severity).toBe(
       "dangerous",
+    );
+  });
+
+  it("moves path-matched findings into the ignored bucket without deleting them", async () => {
+    const baseSpec = `openapi: 3.1.0
+info:
+  title: Base
+  version: 1.0.0
+paths:
+  /internal/users:
+    get:
+      responses:
+        "200":
+          description: ok
+`;
+    const revisionSpec = `openapi: 3.1.0
+info:
+  title: Revision
+  version: 1.0.1
+paths:
+  /internal/users:
+    get:
+      parameters:
+        - in: query
+          name: region
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ok
+`;
+
+    const baseReport = await buildReport(baseSpec, revisionSpec, "publicApi");
+    const ignoredReport = reclassifyDiffReport(
+      baseReport,
+      createAnalysisSettings({
+        consumerProfile: "publicApi",
+        ignoreRules: [createPathPatternIgnoreRule("/internal/*")],
+      }),
+    );
+
+    expect(baseReport.summary.totalFindings).toBe(1);
+    expect(baseReport.summary.ignoredFindings).toBe(0);
+    expect(ignoredReport.summary.totalFindings).toBe(0);
+    expect(ignoredReport.summary.ignoredFindings).toBe(1);
+    expect(ignoredReport.findings).toHaveLength(1);
+    const ignoredFinding = ignoredReport.findings[0];
+
+    expect(ignoredFinding).toBeDefined();
+
+    if (!ignoredFinding) {
+      throw new Error("Expected ignored finding to exist.");
+    }
+
+    expect(ignoredFinding).toMatchObject({
+      ignored: true,
+      path: "/internal/users",
+      ruleId: "parameter.required.added",
+    });
+    expect(ignoredFinding.ignoredBy).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "pathPattern:/internal/*",
+          label: "Path /internal/*",
+          source: "pathPattern",
+        }),
+      ]),
+    );
+  });
+
+  it("moves rule-matched findings into the ignored bucket without changing others", async () => {
+    const baseSpec = `openapi: 3.1.0
+info:
+  title: Base
+  version: 1.0.0
+paths:
+  /users:
+    get:
+      operationId: listUsers
+      responses:
+        "200":
+          description: ok
+`;
+    const revisionSpec = `openapi: 3.1.0
+info:
+  title: Revision
+  version: 1.0.1
+paths:
+  /users:
+    get:
+      operationId: fetchUsers
+      responses:
+        "200":
+          description: ok
+`;
+
+    const baseReport = await buildReport(baseSpec, revisionSpec, "publicApi");
+    const ignoredReport = reclassifyDiffReport(
+      baseReport,
+      createAnalysisSettings({
+        consumerProfile: "publicApi",
+        ignoreRules: [createRuleIdIgnoreRule("operationId.changed")],
+      }),
+    );
+
+    expect(baseReport.summary.totalFindings).toBe(1);
+    expect(ignoredReport.summary.totalFindings).toBe(0);
+    expect(ignoredReport.summary.ignoredFindings).toBe(1);
+    const ignoredFinding = ignoredReport.findings[0];
+
+    expect(ignoredFinding).toBeDefined();
+
+    if (!ignoredFinding) {
+      throw new Error("Expected ignored finding to exist.");
+    }
+
+    expect(ignoredFinding).toMatchObject({
+      ignored: true,
+      ruleId: "operationId.changed",
+      severity: "dangerous",
+    });
+    expect(ignoredFinding.ignoredBy).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "ruleId:operationId.changed",
+          label: "Rule operationId.changed",
+          source: "ruleId",
+        }),
+      ]),
     );
   });
 });

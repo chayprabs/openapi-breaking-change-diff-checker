@@ -31,6 +31,9 @@ import { KeyboardShortcut } from "@/components/ui/keyboard-shortcut";
 import { ProgressSteps, type ProgressStep } from "@/components/ui/progress-steps";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/components/ui/toast";
+import { OpenApiDiffPrivacyDrawer } from "@/features/openapi-diff/components/openapi-diff-privacy-drawer";
+import { OpenApiDiffReportExplorer } from "@/features/openapi-diff/components/openapi-diff-report-explorer";
+import { OpenApiDiffSettingsDrawer } from "@/features/openapi-diff/components/openapi-diff-settings-drawer";
 import {
   getWorkspaceSample,
   workspaceSamples,
@@ -45,15 +48,17 @@ import {
 } from "@/features/openapi-diff/lib/use-openapi-diff-worker";
 import { reclassifyDiffReport } from "@/features/openapi-diff/engine/classify";
 import {
+  addIgnoreRule,
   consumerProfileOptions,
   createAnalysisSettings,
   formatConsumerProfileLabel,
+  removeIgnoreRule,
+  serializeAnalysisSettings,
 } from "@/features/openapi-diff/lib/analysis-settings";
+import { getIgnoreRuleLabel } from "@/features/openapi-diff/lib/ignore-rules";
+import { redactTextSources } from "@/features/openapi-diff/lib/redaction";
 import {
   createTooManyFindingsWarning,
-  MAX_RENDERED_REPORT_ENDPOINTS,
-  MAX_RENDERED_REPORT_FINDINGS,
-  MAX_RENDERED_REPORT_SCHEMAS,
 } from "@/features/openapi-diff/lib/report-display";
 import {
   countSpecCharacters,
@@ -69,12 +74,10 @@ import {
 } from "@/features/openapi-diff/lib/workspace";
 import { analysisProgressLabels } from "@/features/openapi-diff/types";
 import type {
+  AnalysisSettings,
   ConsumerProfile,
-  DiffFinding,
   DiffReport,
-  DiffSeverity,
-  JsonValue,
-  ParsedSpec,
+  RedactionResult,
   SpecInput,
   SpecParserError,
   SpecParserIssue,
@@ -86,13 +89,13 @@ type WorkspaceMobileTab = "base" | "revision" | "results";
 
 type WorkspaceSettings = {
   activeMobileTab: WorkspaceMobileTab;
-  consumerProfile: ConsumerProfile;
+  analysisSettings: AnalysisSettings;
   selectedSampleId: WorkspaceSampleId | null;
 };
 
 type WorkspaceStateSnapshot = {
   activeMobileTab: WorkspaceMobileTab;
-  consumerProfile: ConsumerProfile;
+  analysisSettings: AnalysisSettings;
   selectedSampleId: WorkspaceSampleId | null;
   specs: Record<WorkspacePanelId, SpecInput>;
 };
@@ -122,7 +125,9 @@ type WorkspaceResultsPanelProps = {
   analysisState: AnalysisWorkerState;
   baseSpec: SpecInput;
   editorStates: Record<WorkspacePanelId, EditorWorkerState>;
+  onAddIgnoreRule: (ignoreRule: AnalysisSettings["ignoreRules"][number]) => void;
   onAnalyze: () => void;
+  onRemoveIgnoreRule: (ignoreRuleId: string) => void;
   progress: WorkerProgressState;
   report: DiffReport | null;
   revisionSpec: SpecInput;
@@ -131,7 +136,7 @@ type WorkspaceResultsPanelProps = {
 
 const DEFAULT_SETTINGS: WorkspaceSettings = {
   activeMobileTab: "base",
-  consumerProfile: "publicApi",
+  analysisSettings: createAnalysisSettings(),
   selectedSampleId: null,
 };
 
@@ -152,22 +157,54 @@ const ANALYSIS_PROGRESS_DESCRIPTIONS: Record<
     "Running structural and OpenAPI-specific validation checks.",
 };
 
-const FINDING_SEVERITY_ORDER = [
+const WORKSPACE_DIFF_CATEGORIES = new Set([
+  "docs",
+  "enum",
+  "metadata",
+  "operation",
+  "parameter",
+  "path",
+  "requestBody",
+  "response",
+  "schema",
+  "security",
+]);
+const WORKSPACE_DIFF_SEVERITIES = new Set([
   "breaking",
   "dangerous",
   "safe",
   "info",
-] as const satisfies readonly DiffSeverity[];
-
-const REPORT_CATEGORY_ORDER = [
-  "paths",
-  "operations",
-  "parameters",
-  "schemas",
-  "responses",
-  "security",
-  "docs",
-] as const;
+]);
+const WORKSPACE_EXPORT_FORMATS = new Set(["json", "markdown", "html", "csv"]);
+const WORKSPACE_HTTP_METHODS = new Set([
+  "delete",
+  "get",
+  "head",
+  "options",
+  "patch",
+  "post",
+  "put",
+  "trace",
+]);
+const WORKSPACE_IGNORE_RULE_SOURCES = new Set([
+  "deprecatedEndpoint",
+  "docsOnly",
+  "finding",
+  "method",
+  "operationId",
+  "pathPattern",
+  "ruleId",
+  "tag",
+]);
+const EMPTY_REDACTION_RESULT: RedactionResult = {
+  detectedSecrets: false,
+  matches: [],
+  previews: [],
+  redactedKeys: [],
+  redactedSource: "Workspace privacy preview",
+  replacements: 0,
+  warnings: [],
+};
 
 const cmTheme = EditorView.theme({
   "&": {
@@ -249,6 +286,148 @@ function createSpecsFromSample(sample: WorkspaceSample) {
   };
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function parseStoredAnalysisSettings(
+  value: unknown,
+  legacyConsumerProfile?: ConsumerProfile,
+): AnalysisSettings {
+  if (!isRecord(value)) {
+    return createAnalysisSettings(
+      legacyConsumerProfile ? { consumerProfile: legacyConsumerProfile } : {},
+    );
+  }
+
+  const consumerProfile = consumerProfileOptions.some(
+    (option) => option.value === value.consumerProfile,
+  )
+    ? (value.consumerProfile as ConsumerProfile)
+    : legacyConsumerProfile ?? DEFAULT_SETTINGS.analysisSettings.consumerProfile;
+  const exportFormats = Array.isArray(value.exportFormats)
+    ? value.exportFormats.filter(
+        (entry): entry is AnalysisSettings["exportFormats"][number] =>
+          typeof entry === "string" && WORKSPACE_EXPORT_FORMATS.has(entry),
+      )
+    : undefined;
+  const failOnSeverities = Array.isArray(value.failOnSeverities)
+    ? value.failOnSeverities.filter(
+        (entry): entry is AnalysisSettings["failOnSeverities"][number] =>
+          typeof entry === "string" && WORKSPACE_DIFF_SEVERITIES.has(entry),
+      )
+    : undefined;
+  const includeCategories = Array.isArray(value.includeCategories)
+    ? value.includeCategories.filter(
+        (entry): entry is AnalysisSettings["includeCategories"][number] =>
+          typeof entry === "string" && WORKSPACE_DIFF_CATEGORIES.has(entry),
+      )
+    : undefined;
+  const customRedactionRules = Array.isArray(value.customRedactionRules)
+    ? value.customRedactionRules
+        .map((entry) => {
+          if (!isRecord(entry) || typeof entry.id !== "string" || typeof entry.pattern !== "string") {
+            return null;
+          }
+
+          return {
+            id: entry.id,
+            pattern: entry.pattern,
+            ...(typeof entry.flags === "string" ? { flags: entry.flags } : {}),
+            ...(typeof entry.label === "string" ? { label: entry.label } : {}),
+          } satisfies AnalysisSettings["customRedactionRules"][number];
+        })
+        .filter(
+          (entry): entry is AnalysisSettings["customRedactionRules"][number] => Boolean(entry),
+        )
+    : undefined;
+  const ignoreRules = Array.isArray(value.ignoreRules)
+    ? value.ignoreRules
+        .map((entry) => {
+          if (!isRecord(entry)) {
+            return null;
+          }
+
+          if (
+            typeof entry.id !== "string" ||
+            typeof entry.reason !== "string" ||
+            typeof entry.source !== "string" ||
+            !WORKSPACE_IGNORE_RULE_SOURCES.has(entry.source)
+          ) {
+            return null;
+          }
+
+          const source = entry.source as AnalysisSettings["ignoreRules"][number]["source"];
+
+          return {
+            id: entry.id,
+            ...(typeof entry.label === "string" ? { label: entry.label } : {}),
+            reason: entry.reason,
+            source,
+            ...(Array.isArray(entry.consumerProfiles)
+              ? {
+                  consumerProfiles: entry.consumerProfiles.filter(
+                    (profile): profile is ConsumerProfile =>
+                      typeof profile === "string" &&
+                      consumerProfileOptions.some((option) => option.value === profile),
+                  ),
+                }
+              : {}),
+            ...(typeof entry.expiresAt === "string"
+              ? { expiresAt: entry.expiresAt }
+              : {}),
+            ...(typeof entry.findingId === "string"
+              ? { findingId: entry.findingId }
+              : {}),
+            ...(typeof entry.jsonPathPrefix === "string"
+              ? { jsonPathPrefix: entry.jsonPathPrefix }
+              : {}),
+            ...(typeof entry.method === "string" && WORKSPACE_HTTP_METHODS.has(entry.method)
+              ? {
+                  method:
+                    entry.method as AnalysisSettings["ignoreRules"][number]["method"],
+                }
+              : {}),
+            ...(typeof entry.operationId === "string"
+              ? { operationId: entry.operationId }
+              : {}),
+            ...(typeof entry.pathPattern === "string"
+              ? { pathPattern: entry.pathPattern }
+              : {}),
+            ...(typeof entry.ruleId === "string" ? { ruleId: entry.ruleId } : {}),
+            ...(typeof entry.tag === "string" ? { tag: entry.tag } : {}),
+          } as AnalysisSettings["ignoreRules"][number];
+        })
+        .filter((entry): entry is AnalysisSettings["ignoreRules"][number] => Boolean(entry))
+    : undefined;
+
+  return createAnalysisSettings({
+    consumerProfile,
+    ...(exportFormats ? { exportFormats } : {}),
+    ...(failOnSeverities ? { failOnSeverities } : {}),
+    ...(customRedactionRules ? { customRedactionRules } : {}),
+    ...(ignoreRules ? { ignoreRules } : {}),
+    ...(includeCategories ? { includeCategories } : {}),
+    ...(typeof value.includeInfoFindings === "boolean"
+      ? { includeInfoFindings: value.includeInfoFindings }
+      : {}),
+    ...(typeof value.redactExamples === "boolean"
+      ? { redactExamples: value.redactExamples }
+      : {}),
+    ...(typeof value.redactServerUrls === "boolean"
+      ? { redactServerUrls: value.redactServerUrls }
+      : {}),
+    ...(typeof value.resolveLocalRefs === "boolean"
+      ? { resolveLocalRefs: value.resolveLocalRefs }
+      : {}),
+    ...(typeof value.treatEnumAdditionsAsDangerous === "boolean"
+      ? {
+          treatEnumAdditionsAsDangerous: value.treatEnumAdditionsAsDangerous,
+        }
+      : {}),
+  });
+}
+
 function readStoredWorkspaceSettings(): WorkspaceSettings {
   if (typeof window === "undefined") {
     return DEFAULT_SETTINGS;
@@ -270,11 +449,6 @@ function readStoredWorkspaceSettings(): WorkspaceSettings {
       parsed.activeMobileTab === "results"
         ? parsed.activeMobileTab
         : DEFAULT_SETTINGS.activeMobileTab;
-    const consumerProfile = consumerProfileOptions.some(
-      (option) => option.value === parsed.consumerProfile,
-    )
-      ? (parsed.consumerProfile as ConsumerProfile)
-      : DEFAULT_SETTINGS.consumerProfile;
     const selectedSampleId =
       parsed.selectedSampleId &&
       workspaceSamples.some((sample) => sample.id === parsed.selectedSampleId)
@@ -283,7 +457,14 @@ function readStoredWorkspaceSettings(): WorkspaceSettings {
 
     return {
       activeMobileTab,
-      consumerProfile,
+      analysisSettings: parseStoredAnalysisSettings(
+        (parsed as { analysisSettings?: unknown }).analysisSettings,
+        consumerProfileOptions.some(
+          (option) => option.value === (parsed as { consumerProfile?: string }).consumerProfile,
+        )
+          ? ((parsed as { consumerProfile?: ConsumerProfile }).consumerProfile as ConsumerProfile)
+          : undefined,
+      ),
       selectedSampleId,
     };
   } catch {
@@ -296,7 +477,7 @@ function createInitialWorkspaceState(): WorkspaceStateSnapshot {
 
   return {
     activeMobileTab: settings.activeMobileTab,
-    consumerProfile: settings.consumerProfile,
+    analysisSettings: settings.analysisSettings,
     selectedSampleId: settings.selectedSampleId,
     specs: settings.selectedSampleId
       ? createSpecsFromSample(getWorkspaceSample(settings.selectedSampleId))
@@ -634,208 +815,6 @@ function renderStringList(values: readonly string[]) {
   );
 }
 
-function renderParsedSpecCard(label: string, parsed: ParsedSpec) {
-  return (
-    <Card>
-      <CardHeader className="space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <CardTitle className="text-base">{label}</CardTitle>
-          <div className="flex flex-wrap gap-2">
-            <Badge variant="neutral">{parsed.input.format.toUpperCase()}</Badge>
-            <Badge variant={parsed.validationSource === "scalar" ? "safe" : "info"}>
-              {parsed.validationSource === "scalar" ? "Scalar checks" : "Lightweight checks"}
-            </Badge>
-          </div>
-        </div>
-        <p className="text-muted text-sm leading-6">{parsed.version.label}</p>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div className="border-line bg-panel-muted rounded-2xl border px-4 py-3">
-            <p className="text-muted text-xs uppercase tracking-[0.18em]">Paths</p>
-            <p className="mt-2 text-2xl font-semibold">{parsed.pathCount}</p>
-          </div>
-          <div className="border-line bg-panel-muted rounded-2xl border px-4 py-3">
-            <p className="text-muted text-xs uppercase tracking-[0.18em]">Schemas</p>
-            <p className="mt-2 text-2xl font-semibold">{parsed.schemaCount}</p>
-          </div>
-          <div className="border-line bg-panel-muted rounded-2xl border px-4 py-3">
-            <p className="text-muted text-xs uppercase tracking-[0.18em]">Local refs</p>
-            <p className="mt-2 text-2xl font-semibold">{parsed.localRefCount}</p>
-          </div>
-          <div className="border-line bg-panel-muted rounded-2xl border px-4 py-3">
-            <p className="text-muted text-xs uppercase tracking-[0.18em]">Spec size</p>
-            <p className="mt-2 text-2xl font-semibold">{formatBytes(parsed.byteCount)}</p>
-            <p className="text-muted mt-2 text-sm">{parsed.lineCount} lines</p>
-          </div>
-        </div>
-
-        {parsed.unresolvedRefs.length ? (
-          <Alert title="Unresolved references" variant="warning">
-            {parsed.unresolvedRefs.join(", ")}
-          </Alert>
-        ) : null}
-
-        {parsed.warnings.length ? (
-          <Alert title={`Spec warnings (${parsed.warnings.length})`} variant="warning">
-            {renderIssueList(parsed.warnings)}
-          </Alert>
-        ) : (
-          <Alert title="Spec parsed cleanly" variant="success">
-            No parser warnings are active for this document.
-          </Alert>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-
-function formatFindingValue(value: JsonValue | null) {
-  if (value === null) {
-    return "null";
-  }
-
-  if (typeof value === "string") {
-    return value;
-  }
-
-  return JSON.stringify(value, null, 2);
-}
-
-function getFindingsAlertVariant(findings: readonly DiffFinding[]) {
-  if (findings.some((finding) => finding.severity === "breaking")) {
-    return "warning" as const;
-  }
-
-  if (findings.some((finding) => finding.severity === "dangerous")) {
-    return "warning" as const;
-  }
-
-  if (findings.length) {
-    return "info" as const;
-  }
-
-  return "success" as const;
-}
-
-function getRecommendationAlertVariant(report: DiffReport) {
-  if (report.recommendation.code === "blockRelease") {
-    return "warning" as const;
-  }
-
-  if (report.recommendation.code === "reviewBeforeRelease") {
-    return "info" as const;
-  }
-
-  return "success" as const;
-}
-
-function getRecommendationSeverity(report: DiffReport) {
-  if (report.recommendation.code === "blockRelease") {
-    return "breaking" as const;
-  }
-
-  if (report.recommendation.code === "reviewBeforeRelease") {
-    return "dangerous" as const;
-  }
-
-  return "safe" as const;
-}
-
-function getRiskScoreSeverity(riskScore: number) {
-  if (riskScore >= 75) {
-    return "breaking" as const;
-  }
-
-  if (riskScore >= 40) {
-    return "dangerous" as const;
-  }
-
-  if (riskScore > 0) {
-    return "info" as const;
-  }
-
-  return "safe" as const;
-}
-
-function formatReportCategoryLabel(category: (typeof REPORT_CATEGORY_ORDER)[number]) {
-  return `${category[0]?.toUpperCase()}${category.slice(1)}`;
-}
-
-function renderFindingList(findings: readonly DiffFinding[]) {
-  return (
-    <div className="space-y-4">
-      {findings.map((finding) => (
-        <div key={finding.id} className="border-line bg-panel-muted rounded-2xl border p-4">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="space-y-2">
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge variant={finding.severity}>{finding.severity}</Badge>
-                <Badge variant="neutral">{finding.ruleId}</Badge>
-                {finding.method && finding.path ? (
-                  <Badge variant="neutral">
-                    {finding.method.toUpperCase()} {finding.path}
-                  </Badge>
-                ) : finding.path ? (
-                  <Badge variant="neutral">{finding.path}</Badge>
-                ) : null}
-              </div>
-              <div>
-                <p className="text-sm font-semibold">{finding.title}</p>
-                <p className="text-muted mt-1 text-sm leading-6">{finding.message}</p>
-                {finding.humanPath ? (
-                  <p className="text-muted mt-2 text-xs leading-5">
-                    Affected contract path: {finding.humanPath}
-                  </p>
-                ) : null}
-                <p className="text-muted mt-2 text-xs leading-5">
-                  Why this severity: {finding.severityReason}
-                </p>
-                <p className="text-muted mt-2 text-xs leading-5">
-                  Why this matters: {finding.whyItMatters}
-                </p>
-                {finding.saferAlternative ? (
-                  <p className="text-muted mt-1 text-xs leading-5">
-                    Safer alternative: {finding.saferAlternative}
-                  </p>
-                ) : null}
-              </div>
-            </div>
-            <p className="text-muted font-mono text-[0.68rem] tracking-[0.18em] uppercase">
-              {finding.category}
-            </p>
-          </div>
-
-          <div className="mt-4 grid gap-3 lg:grid-cols-2">
-            <div className="space-y-2">
-              <p className="text-muted text-xs uppercase tracking-[0.18em]">Before</p>
-              <pre className="border-line bg-panel overflow-x-auto rounded-2xl border p-3 text-xs leading-6 whitespace-pre-wrap">
-                {formatFindingValue(finding.beforeValue)}
-              </pre>
-            </div>
-            <div className="space-y-2">
-              <p className="text-muted text-xs uppercase tracking-[0.18em]">After</p>
-              <pre className="border-line bg-panel overflow-x-auto rounded-2xl border p-3 text-xs leading-6 whitespace-pre-wrap">
-                {formatFindingValue(finding.afterValue)}
-              </pre>
-            </div>
-          </div>
-
-          <div className="text-muted mt-4 flex flex-wrap gap-3 text-xs leading-6">
-            <span>Spec path: {finding.jsonPointer}</span>
-            {finding.evidence.base ? (
-              <span>Base evidence: {finding.evidence.base.node.sourcePath}</span>
-            ) : null}
-            {finding.evidence.revision ? (
-              <span>Revision evidence: {finding.evidence.revision.node.sourcePath}</span>
-            ) : null}
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 function WorkspaceEditorPanel({
   errors,
   label,
@@ -913,6 +892,12 @@ function WorkspaceEditorPanel({
           <div>
             <CardTitle className="text-base">{label}</CardTitle>
             <p className="text-muted mt-1 text-sm">{getPanelHeading(panelId)}</p>
+            <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+              <PrivacyBadge mode="local-first" />
+              <span className="text-muted">
+                Core analysis runs locally in your browser when possible.
+              </span>
+            </div>
           </div>
           <div className="flex flex-wrap gap-2">
             <Badge variant="neutral">{spec.format.toUpperCase()}</Badge>
@@ -1015,7 +1000,9 @@ function WorkspaceResultsPanel({
   analysisState,
   baseSpec,
   editorStates,
+  onAddIgnoreRule,
   onAnalyze,
+  onRemoveIgnoreRule,
   progress,
   report,
   revisionSpec,
@@ -1035,15 +1022,6 @@ function WorkspaceResultsPanel({
   const tooManyFindingsWarning = report
     ? createTooManyFindingsWarning(report.summary.totalFindings)
     : null;
-  const visibleFindings = report
-    ? report.findings.slice(0, MAX_RENDERED_REPORT_FINDINGS)
-    : [];
-  const visibleAffectedEndpoints = report
-    ? report.affectedEndpoints.slice(0, MAX_RENDERED_REPORT_ENDPOINTS)
-    : [];
-  const visibleAffectedSchemas = report
-    ? report.affectedSchemas.slice(0, MAX_RENDERED_REPORT_SCHEMAS)
-    : [];
   const reportWarnings = report
     ? [...new Set([
         ...report.warnings,
@@ -1214,276 +1192,30 @@ function WorkspaceResultsPanel({
               />
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-              {FINDING_SEVERITY_ORDER.map((severity) => (
-              <MetricCard
-                key={severity}
-                description="Current semantic diff findings"
-                label={`${severity[0]?.toUpperCase()}${severity.slice(1)} findings`}
-                severity={severity}
-                value={report?.summary.bySeverity[severity] ?? 0}
-              />
-            ))}
-          </div>
-
-          {report ? (
-            <>
-              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-                <MetricCard
-                  description={report.recommendation.reason}
-                  label="Recommendation"
-                  severity={getRecommendationSeverity(report)}
-                  value={report.recommendation.label}
-                />
-                <MetricCard
-                  description="0 means minimal contract risk. 100 means the report is saturated with release risk."
-                  label="Risk score"
-                  severity={getRiskScoreSeverity(report.riskScore)}
-                  value={report.riskScore}
-                />
-                <MetricCard
-                  description="Selected compatibility profile for severity classification"
-                  label="Consumer profile"
-                  severity="info"
-                  value={formatConsumerProfileLabel(report.settings.consumerProfile)}
-                />
-                <MetricCard
-                  description="Distinct paths and operations touched by current findings"
-                  label="Affected endpoints"
-                  severity={report.affectedEndpoints.length ? "dangerous" : "safe"}
-                  value={report.affectedEndpoints.length}
-                />
-                <MetricCard
-                  description="Distinct schemas or schema surfaces touched by current findings"
-                  label="Affected schemas"
-                  severity={report.affectedSchemas.length ? "info" : "safe"}
-                  value={report.affectedSchemas.length}
-                />
-              </div>
-
-              <Alert
-                title={report.recommendation.label}
-                variant={getRecommendationAlertVariant(report)}
-              >
-                <div className="space-y-3">
-                  <p>{report.executiveSummary}</p>
-                  <p>{report.securitySummary}</p>
-                  <p>{report.sdkImpactSummary}</p>
-                </div>
-              </Alert>
-
-              {report.successState ? (
+            {report ? (
+              <div className="space-y-6">
                 <Alert
-                  title={report.successState.title}
-                  variant={
-                    report.successState.emphasis === "success" ? "success" : "info"
-                  }
+                  title={`Semantic diff report for ${formatConsumerProfileLabel(report.settings.consumerProfile)}`}
+                  variant="info"
                 >
-                  {report.successState.message}
-                </Alert>
-              ) : null}
-
-              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                {REPORT_CATEGORY_ORDER.map((category) => (
-                  <MetricCard
-                    key={category}
-                    description="Current semantic diff findings grouped by report category"
-                    label={`${formatReportCategoryLabel(category)} count`}
-                    severity={
-                      category === "security" && report.summary.byCategory[category] > 0
-                        ? "dangerous"
-                        : report.summary.byCategory[category] > 0
-                          ? "info"
-                          : "safe"
-                    }
-                    value={report.summary.byCategory[category]}
-                  />
-                ))}
-              </div>
-            </>
-          ) : null}
-
-          <div className="grid gap-6 lg:grid-cols-2">
-            {renderParsedSpecCard("Base spec summary", analysisState.result.base)}
-            {renderParsedSpecCard("Revision spec summary", analysisState.result.revision)}
-          </div>
-
-          {report ? (
-            <>
-              <div className="grid gap-6 xl:grid-cols-2">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Top 5 things to review</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    {report.topReviewItems.length ? (
-                      <ol className="space-y-3">
-                        {report.topReviewItems.map((item, index) => (
-                          <li key={item.id} className="border-line bg-panel-muted rounded-2xl border p-4">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <Badge variant="neutral">#{index + 1}</Badge>
-                              <Badge variant={item.severity}>{item.severity}</Badge>
-                              {item.method && item.path ? (
-                                <Badge variant="neutral">
-                                  {item.method.toUpperCase()} {item.path}
-                                </Badge>
-                              ) : item.path ? (
-                                <Badge variant="neutral">{item.path}</Badge>
-                              ) : null}
-                            </div>
-                            <p className="mt-3 text-sm font-semibold">{item.title}</p>
-                            <p className="text-muted mt-1 text-sm leading-6">{item.message}</p>
-                            <p className="text-muted mt-2 text-xs leading-5">
-                              Spec path: {item.jsonPointer}
-                            </p>
-                          </li>
-                        ))}
-                      </ol>
-                    ) : (
-                      <p className="text-muted text-sm leading-6">
-                        No review queue is active because the current report did not produce any findings.
-                      </p>
-                    )}
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Migration notes</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <ul className="space-y-3">
-                      {report.migrationNotes.map((note, index) => (
-                        <li key={`${note}-${index}`} className="border-line bg-panel-muted rounded-2xl border p-4 text-sm leading-6">
-                          {note}
-                        </li>
-                      ))}
-                    </ul>
-                  </CardContent>
-                </Card>
-              </div>
-
-              <div className="grid gap-6 xl:grid-cols-2">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Affected endpoints</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    {report.affectedEndpoints.length ? (
-                      <div className="space-y-3">
-                        {report.affectedEndpoints.length > visibleAffectedEndpoints.length ? (
-                          <Alert title="Endpoint list trimmed" variant="info">
-                            Showing the first {visibleAffectedEndpoints.length} affected endpoints
-                            to keep the browser responsive.
-                          </Alert>
-                        ) : null}
-                        {visibleAffectedEndpoints.map((endpoint) => (
-                          <div
-                            key={endpoint.key}
-                            className="border-line bg-panel-muted rounded-2xl border p-4"
-                          >
-                            <div className="flex flex-wrap items-center gap-2">
-                              <Badge variant={endpoint.highestSeverity}>
-                                {endpoint.highestSeverity}
-                              </Badge>
-                              <Badge variant="neutral">
-                                {endpoint.method
-                                  ? `${endpoint.method.toUpperCase()} ${endpoint.path}`
-                                  : endpoint.path}
-                              </Badge>
-                            </div>
-                            <p className="text-muted mt-3 text-sm leading-6">
-                              {endpoint.findingCount} findings touching this endpoint surface.
-                            </p>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="text-muted text-sm leading-6">
-                        No endpoint-specific findings were recorded in the current report.
-                      </p>
-                    )}
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Affected schemas</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    {report.affectedSchemas.length ? (
-                      <div className="space-y-3">
-                        {report.affectedSchemas.length > visibleAffectedSchemas.length ? (
-                          <Alert title="Schema list trimmed" variant="info">
-                            Showing the first {visibleAffectedSchemas.length} affected schemas to
-                            keep the browser responsive.
-                          </Alert>
-                        ) : null}
-                        {visibleAffectedSchemas.map((schema) => (
-                          <div
-                            key={schema.key}
-                            className="border-line bg-panel-muted rounded-2xl border p-4"
-                          >
-                            <div className="flex flex-wrap items-center gap-2">
-                              <Badge variant={schema.highestSeverity}>
-                                {schema.highestSeverity}
-                              </Badge>
-                              <Badge variant="neutral">{schema.label}</Badge>
-                            </div>
-                            <p className="text-muted mt-3 text-sm leading-6">
-                              {schema.findingCount} findings touching this schema surface.
-                            </p>
-                            {schema.humanPaths[0] ? (
-                              <p className="text-muted mt-2 text-xs leading-5">
-                                Example path: {schema.humanPaths[0]}
-                              </p>
-                            ) : null}
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="text-muted text-sm leading-6">
-                        No schema-specific findings were recorded in the current report.
-                      </p>
-                    )}
-                  </CardContent>
-                </Card>
-              </div>
-            </>
-          ) : null}
-
-          <Alert
-              title={`Semantic findings (${report?.summary.totalFindings ?? 0})`}
-              variant={getFindingsAlertVariant(report?.findings ?? [])}
-            >
-              {report?.findings.length ? (
-                <div className="space-y-4">
-                  <p>
-                    Last successful analysis ran at{" "}
-                    {new Date(analysisState.result.generatedAt).toLocaleTimeString()}.
-                    Findings are based on the normalized OpenAPI model, not a raw text diff, and are currently classified for the{" "}
-                    {formatConsumerProfileLabel(report.settings.consumerProfile)} profile.
-                  </p>
-                  {report.findings.length > visibleFindings.length ? (
-                    <Alert title="Findings list trimmed" variant="info">
-                      Showing the first {visibleFindings.length} findings to keep the page
-                      responsive.
-                    </Alert>
-                  ) : null}
-                  {renderFindingList(visibleFindings)}
-                </div>
-              ) : (
-                <p>
                   Last successful analysis ran at{" "}
                   {new Date(analysisState.result.generatedAt).toLocaleTimeString()}.
-                  No semantic findings were produced for the current comparison under the{" "}
-                  {formatConsumerProfileLabel(
-                    report?.settings.consumerProfile ?? "publicApi",
-                  )}{" "}
-                  profile.
-                </p>
-              )}
-            </Alert>
+                  Findings below come from the normalized OpenAPI models, so they reflect
+                  contract impact rather than a raw text diff.
+                </Alert>
+
+                <OpenApiDiffReportExplorer
+                  onAddIgnoreRule={onAddIgnoreRule}
+                  onRemoveIgnoreRule={onRemoveIgnoreRule}
+                  report={report}
+                />
+              </div>
+            ) : (
+              <Alert title="Rebuilding report view" variant="info">
+                The latest successful worker output is ready. The report interface is
+                catching up with the newest analysis snapshot.
+              </Alert>
+            )}
           </>
         ) : (
           <Alert title="Ready to analyze" variant="info">
@@ -1513,12 +1245,14 @@ export function OpenApiDiffWorkbench() {
   const [selectedSampleId, setSelectedSampleId] = useState<WorkspaceSampleId | null>(
     () => initialState.selectedSampleId,
   );
-  const [consumerProfile, setConsumerProfile] = useState<ConsumerProfile>(
-    () => initialState.consumerProfile,
+  const [analysisSettingsState, setAnalysisSettingsState] = useState<AnalysisSettings>(
+    () => initialState.analysisSettings,
   );
   const [activeMobileTab, setActiveMobileTab] = useState<WorkspaceMobileTab>(
     () => initialState.activeMobileTab,
   );
+  const [isPrivacyDrawerOpen, setIsPrivacyDrawerOpen] = useState(false);
+  const [isSettingsDrawerOpen, setIsSettingsDrawerOpen] = useState(false);
   const [clientErrors, setClientErrors] = useState<
     Partial<Record<WorkspacePanelId, SpecParserError[]>>
   >({});
@@ -1533,9 +1267,10 @@ export function OpenApiDiffWorkbench() {
     resetAnalysisState,
   } = useOpenApiDiffWorker();
   const analysisSettings = useMemo(
-    () => createAnalysisSettings({ consumerProfile }),
-    [consumerProfile],
+    () => createAnalysisSettings(analysisSettingsState),
+    [analysisSettingsState],
   );
+  const consumerProfile = analysisSettings.consumerProfile;
   const deferredAnalysisResult = useDeferredValue(analysisState.result);
   const displayReport = useMemo(
     () =>
@@ -1549,6 +1284,65 @@ export function OpenApiDiffWorkbench() {
     typeof window !== "undefined" &&
     window.isSecureContext &&
     typeof navigator.clipboard?.readText === "function";
+  const settingsJson = useMemo(
+    () => serializeAnalysisSettings(analysisSettings),
+    [analysisSettings],
+  );
+  const privacyInspection = useMemo(() => {
+    if (!isPrivacyDrawerOpen) {
+      return EMPTY_REDACTION_RESULT;
+    }
+
+    return redactTextSources(
+      [
+        {
+          label: "Base spec",
+          value: workspaceSpecs.base.content,
+        },
+        {
+          label: "Revision spec",
+          value: workspaceSpecs.revision.content,
+        },
+        ...(displayReport
+          ? [
+              {
+                label: "Current report JSON",
+                value: JSON.stringify(displayReport, null, 2),
+              },
+            ]
+          : []),
+      ],
+      analysisSettings,
+      {
+        previewLimit: 8,
+        redactedSource: "Workspace privacy preview",
+      },
+    ).inspection;
+  }, [
+    analysisSettings,
+    displayReport,
+    isPrivacyDrawerOpen,
+    workspaceSpecs.base.content,
+    workspaceSpecs.revision.content,
+  ]);
+
+  const updateAnalysisSettings = useCallback(
+    (
+      updater:
+        | AnalysisSettings
+        | ((current: AnalysisSettings) => AnalysisSettings),
+    ) => {
+      setAnalysisSettingsState((current) => {
+        const nextSettings =
+          typeof updater === "function"
+            ? updater(current)
+            : updater;
+
+        return createAnalysisSettings(nextSettings);
+      });
+    },
+    [],
+  );
 
   const setClientPanelErrors = useCallback(
     (panelId: WorkspacePanelId, errors: SpecParserError[]) => {
@@ -1566,6 +1360,102 @@ export function OpenApiDiffWorkbench() {
       [panelId]: undefined,
     }));
   }, []);
+
+  const handleAddIgnoreRule = useCallback(
+    (ignoreRule: AnalysisSettings["ignoreRules"][number]) => {
+      updateAnalysisSettings((current) => addIgnoreRule(current, ignoreRule));
+      notify({
+        description: `${getIgnoreRuleLabel(ignoreRule)} is now active and matching findings will move into the Ignored tab.`,
+        title: "Ignore rule added",
+        variant: "success",
+      });
+    },
+    [notify, updateAnalysisSettings],
+  );
+
+  const handleRemoveIgnoreRule = useCallback(
+    (ignoreRuleId: string) => {
+      const existingRule = analysisSettings.ignoreRules.find((rule) => rule.id === ignoreRuleId);
+      updateAnalysisSettings((current) => removeIgnoreRule(current, ignoreRuleId));
+
+      if (existingRule) {
+        notify({
+          description: `${getIgnoreRuleLabel(existingRule)} was removed. Matching findings are visible again.`,
+          title: "Ignore rule removed",
+          variant: "info",
+        });
+      }
+    },
+    [analysisSettings.ignoreRules, notify, updateAnalysisSettings],
+  );
+
+  const handleImportSettingsJson = useCallback(
+    (rawSettings: string) => {
+      if (!rawSettings.trim()) {
+        notify({
+          description: "Paste or load a settings JSON document first.",
+          title: "No settings JSON provided",
+          variant: "warning",
+        });
+        return;
+      }
+
+      try {
+        const parsed = JSON.parse(rawSettings) as unknown;
+        const nextSettings = parseStoredAnalysisSettings(parsed);
+        updateAnalysisSettings(nextSettings);
+        notify({
+          description: "Noise controls and compatibility settings were imported successfully.",
+          title: "Settings imported",
+          variant: "success",
+        });
+      } catch {
+        notify({
+          description: "The pasted JSON could not be parsed into valid OpenAPI diff settings.",
+          title: "Settings import failed",
+          variant: "error",
+        });
+      }
+    },
+    [notify, updateAnalysisSettings],
+  );
+
+  const handleAddCustomRedactionRule = useCallback(
+    (rule: AnalysisSettings["customRedactionRules"][number]) => {
+      updateAnalysisSettings((current) => ({
+        ...current,
+        customRedactionRules: [
+          ...current.customRedactionRules.filter((entry) => entry.id !== rule.id),
+          { ...rule },
+        ].sort((left, right) => left.id.localeCompare(right.id)),
+      }));
+      notify({
+        description: `${rule.label?.trim() || rule.pattern} is now applied whenever export redaction runs.`,
+        title: "Custom redaction rule added",
+        variant: "success",
+      });
+    },
+    [notify, updateAnalysisSettings],
+  );
+
+  const handleRemoveCustomRedactionRule = useCallback(
+    (ruleId: string) => {
+      const existingRule = analysisSettings.customRedactionRules.find((rule) => rule.id === ruleId);
+      updateAnalysisSettings((current) => ({
+        ...current,
+        customRedactionRules: current.customRedactionRules.filter((rule) => rule.id !== ruleId),
+      }));
+
+      if (existingRule) {
+        notify({
+          description: `${existingRule.label?.trim() || existingRule.pattern} was removed from export redaction.`,
+          title: "Custom redaction rule removed",
+          variant: "info",
+        });
+      }
+    },
+    [analysisSettings.customRedactionRules, notify, updateAnalysisSettings],
+  );
 
   const updateWorkspaceSpec = useCallback(
     (
@@ -1693,11 +1583,11 @@ export function OpenApiDiffWorkbench() {
       OPENAPI_WORKSPACE_SETTINGS_STORAGE_KEY,
       JSON.stringify({
         activeMobileTab,
-        consumerProfile,
+        analysisSettings,
         selectedSampleId,
       } satisfies WorkspaceSettings),
     );
-  }, [activeMobileTab, consumerProfile, selectedSampleId]);
+  }, [activeMobileTab, analysisSettings, selectedSampleId]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -1776,6 +1666,16 @@ export function OpenApiDiffWorkbench() {
       variant: "info",
     });
   }, [clearAllStates, notify]);
+
+  const handleResetAnalysisSettings = useCallback(() => {
+    updateAnalysisSettings(createAnalysisSettings());
+    notify({
+      description:
+        "Compatibility profile, ignore rules, and privacy controls were reset to the default public API analysis settings.",
+      title: "Settings reset",
+      variant: "info",
+    });
+  }, [notify, updateAnalysisSettings]);
 
   const handleFileSelected = useCallback(
     async (panelId: WorkspacePanelId, file: File) => {
@@ -1886,6 +1786,7 @@ export function OpenApiDiffWorkbench() {
       ? "This editor is holding more than 5 MB of content. The worker keeps parsing off the main thread, but validation may feel slower."
       : undefined;
   const workerStatusLabel = getWorkerStatusLabel(progress, analysisState, editorStates);
+  const activeIgnoreRules = analysisSettings.ignoreRules;
 
   const renderEditorPanel = (
     panelId: WorkspacePanelId,
@@ -1927,6 +1828,50 @@ export function OpenApiDiffWorkbench() {
 
   return (
     <div className="space-y-6">
+      <OpenApiDiffPrivacyDrawer
+        inspection={privacyInspection}
+        onAddCustomRedactionRule={handleAddCustomRedactionRule}
+        onOpenChange={setIsPrivacyDrawerOpen}
+        onRemoveCustomRedactionRule={handleRemoveCustomRedactionRule}
+        onSetRedactExamples={(enabled) =>
+          updateAnalysisSettings((current) => ({
+            ...current,
+            redactExamples: enabled,
+          }))
+        }
+        onSetRedactServerUrls={(enabled) =>
+          updateAnalysisSettings((current) => ({
+            ...current,
+            redactServerUrls: enabled,
+          }))
+        }
+        open={isPrivacyDrawerOpen}
+        settings={analysisSettings}
+      />
+
+      <OpenApiDiffSettingsDrawer
+        onAddIgnoreRule={handleAddIgnoreRule}
+        onImportSettingsJson={handleImportSettingsJson}
+        onOpenChange={setIsSettingsDrawerOpen}
+        onRemoveIgnoreRule={handleRemoveIgnoreRule}
+        onResetSettings={handleResetAnalysisSettings}
+        onSetConsumerProfile={(nextProfile) =>
+          updateAnalysisSettings((current) => ({
+            ...current,
+            consumerProfile: nextProfile,
+          }))
+        }
+        onSetTreatEnumAdditionsAsDangerous={(enabled) =>
+          updateAnalysisSettings((current) => ({
+            ...current,
+            treatEnumAdditionsAsDangerous: enabled,
+          }))
+        }
+        open={isSettingsDrawerOpen}
+        settings={analysisSettings}
+        settingsJson={settingsJson}
+      />
+
       <Toolbar
         label="OpenAPI diff workspace actions"
         leading={
@@ -1938,6 +1883,12 @@ export function OpenApiDiffWorkbench() {
         }
         trailing={
           <>
+            <Button onClick={() => setIsPrivacyDrawerOpen(true)} variant="outline">
+              Privacy
+            </Button>
+            <Button onClick={() => setIsSettingsDrawerOpen(true)} variant="secondary">
+              Settings
+            </Button>
             <Button onClick={handleSwapSpecs} variant="outline">
               Swap specs
             </Button>
@@ -1981,7 +1932,10 @@ export function OpenApiDiffWorkbench() {
             aria-label="Compatibility profile"
             className="border-line bg-panel rounded-xl border px-3 py-2 text-sm"
             onChange={(event) =>
-              setConsumerProfile(event.currentTarget.value as ConsumerProfile)
+              updateAnalysisSettings((current) => ({
+                ...current,
+                consumerProfile: event.currentTarget.value as ConsumerProfile,
+              }))
             }
             value={consumerProfile}
           >
@@ -1995,6 +1949,9 @@ export function OpenApiDiffWorkbench() {
         <span className="text-muted inline-flex items-center gap-2 text-sm">
           {consumerProfileOptions.find((option) => option.value === consumerProfile)?.description}
         </span>
+        {analysisSettings.treatEnumAdditionsAsDangerous ? (
+          <Badge variant="dangerous">Enum additions stay dangerous</Badge>
+        ) : null}
         <span className="text-muted inline-flex items-center gap-2 text-sm">
           <KeyboardShortcut keys={["Ctrl", "Enter"]} />
           or
@@ -2008,6 +1965,44 @@ export function OpenApiDiffWorkbench() {
           </span>
         </span>
       </Toolbar>
+
+      {activeIgnoreRules.length ? (
+        <Card>
+          <CardHeader className="space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <CardTitle className="text-base">Active ignore rules</CardTitle>
+              <Button onClick={() => setIsSettingsDrawerOpen(true)} variant="ghost">
+                Edit rules
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-muted text-sm leading-6">
+              Matches move into the Ignored tab instead of disappearing from the audit trail.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {activeIgnoreRules.map((ignoreRule) => (
+                <span
+                  key={ignoreRule.id}
+                  className="border-line bg-panel-muted inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs"
+                >
+                  <span className="font-medium text-foreground">
+                    {getIgnoreRuleLabel(ignoreRule)}
+                  </span>
+                  <button
+                    aria-label={`Remove ${getIgnoreRuleLabel(ignoreRule)}`}
+                    className="text-muted transition hover:text-foreground"
+                    onClick={() => handleRemoveIgnoreRule(ignoreRule.id)}
+                    type="button"
+                  >
+                    Remove
+                  </button>
+                </span>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
 
       <div className="md:hidden">
         <Tabs
@@ -2037,7 +2032,9 @@ export function OpenApiDiffWorkbench() {
               analysisState={analysisState}
               baseSpec={workspaceSpecs.base}
               editorStates={editorStates}
+              onAddIgnoreRule={handleAddIgnoreRule}
               onAnalyze={handleAnalyze}
+              onRemoveIgnoreRule={handleRemoveIgnoreRule}
               progress={progress}
               report={displayReport}
               revisionSpec={workspaceSpecs.revision}
@@ -2063,7 +2060,9 @@ export function OpenApiDiffWorkbench() {
           analysisState={analysisState}
           baseSpec={workspaceSpecs.base}
           editorStates={editorStates}
+          onAddIgnoreRule={handleAddIgnoreRule}
           onAnalyze={handleAnalyze}
+          onRemoveIgnoreRule={handleRemoveIgnoreRule}
           progress={progress}
           report={displayReport}
           revisionSpec={workspaceSpecs.revision}

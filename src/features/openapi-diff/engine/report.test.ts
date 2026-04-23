@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
+import { reclassifyDiffReport } from "@/features/openapi-diff/engine/classify";
 import { buildReport } from "@/features/openapi-diff/engine/report";
 import { createAnalysisSettings } from "@/features/openapi-diff/lib/analysis-settings";
+import { createPathPatternIgnoreRule } from "@/features/openapi-diff/lib/ignore-rules";
 import type { DiffFinding, ParsedSpec } from "@/features/openapi-diff/types";
 
 function createParsedSpec(label: string): ParsedSpec {
@@ -245,5 +247,94 @@ describe("buildReport", () => {
       highestSeverity: "breaking",
       label: "User",
     });
+  });
+
+  it("warns when an ignore rule hides all breaking findings and matches too broadly", () => {
+    const initialReport = buildReport(
+      createParsedSpec("Base spec"),
+      createParsedSpec("Revision spec"),
+      [
+        createFinding("breaking-1", {
+          baseSeverity: "breaking",
+          category: "path",
+          jsonPointer: "#/paths/~1users",
+          message: "The /users path was removed.",
+          method: null,
+          path: "/users",
+          ruleId: "path.removed",
+          severity: "breaking",
+          severityReason: "Removing a path is immediately breaking.",
+          title: "Path removed",
+          whyItMatters: "Existing callers lose the endpoint.",
+        }),
+        createFinding("breaking-2", {
+          baseSeverity: "breaking",
+          category: "response",
+          jsonPointer: "#/paths/~1users/get/responses/200",
+          message: "The 200 response was removed.",
+          path: "/users",
+          ruleId: "response.status.removed",
+          severity: "breaking",
+          severityReason: "Existing callers expect the 200 response.",
+          title: "Response removed",
+          whyItMatters: "Clients may fail when the documented success shape disappears.",
+        }),
+        createFinding("dangerous-1", {
+          baseSeverity: "dangerous",
+          category: "metadata",
+          message: "operationId changed from listUsers to fetchUsers.",
+          path: "/users",
+          ruleId: "operationId.changed",
+          severity: "dangerous",
+          severityReason: "SDK entry points may change.",
+          title: "Operation ID changed",
+          whyItMatters: "Generated SDKs can treat operationId as stable API surface.",
+        }),
+        createFinding("safe-1", {
+          baseSeverity: "safe",
+          category: "schema",
+          humanPath: "User.nickname",
+          jsonPointer: "#/components/schemas/User/properties/nickname",
+          message: "User.nickname was added.",
+          path: "/users",
+          ruleId: "schema.property.added.optional",
+          severity: "safe",
+          severityReason: "Additive output fields are safe for this profile.",
+          title: "Optional property added",
+          whyItMatters: "Tolerant clients can ignore extra response members.",
+        }),
+        createFinding("info-1", {
+          baseSeverity: "info",
+          category: "docs",
+          message: "Operation description changed.",
+          path: "/users",
+          ruleId: "docs.description.changed",
+          severity: "info",
+          severityReason: "Docs-only changes are informational.",
+          title: "Description changed",
+          whyItMatters: "Teams still want docs drift to be visible.",
+        }),
+      ],
+      createAnalysisSettings(),
+      {
+        generatedAt: "2026-04-22T00:00:00.000Z",
+      },
+    );
+
+    const report = reclassifyDiffReport(
+      initialReport,
+      createAnalysisSettings({
+        ignoreRules: [createPathPatternIgnoreRule("/users")],
+      }),
+    );
+
+    expect(report.summary.totalFindings).toBe(0);
+    expect(report.summary.ignoredFindings).toBe(5);
+    expect(report.warnings).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining("Path /users hides all breaking findings"),
+        expect.stringContaining("Path /users matches 5 findings"),
+      ]),
+    );
   });
 });

@@ -7,6 +7,7 @@ import { useToast } from "@/components/ui/toast";
 type CopyButtonProps = {
   className?: string;
   label?: string;
+  onBeforeCopy?: () => boolean | Promise<boolean>;
   successLabel?: string;
   value: string;
   variant?: ButtonVariant;
@@ -15,6 +16,7 @@ type CopyButtonProps = {
 export function CopyButton({
   className,
   label = "Copy",
+  onBeforeCopy,
   successLabel = "Copied",
   value,
   variant = "ghost",
@@ -33,6 +35,12 @@ export function CopyButton({
 
   const handleCopy = async () => {
     try {
+      const shouldContinue = await onBeforeCopy?.();
+
+      if (shouldContinue === false) {
+        return;
+      }
+
       await navigator.clipboard.writeText(value);
       setCopied(true);
       notify({

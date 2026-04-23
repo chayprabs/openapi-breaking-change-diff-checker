@@ -3,8 +3,11 @@ import {
   createDefaultFindingsExplorerFilters,
   createFindingsCsv,
   createReportFindingRows,
+  createReportHtml,
+  createReportMarkdown,
   filterAndSortFindingRows,
 } from "@/features/openapi-diff/lib/report-explorer";
+import { createAnalysisSettings } from "@/features/openapi-diff/lib/analysis-settings";
 import type { DiffFinding, DiffReport, ParsedSpec } from "@/features/openapi-diff/types";
 
 function createParsedSpec(label: string): ParsedSpec {
@@ -60,10 +63,12 @@ function createFinding(
 }
 
 function createReport(findings: DiffFinding[]): DiffReport {
+  const activeFindings = findings.filter((finding) => !finding.ignored);
+
   return {
     affectedEndpoints: [
       {
-        findingCount: findings.length,
+        findingCount: activeFindings.length,
         highestSeverity: "breaking",
         key: "/users::get",
         method: "get",
@@ -96,46 +101,28 @@ function createReport(findings: DiffFinding[]): DiffReport {
     riskScore: 42,
     sdkImpactSummary: "SDK summary",
     securitySummary: "Security summary",
-    settings: {
-      consumerProfile: "publicApi",
-      exportFormats: [],
-      failOnSeverities: ["breaking"],
-      ignoreRules: [],
-      includeCategories: [
-        "docs",
-        "enum",
-        "metadata",
-        "operation",
-        "parameter",
-        "path",
-        "requestBody",
-        "response",
-        "schema",
-        "security",
-      ],
-      includeInfoFindings: true,
-      redactExamples: false,
-      resolveLocalRefs: true,
-    },
+    settings: createAnalysisSettings(),
     successState: null,
     summary: {
       byCategory: {
-        docs: 0,
-        operations: 1,
-        parameters: 0,
-        paths: 0,
-        responses: 0,
-        schemas: 1,
-        security: 1,
+        docs: activeFindings.filter((finding) => finding.category === "docs").length,
+        operations: activeFindings.filter((finding) => finding.category === "operation").length,
+        parameters: activeFindings.filter((finding) => finding.category === "parameter").length,
+        paths: activeFindings.filter((finding) => finding.category === "path").length,
+        responses: activeFindings.filter((finding) => finding.category === "response").length,
+        schemas: activeFindings.filter((finding) =>
+          finding.category === "schema" || finding.category === "enum",
+        ).length,
+        security: activeFindings.filter((finding) => finding.category === "security").length,
       },
       bySeverity: {
-        breaking: 1,
-        dangerous: 1,
-        info: 0,
-        safe: 1,
+        breaking: activeFindings.filter((finding) => finding.severity === "breaking").length,
+        dangerous: activeFindings.filter((finding) => finding.severity === "dangerous").length,
+        info: activeFindings.filter((finding) => finding.severity === "info").length,
+        safe: activeFindings.filter((finding) => finding.severity === "safe").length,
       },
-      ignoredFindings: 0,
-      totalFindings: findings.length,
+      ignoredFindings: findings.filter((finding) => finding.ignored).length,
+      totalFindings: activeFindings.length,
     },
     topReviewItems: [],
     warnings: [],
@@ -216,7 +203,67 @@ describe("report explorer helpers", () => {
       "breaking-item",
       "safe-item",
     ]);
-    expect(csv).toContain('"Severity","Change","Endpoint/Schema","Rule","Category"');
-    expect(csv).toContain('"breaking","Response removed"');
+    expect(csv).toContain(
+      '"Severity","Ignored","Ignored By","Change","Endpoint/Schema","Rule","Category"',
+    );
+    expect(csv).toContain('"breaking","no","","Response removed"');
+  });
+
+  it("keeps ignored findings exportable when the caller includes them", () => {
+    const report = createReport([
+      createFinding("active-item", {
+        category: "response",
+        message: "Breaking change.",
+        ruleId: "response.status.removed",
+        severity: "breaking",
+        title: "Response removed",
+      }),
+      createFinding("ignored-item", {
+        category: "operation",
+        ignored: true,
+        ignoredBy: [
+          {
+            id: "ruleId:operationId.changed",
+            label: "Rule operationId.changed",
+            reason: "Ignore SDK-only rename churn.",
+            source: "ruleId",
+          },
+        ],
+        message: "operationId changed from listUsers to fetchUsers.",
+        operationId: "fetchUsers",
+        ruleId: "operationId.changed",
+        severity: "dangerous",
+        title: "Operation ID changed",
+      }),
+    ]);
+    const rows = createReportFindingRows(report);
+    const activeRows = rows.filter((row) => !row.finding.ignored);
+    const allRows = rows;
+    const activeCsv = createFindingsCsv(activeRows);
+    const allCsv = createFindingsCsv(allRows);
+    const markdown = createReportMarkdown(report, allRows);
+
+    expect(activeCsv).not.toContain('"Operation ID changed"');
+    expect(allCsv).toContain('"yes","Rule operationId.changed","Operation ID changed"');
+    expect(markdown).toContain("- Ignored findings: 1");
+    expect(markdown).toContain("Ignored by: Rule operationId.changed");
+  });
+
+  it("escapes HTML export content so report text cannot inject markup", () => {
+    const report = createReport([
+      createFinding("html-item", {
+        category: "response",
+        message: "<script>alert('xss')</script>",
+        ruleId: "response.status.removed",
+        severity: "breaking",
+        title: "<b>Response removed</b>",
+      }),
+    ]);
+    const rows = createReportFindingRows(report);
+    const html = createReportHtml(report, rows);
+
+    expect(html).toContain("&lt;script&gt;alert(&#39;xss&#39;)&lt;/script&gt;");
+    expect(html).toContain("&lt;b&gt;Response removed&lt;/b&gt;");
+    expect(html).not.toContain("<script>alert('xss')</script>");
   });
 });

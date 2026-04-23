@@ -35,10 +35,12 @@ type DiffSchemasOptions = {
   humanPathPrefix?: string | undefined;
   maxDepth?: number | undefined;
   method?: OpenApiHttpMethod | null | undefined;
+  operationDeprecated?: boolean | undefined;
   operationId?: string | undefined;
   path?: string | null | undefined;
   revisionSchema: NormalizedSchema | undefined;
   schemaName?: string | undefined;
+  tags?: readonly string[] | undefined;
 };
 
 type DiffSchemaNodeOptions = {
@@ -49,9 +51,11 @@ type DiffSchemaNodeOptions = {
   humanPath: string;
   maxDepth: number;
   method?: OpenApiHttpMethod | null | undefined;
+  operationDeprecated?: boolean | undefined;
   operationId?: string | undefined;
   path?: string | null | undefined;
   revisionSchema: NormalizedSchema | undefined;
+  tags?: readonly string[] | undefined;
 };
 
 export function diffSchemas(options: DiffSchemasOptions): DiffFinding[] {
@@ -68,9 +72,11 @@ export function diffSchemas(options: DiffSchemasOptions): DiffFinding[] {
     humanPath,
     maxDepth: options.maxDepth ?? DEFAULT_MAX_SCHEMA_DEPTH,
     method: options.method,
+    operationDeprecated: options.operationDeprecated,
     operationId: options.operationId,
     path: options.path,
     revisionSchema: options.revisionSchema,
+    tags: options.tags,
   });
 }
 
@@ -143,8 +149,10 @@ function diffSchemaNode(options: DiffSchemaNodeOptions): DiffFinding[] {
       options.direction,
       options.humanPath,
       options.method,
+      options.operationDeprecated,
       options.path,
       options.operationId,
+      options.tags,
     ),
   );
 
@@ -399,9 +407,11 @@ function diffSchemaNode(options: DiffSchemaNodeOptions): DiffFinding[] {
         humanPath: `${options.humanPath}[]`,
         maxDepth: options.maxDepth,
         method: options.method,
+        operationDeprecated: options.operationDeprecated,
         operationId: options.operationId,
         path: options.path,
         revisionSchema: revisionSchema.items,
+        tags: options.tags,
       }),
     );
   }
@@ -460,11 +470,13 @@ function createSchemaFinding(
     jsonPointer: string;
     message: string;
     method?: OpenApiHttpMethod | null | undefined;
+    operationDeprecated?: boolean | undefined;
     operationId?: string | undefined;
     path?: string | null | undefined;
     revisionSchema?: NormalizedSchema | undefined;
     schemaDirection?: SchemaDiffDirection | undefined;
     severity?: DiffSeverity | undefined;
+    tags?: readonly string[] | undefined;
     title: string;
   },
 ): DiffFinding {
@@ -495,9 +507,11 @@ function createSchemaFinding(
     jsonPointer: options.jsonPointer,
     message: options.message,
     method: options.method,
+    operationDeprecated: options.operationDeprecated,
     operationId: options.operationId,
     path: options.path,
     severity: options.severity,
+    tags: options.tags,
     title: options.title,
   });
 }
@@ -625,9 +639,11 @@ function diffAdditionalProperties(
         humanPath: `${options.humanPath}.*`,
         maxDepth: options.maxDepth,
         method: options.method,
+        operationDeprecated: options.operationDeprecated,
         operationId: options.operationId,
         path: options.path,
         revisionSchema: revisionAdditional,
+        tags: options.tags,
       }),
     );
   }
@@ -935,9 +951,11 @@ function diffObjectProperties(
         humanPath: propertyHumanPath,
         maxDepth: options.maxDepth,
         method: options.method,
+        operationDeprecated: options.operationDeprecated,
         operationId: options.operationId,
         path: options.path,
         revisionSchema: revisionProperty,
+        tags: options.tags,
       }),
     );
   }
@@ -1009,8 +1027,10 @@ function diffUnsupportedSchemaFeatures(
   schemaDirection: SchemaDiffDirection,
   humanPath: string,
   method?: OpenApiHttpMethod | null,
+  operationDeprecated?: boolean,
   path?: string | null,
   operationId?: string,
+  tags?: readonly string[],
 ): DiffFinding[] {
   const baseFeatures = collectUnsupportedSchemaFeatures(baseSchema);
   const revisionFeatures = collectUnsupportedSchemaFeatures(revisionSchema);
@@ -1029,10 +1049,12 @@ function diffUnsupportedSchemaFeatures(
       jsonPointer: getPrimaryJsonPointer(baseSchema, revisionSchema),
       message: `${humanPath} uses schema features the engine cannot classify precisely yet: ${[...new Set([...baseFeatures, ...revisionFeatures])].join(", ")}.`,
       method,
+      operationDeprecated,
       operationId,
       path,
       revisionSchema,
       schemaDirection,
+      tags,
       title: `${humanPath}: unsupported schema feature needs review`,
     }),
   ];

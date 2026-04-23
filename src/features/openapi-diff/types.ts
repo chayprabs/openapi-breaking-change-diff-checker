@@ -426,16 +426,84 @@ export type ConsumerProfile =
   | "mobileClient"
   | "tolerantClient";
 
+export type IgnoreRuleSource =
+  | "deprecatedEndpoint"
+  | "docsOnly"
+  | "finding"
+  | "method"
+  | "operationId"
+  | "pathPattern"
+  | "ruleId"
+  | "tag";
+
 export type IgnoreRule = {
+  id: string;
+  label?: string;
   reason: string;
-  ruleId: RuleId;
+  source: IgnoreRuleSource;
   consumerProfiles?: ConsumerProfile[];
   expiresAt?: string;
+  findingId?: string;
   jsonPathPrefix?: string;
+  method?: OpenApiHttpMethod;
   operationId?: string;
+  pathPattern?: string;
+  ruleId?: RuleId;
+  tag?: string;
+};
+
+export type MatchedIgnoreRule = {
+  id: string;
+  label: string;
+  reason: string;
+  source: IgnoreRuleSource;
+};
+
+export type CustomRedactionRule = {
+  id: string;
+  flags?: string;
+  label?: string;
+  pattern: string;
+};
+
+export type RedactionPlaceholderKind =
+  | "API_KEY"
+  | "BASIC_AUTH"
+  | "CUSTOM"
+  | "EMAIL"
+  | "EXAMPLE"
+  | "INTERNAL_DOMAIN"
+  | "JWT"
+  | "PASSWORD"
+  | "PRIVATE_IP"
+  | "PRIVATE_KEY"
+  | "SECRET"
+  | "SERVER_URL"
+  | "TOKEN";
+
+export type RedactionMatch = {
+  id: string;
+  kind: RedactionPlaceholderKind;
+  occurrences: number;
+  placeholder: string;
+  preview: string;
+  reason: string;
+  sourceLabels: string[];
+};
+
+export type RedactionPreview = {
+  after: string;
+  before: string;
+  id: string;
+  kind: RedactionPlaceholderKind;
+  placeholder: string;
+  sourceLabel: string;
 };
 
 export type RedactionResult = {
+  detectedSecrets: boolean;
+  matches: RedactionMatch[];
+  previews: RedactionPreview[];
   redactedKeys: string[];
   redactedSource: string;
   replacements: number;
@@ -445,6 +513,7 @@ export type RedactionResult = {
 export type ExportFormat = "json" | "markdown" | "html" | "csv";
 
 export type AnalysisSettings = {
+  customRedactionRules: CustomRedactionRule[];
   consumerProfile: ConsumerProfile;
   exportFormats: ExportFormat[];
   failOnSeverities: DiffSeverity[];
@@ -452,7 +521,9 @@ export type AnalysisSettings = {
   includeCategories: DiffCategory[];
   includeInfoFindings: boolean;
   redactExamples: boolean;
+  redactServerUrls: boolean;
   resolveLocalRefs: boolean;
+  treatEnumAdditionsAsDangerous: boolean;
 };
 
 export type DiffFindingContext = {
@@ -471,15 +542,18 @@ export type DiffFinding = {
   humanPath?: string;
   id: string;
   ignored?: boolean;
+  ignoredBy?: MatchedIgnoreRule[];
   jsonPointer: string;
   message: string;
   method: OpenApiHttpMethod | null;
+  operationDeprecated?: boolean;
   operationId?: string;
   path: string | null;
   ruleId: RuleId;
   severity: DiffSeverity;
   severityReason: string;
   saferAlternative?: string;
+  tags?: string[];
   title: string;
   whyItMatters: string;
 };

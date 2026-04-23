@@ -42,8 +42,10 @@ export function createOperationAddedFinding(operation: NormalizedOperation): Dif
     jsonPointer: createOperationPointer(operation.path, operation.method),
     message: `${operationLabel} is present in the revision spec but not in the base spec.`,
     method: operation.method,
+    operationDeprecated: operation.deprecated,
     operationId: operation.operationId,
     path: operation.path,
+    tags: operation.tags,
     title: `${operationLabel}: operation added`,
   });
 }
@@ -60,8 +62,10 @@ export function createOperationRemovedFinding(operation: NormalizedOperation): D
     jsonPointer: createOperationPointer(operation.path, operation.method),
     message: `${operationLabel} is present in the base spec but not in the revision spec.`,
     method: operation.method,
+    operationDeprecated: operation.deprecated,
     operationId: operation.operationId,
     path: operation.path,
+    tags: operation.tags,
     title: `${operationLabel}: operation removed`,
   });
 }
@@ -109,6 +113,8 @@ export function diffOperationMetadata(
   const findings: DiffFinding[] = [];
   const operationLabel = `${toMethodLabel(revisionOperation.method)} ${revisionOperation.path}`;
   const operationId = revisionOperation.operationId ?? baseOperation.operationId;
+  const operationTags = [...new Set([...baseOperation.tags, ...revisionOperation.tags])];
+  const operationDeprecated = baseOperation.deprecated || revisionOperation.deprecated;
 
   if ((baseOperation.operationId ?? null) !== (revisionOperation.operationId ?? null)) {
     findings.push(
@@ -132,8 +138,10 @@ export function diffOperationMetadata(
         ),
         message: `${operationLabel} changed operationId from "${baseOperation.operationId ?? "(missing)"}" to "${revisionOperation.operationId ?? "(missing)"}".`,
         method: revisionOperation.method,
+        operationDeprecated,
         operationId,
         path: revisionOperation.path,
+        tags: operationTags,
         title: `${operationLabel}: operationId changed`,
       }),
     );
@@ -161,8 +169,10 @@ export function diffOperationMetadata(
         ),
         message: `${operationLabel} changed its tag set.`,
         method: revisionOperation.method,
+        operationDeprecated,
         operationId,
         path: revisionOperation.path,
+        tags: operationTags,
         title: `${operationLabel}: tags changed`,
       }),
     );
@@ -190,8 +200,10 @@ export function diffOperationMetadata(
         ),
         message: `${operationLabel} changed its summary text.`,
         method: revisionOperation.method,
+        operationDeprecated,
         operationId,
         path: revisionOperation.path,
+        tags: operationTags,
         title: `${operationLabel}: summary changed`,
       }),
     );
@@ -219,8 +231,10 @@ export function diffOperationMetadata(
         ),
         message: `${operationLabel} changed its description text.`,
         method: revisionOperation.method,
+        operationDeprecated,
         operationId,
         path: revisionOperation.path,
+        tags: operationTags,
         title: `${operationLabel}: description changed`,
       }),
     );
@@ -254,8 +268,10 @@ export function diffOperationMetadata(
             ? `${operationLabel} is now marked as deprecated.`
             : `${operationLabel} is no longer marked as deprecated.`,
           method: revisionOperation.method,
+          operationDeprecated,
           operationId,
           path: revisionOperation.path,
+          tags: operationTags,
           title: revisionOperation.deprecated
             ? `${operationLabel}: deprecated flag added`
             : `${operationLabel}: deprecated flag removed`,

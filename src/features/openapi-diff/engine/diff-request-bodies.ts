@@ -26,6 +26,8 @@ export function diffOperationRequestBody(
   const revisionRequestBody = revisionOperation.requestBody;
   const operationLabel = `${toMethodLabel(revisionOperation.method)} ${revisionOperation.path}`;
   const operationId = revisionOperation.operationId ?? baseOperation.operationId;
+  const operationTags = [...new Set([...baseOperation.tags, ...revisionOperation.tags])];
+  const operationDeprecated = baseOperation.deprecated || revisionOperation.deprecated;
 
   if (!baseRequestBody && !revisionRequestBody) {
     return findings;
@@ -51,8 +53,10 @@ export function diffOperationRequestBody(
             ? `${operationLabel} now requires a request body.`
             : `${operationLabel} now accepts an optional request body.`,
           method: revisionOperation.method,
+          operationDeprecated,
           operationId,
           path: revisionOperation.path,
+          tags: operationTags,
           title: revisionRequestBody.required
             ? `${operationLabel}: required request body added`
             : `${operationLabel}: optional request body added`,
@@ -74,8 +78,10 @@ export function diffOperationRequestBody(
         jsonPointer: baseRequestBody.evidence.originPath,
         message: `${operationLabel} no longer accepts the request body documented in the base spec.`,
         method: revisionOperation.method,
+        operationDeprecated,
         operationId,
         path: revisionOperation.path,
+        tags: operationTags,
         title: `${operationLabel}: request body removed`,
       }),
     );
@@ -111,8 +117,10 @@ export function diffOperationRequestBody(
             ? `${operationLabel} now requires its request body.`
             : `${operationLabel} no longer requires its request body.`,
           method: revisionOperation.method,
+          operationDeprecated,
           operationId,
           path: revisionOperation.path,
+          tags: operationTags,
           title: revisionRequestBody.required
             ? `${operationLabel}: request body became required`
             : `${operationLabel}: request body became optional`,
@@ -144,8 +152,10 @@ export function diffOperationRequestBody(
           jsonPointer: revisionMediaType.evidence.originPath,
           message: `${operationLabel} now accepts "${mediaType}" request bodies.`,
           method: revisionOperation.method,
+          operationDeprecated,
           operationId,
           path: revisionOperation.path,
+          tags: operationTags,
           title: `${operationLabel}: request media type added`,
         }),
       );
@@ -163,8 +173,10 @@ export function diffOperationRequestBody(
           jsonPointer: baseMediaType.evidence.originPath,
           message: `${operationLabel} no longer accepts "${mediaType}" request bodies.`,
           method: revisionOperation.method,
+          operationDeprecated,
           operationId,
           path: revisionOperation.path,
+          tags: operationTags,
           title: `${operationLabel}: request media type removed`,
         }),
       );
@@ -187,9 +199,11 @@ export function diffOperationRequestBody(
               direction: "request",
               humanPathPrefix: schemaHumanPathPrefix,
               method: revisionOperation.method,
+              operationDeprecated,
               operationId,
               path: revisionOperation.path,
               revisionSchema: revisionMediaType.schema,
+              tags: operationTags,
             })
           : [];
 
@@ -221,8 +235,10 @@ export function diffOperationRequestBody(
               appendJsonPointer(revisionMediaType.evidence.originPath, "schema"),
             message: `${operationLabel} changed the request schema for "${mediaType}", but exact compatibility could not be determined from the supported schema features alone.`,
             method: revisionOperation.method,
+            operationDeprecated,
             operationId,
             path: revisionOperation.path,
+            tags: operationTags,
             title: `${operationLabel}: request schema changed`,
           }),
         );
