@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { AuthSessionProvider } from "@/components/layout/auth-session-provider";
 import { ToastProvider } from "@/components/ui/toast";
 import { AnalyticsProvider } from "@/lib/analytics";
 
@@ -10,8 +11,10 @@ type AppProvidersProps = {
 
 export function AppProviders({ children }: AppProvidersProps) {
   return (
-    <AnalyticsProvider>
-      <ToastProvider>{children}</ToastProvider>
-    </AnalyticsProvider>
+    <AuthSessionProvider>
+      <AnalyticsProvider>
+        <ToastProvider>{children}</ToastProvider>
+      </AnalyticsProvider>
+    </AuthSessionProvider>
   );
 }

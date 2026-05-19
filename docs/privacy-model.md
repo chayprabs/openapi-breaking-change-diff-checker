@@ -148,11 +148,17 @@ The launch product does not:
 
 Environment variables:
 
+- `NEXT_PUBLIC_SITE_URL`
 - `NEXT_PUBLIC_ANALYTICS_PROVIDER`
+- `NEXT_PUBLIC_PLAUSIBLE_DOMAIN`
+- `NEXT_PUBLIC_POSTHOG_KEY`
+- `NEXT_PUBLIC_POSTHOG_HOST`
 - `NEXT_PUBLIC_FEEDBACK_ENDPOINT`
 - `NEXT_PUBLIC_FEEDBACK_EMAIL`
 - `OPENAPI_FETCH_PROXY_RATE_LIMIT`
 - `OPENAPI_FETCH_PROXY_RATE_LIMIT_WINDOW_MS`
+
+See [`.env.example`](../.env.example) and [resolved-decisions.md](./resolved-decisions.md) for deployment notes (including the `authos.dev` domain collision).
 
 If these are absent, the site still works:
 

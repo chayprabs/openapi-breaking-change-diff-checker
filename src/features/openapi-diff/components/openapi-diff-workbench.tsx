@@ -2960,7 +2960,11 @@ export function OpenApiDiffWorkbench() {
               Clear all
             </Button>
             {analysisState.status === "running" ? (
-              <Button onClick={cancelAnalyze} variant="outline">
+              <Button
+                data-testid="cancel-analysis-button"
+                onClick={cancelAnalyze}
+                variant="outline"
+              >
                 Cancel analysis
               </Button>
             ) : null}

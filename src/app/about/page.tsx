@@ -33,6 +33,23 @@ export default function AboutPage() {
       description="Authos starts with OpenAPI contract review and exportable release reporting, then expands outward into adjacent developer workflows without losing the privacy and no-login defaults that make the first tool useful."
     >
       <Section
+        eyebrow="Naming"
+        title="Authos developer tools vs authos.dev"
+        description="This site is the Authos developer-tools product (OpenAPI compatibility and related workflows). It is not the AuthOS identity platform hosted at authos.dev."
+      >
+        <Panel
+          title="Choose your own production domain"
+          description="Set NEXT_PUBLIC_SITE_URL to the hostname you deploy on. Canonical URLs, Open Graph, and sitemaps use that value."
+        >
+          <p className="text-muted text-sm leading-6">
+            If you see another product called AuthOS at authos.dev, that is a separate codebase and
+            team. This repository ships browser-based contract review tools and optional account
+            features when DATABASE_URL and Auth.js credentials are configured.
+          </p>
+        </Panel>
+      </Section>
+
+      <Section
         eyebrow="Principles"
         title="What the product is optimizing for"
         description="The current direction is intentionally narrow: ship one strong workflow, keep the privacy story honest, and preserve room for future tooling without forcing a rewrite."

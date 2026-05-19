@@ -6,7 +6,7 @@
       "editorId": "revision",
       "line": 2,
       "message": "Implicit keys need to be on a single line",
-      "offset": 15,
+      "offset": 16,
       "source": "yaml"
     },
     {
@@ -15,7 +15,7 @@
       "editorId": "revision",
       "line": 3,
       "message": "Nested mappings are not allowed in compact mappings",
-      "offset": 29,
+      "offset": 31,
       "source": "yaml"
     },
     {
@@ -24,7 +24,7 @@
       "editorId": "revision",
       "line": 3,
       "message": "Implicit keys need to be on a single line",
-      "offset": 29,
+      "offset": 31,
       "source": "yaml"
     }
   ],

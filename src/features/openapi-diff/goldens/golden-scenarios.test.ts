@@ -68,7 +68,7 @@ describe("OpenAPI golden scenarios", () => {
       const serialized = serializeGoldenResult(result);
 
       if (process.env.UPDATE_GOLDENS === "1") {
-        writeFileSync(expectedPath, serialized);
+        writeFileSync(expectedPath, normalizeGoldenSnapshot(serialized));
       }
 
       if (!existsSync(expectedPath)) {
@@ -77,7 +77,9 @@ describe("OpenAPI golden scenarios", () => {
         );
       }
 
-      expect(serialized).toBe(readFileSync(expectedPath, "utf8"));
+      expect(normalizeGoldenSnapshot(serialized)).toBe(
+        normalizeGoldenSnapshot(readFileSync(expectedPath, "utf8")),
+      );
     });
   }
 });
@@ -92,6 +94,10 @@ function readScenarioSettings(scenarioRoot: string): AnalysisSettings {
   return createAnalysisSettings(
     JSON.parse(readFileSync(settingsPath, "utf8")) as Partial<AnalysisSettings>,
   );
+}
+
+function normalizeGoldenSnapshot(value: string) {
+  return value.replace(/\r\n/g, "\n");
 }
 
 function serializeGoldenResult(

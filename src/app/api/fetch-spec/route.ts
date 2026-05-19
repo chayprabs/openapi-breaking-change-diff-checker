@@ -3,10 +3,8 @@ import {
   isPublicSpecFetchError,
 } from "@/features/openapi-diff/lib/public-spec-url";
 import { fetchPublicSpecText } from "@/features/openapi-diff/lib/public-spec-fetch.server";
-import {
-  consumeSimpleRateLimit,
-  getClientIpAddress,
-} from "@/lib/server/simple-rate-limit";
+import { getClientIpAddress } from "@/lib/server/simple-rate-limit";
+import { consumeSharedRateLimit } from "@/lib/server/shared-rate-limit";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -25,7 +23,7 @@ const FETCH_PROXY_RATE_LIMIT_WINDOW_MS = Math.max(
 );
 
 export async function POST(request: Request) {
-  const rateLimit = consumeSimpleRateLimit(
+  const rateLimit = await consumeSharedRateLimit(
     `fetch-spec:${getClientIpAddress(request.headers)}`,
     {
       limit: FETCH_PROXY_RATE_LIMIT,

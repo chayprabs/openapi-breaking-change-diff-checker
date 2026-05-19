@@ -35,5 +35,51 @@ jobs:
       - name: Unit tests
         run: pnpm test
 
+      - name: Format check
+        run: pnpm format:check
+
       - name: Build
         run: pnpm build
+
+      - name: CLI smoke test
+        run: |
+          pnpm openapi-diff \
+            --base src/features/openapi-diff/goldens/removed-endpoint/base.yaml \
+            --revision src/features/openapi-diff/goldens/removed-endpoint/revision.yaml \
+            --fail-on breaking
+          test $? -eq 2
+
+  e2e:
+    runs-on: ubuntu-latest
+    needs: verify
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.1
+
+      - uses: actions/setup-node@v4
+        with:
+          cache: pnpm
+          node-version: 20
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browsers
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: End-to-end tests
+        run: pnpm test:e2e
+        env:
+          CI: "true"
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7

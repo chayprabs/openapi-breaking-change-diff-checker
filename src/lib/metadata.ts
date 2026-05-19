@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { siteConfig } from "@/data/site";
+import { getSiteUrl } from "@/lib/site-url";
 
 type PageMetadataInput = {
   description: string;
@@ -9,7 +10,7 @@ type PageMetadataInput = {
 };
 
 export function getAbsoluteUrl(path = "/") {
-  return new URL(path, siteConfig.url).toString();
+  return new URL(path, getSiteUrl()).toString();
 }
 
 export function buildPageMetadata({

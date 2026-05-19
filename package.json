@@ -2,6 +2,9 @@
   "name": "authos",
   "version": "0.1.0",
   "private": true,
+  "bin": {
+    "authos-openapi-diff": "./scripts/openapi-diff-cli.ts"
+  },
   "packageManager": "pnpm@10.33.1",
   "engines": {
     "node": ">=20.0.0"
@@ -15,7 +18,12 @@
     "test": "vitest run",
     "test:e2e": "playwright test",
     "format": "prettier . --write",
-    "format:check": "prettier . --check"
+    "format:check": "prettier . --check",
+    "openapi-diff": "tsx scripts/openapi-diff-cli.ts",
+    "audit:rules": "tsx scripts/audit-rule-coverage.ts",
+    "health-check": "tsx scripts/health-check.ts",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate"
   },
   "dependencies": {
     "@codemirror/lang-json": "^6.0.2",
@@ -31,7 +39,13 @@
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "yaml": "^2.8.3",
-    "zod": "^4.3.6"
+    "zod": "^4.3.6",
+    "@auth/drizzle-adapter": "^1.11.0",
+    "@libsql/client": "^0.15.15",
+    "drizzle-orm": "^0.44.6",
+    "graphql": "^16.11.0",
+    "next-auth": "5.0.0-beta.30",
+    "node-sql-parser": "^5.3.11"
   },
   "devDependencies": {
     "@playwright/test": "^1.59.1",
@@ -44,6 +58,8 @@
     "prettier": "^3.6.2",
     "prettier-plugin-tailwindcss": "^0.7.1",
     "tailwindcss": "^4",
+    "drizzle-kit": "^0.31.6",
+    "tsx": "^4.20.5",
     "typescript": "^5",
     "vitest": "^3.2.4"
   }

@@ -83,6 +83,31 @@ test("redacts and exports the privacy-sensitive sample", async ({ page }) => {
   expect(download.suggestedFilename()).toMatch(/^openapi-diff-report-.*\.json$/);
 });
 
+test("generates a GitHub CI snippet from the CI tab", async ({ page }) => {
+  await openTool(page);
+  await loadSample(page, "Breaking change sample");
+  await runAnalysis(page);
+
+  await page.getByRole("tab", { name: "CI" }).click();
+  await expect(page.getByText("CI snippet generator")).toBeVisible();
+  await expect(page.getByLabel("CI snippet target")).toBeVisible();
+
+  const snippet = page.locator("pre").filter({ hasText: "pnpm openapi-diff" }).first();
+  await expect(snippet).toBeVisible();
+  await expect(snippet).toContainText("openapi-diff");
+});
+
+test("cancels in-progress analysis", async ({ page }) => {
+  await openTool(page);
+  await loadSample(page, "Breaking change sample");
+
+  await page.getByTestId("analyze-specs-button").click();
+  await expect(page.getByTestId("cancel-analysis-button")).toBeVisible({ timeout: 15_000 });
+  await page.getByTestId("cancel-analysis-button").click();
+
+  await expect(page.getByTestId("analyze-specs-button")).toHaveText("Analyze specs");
+});
+
 test.describe("mobile layout", () => {
   test.use({
     viewport: {

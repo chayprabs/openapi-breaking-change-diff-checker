@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Container } from "@/components/ui/container";
-import { AccountMenuPlaceholder } from "@/features/account-shell/components/account-menu-placeholder";
+import { AccountMenu } from "@/features/account-shell/components/account-menu";
 import { primaryNavigation, siteConfig } from "@/data/site";
 import { cn } from "@/lib/cn";
 
@@ -65,7 +65,7 @@ export function SiteHeader() {
               );
             })}
           </nav>
-          <AccountMenuPlaceholder />
+          <AccountMenu />
         </div>
       </Container>
     </header>

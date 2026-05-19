@@ -69,11 +69,15 @@ pnpm format:check
 
 ## Environment Variables
 
-Copy [`.env.example`](/C:/Users/chait/OneDrive/Desktop/authos%20-%20apps/tools/1/.env.example) to `.env.local` and fill in only the values you need.
+Copy [`.env.example`](./.env.example) to `.env.local` and fill in only the values you need.
 
 | Variable | Required | Purpose |
 | --- | --- | --- |
+| `NEXT_PUBLIC_SITE_URL` | No | Public origin for canonical URLs and SEO. Defaults to `VERCEL_URL` on Vercel, otherwise `http://localhost:3000`. **Do not** point at `https://authos.dev` unless you control that domain for this product (it hosts a different AuthOS identity platform). |
 | `NEXT_PUBLIC_ANALYTICS_PROVIDER` | No | Enables metadata-only analytics. Leave unset to disable analytics entirely. Supported values: `disabled`, `console`, `custom`, `plausible`, `posthog`. |
+| `NEXT_PUBLIC_PLAUSIBLE_DOMAIN` | When using Plausible | Site domain passed to the Plausible script. |
+| `NEXT_PUBLIC_POSTHOG_KEY` | When using PostHog | Project API key for PostHog initialization. |
+| `NEXT_PUBLIC_POSTHOG_HOST` | No | PostHog API host (default `https://us.i.posthog.com`). |
 | `NEXT_PUBLIC_FEEDBACK_ENDPOINT` | No | Optional feedback API endpoint. If unset, feedback falls back to `mailto:` or copyable text. |
 | `NEXT_PUBLIC_FEEDBACK_EMAIL` | No | Optional feedback mailbox used for `mailto:` fallback. |
 | `OPENAPI_FETCH_PROXY_RATE_LIMIT` | No | Soft rate limit for the public URL fetch proxy. |
@@ -82,6 +86,18 @@ Copy [`.env.example`](/C:/Users/chait/OneDrive/Desktop/authos%20-%20apps/tools/1
 Testing-only helper:
 
 - `UPDATE_GOLDENS=1` refreshes the golden report snapshots during `pnpm test`.
+
+## Headless CLI
+
+Run the same semantic engine as the browser without starting Next.js:
+
+```bash
+pnpm openapi-diff --base path/to/base.yaml --revision path/to/revision.yaml
+pnpm openapi-diff --base base.yaml --revision revision.yaml --format markdown --output report.md
+pnpm openapi-diff --base base.yaml --revision revision.yaml --fail-on breaking,dangerous
+```
+
+CI snippets in the UI still target **oasdiff** for pipeline parity; the CLI uses the in-repo engine. See [docs/resolved-decisions.md](./docs/resolved-decisions.md).
 
 ## Privacy Model
 
@@ -100,8 +116,8 @@ Optional backend contact:
 
 See:
 
-- [docs/privacy-model.md](/C:/Users/chait/OneDrive/Desktop/authos%20-%20apps/tools/1/docs/privacy-model.md)
-- [src/app/privacy/page.tsx](/C:/Users/chait/OneDrive/Desktop/authos%20-%20apps/tools/1/src/app/privacy/page.tsx)
+- [docs/privacy-model.md](./docs/privacy-model.md)
+- [src/app/privacy/page.tsx](./src/app/privacy/page.tsx)
 
 ## Testing And Quality
 
@@ -155,9 +171,10 @@ tests/e2e/                           Playwright end-to-end tests
 
 ## Docs
 
-- [docs/architecture.md](/C:/Users/chait/OneDrive/Desktop/authos%20-%20apps/tools/1/docs/architecture.md)
-- [docs/privacy-model.md](/C:/Users/chait/OneDrive/Desktop/authos%20-%20apps/tools/1/docs/privacy-model.md)
-- [docs/rule-catalog.md](/C:/Users/chait/OneDrive/Desktop/authos%20-%20apps/tools/1/docs/rule-catalog.md)
-- [docs/launch-checklist.md](/C:/Users/chait/OneDrive/Desktop/authos%20-%20apps/tools/1/docs/launch-checklist.md)
-- [docs/future-roadmap.md](/C:/Users/chait/OneDrive/Desktop/authos%20-%20apps/tools/1/docs/future-roadmap.md)
-- [docs/launch-content.md](/C:/Users/chait/OneDrive/Desktop/authos%20-%20apps/tools/1/docs/launch-content.md)
+- [docs/architecture.md](./docs/architecture.md)
+- [docs/privacy-model.md](./docs/privacy-model.md)
+- [docs/rule-catalog.md](./docs/rule-catalog.md)
+- [docs/resolved-decisions.md](./docs/resolved-decisions.md)
+- [docs/launch-checklist.md](./docs/launch-checklist.md)
+- [docs/future-roadmap.md](./docs/future-roadmap.md)
+- [docs/launch-content.md](./docs/launch-content.md)

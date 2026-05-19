@@ -1,15 +1,18 @@
 import { describe, expect, it } from "vitest";
 import { createAnalysisSettings } from "@/features/openapi-diff/lib/analysis-settings";
 import {
-  CI_SNIPPET_PARITY_NOTE,
+  CI_SNIPPET_PARITY_NOTE_AUTHOS,
+  CI_SNIPPET_PARITY_NOTE_OASDIFF,
   createCiSnippetBundle,
   createDefaultCiPaths,
+  createGitHubWorkflowDownload,
 } from "@/features/openapi-diff/lib/ci-snippets";
 
 describe("CI snippets", () => {
   it("generates a GitHub Actions snippet with the selected report path and breaking gate", () => {
     const bundle = createCiSnippetBundle({
       baseSpecPath: "specs/openapi.yaml",
+      engine: "oasdiff",
       failBuildOnBreaking: true,
       reportOutputPath: "artifacts/api-diff.md",
       revisionSpecPath: "specs/openapi.yaml",
@@ -31,7 +34,7 @@ describe("CI snippets", () => {
     });
 
     expect(bundle.engineLabel).toBe("oasdiff");
-    expect(bundle.parityNote).toBe(CI_SNIPPET_PARITY_NOTE);
+    expect(bundle.parityNote).toBe(CI_SNIPPET_PARITY_NOTE_OASDIFF);
     expect(bundle.snippet).toContain("uses: oasdiff/oasdiff-action/changelog@v0.0.40-beta.3");
     expect(bundle.snippet).toContain("uses: oasdiff/oasdiff-action/breaking@v0.0.40-beta.3");
     expect(bundle.snippet).toContain("base: 'origin/${{ github.base_ref }}:specs/openapi.yaml'");
@@ -46,9 +49,40 @@ describe("CI snippets", () => {
     );
   });
 
+  it("generates an Authos engine GitHub Actions snippet", () => {
+    const bundle = createCiSnippetBundle({
+      baseSpecPath: "openapi/base.yaml",
+      engine: "authos",
+      failBuildOnBreaking: true,
+      reportOutputPath: "reports/openapi-diff.md",
+      revisionSpecPath: "openapi/revision.yaml",
+      settings: createAnalysisSettings(),
+      target: "github",
+    });
+
+    expect(bundle.engineLabel).toBe("authos");
+    expect(bundle.parityNote).toBe(CI_SNIPPET_PARITY_NOTE_AUTHOS);
+    expect(bundle.snippet).toContain("pnpm openapi-diff");
+    expect(bundle.snippet).toContain("--fail-on breaking");
+  });
+
+  it("downloads a GitHub workflow file for the Authos engine", () => {
+    const download = createGitHubWorkflowDownload({
+      ...createDefaultCiPaths(),
+      engine: "authos",
+      failBuildOnBreaking: true,
+      settings: createAnalysisSettings(),
+      target: "github",
+    });
+
+    expect(download.fileName).toBe(".github/workflows/authos-openapi-diff.yml");
+    expect(download.content).toContain("pnpm openapi-diff");
+  });
+
   it("generates a non-blocking GitLab snippet when fail-on-breaking is disabled", () => {
     const bundle = createCiSnippetBundle({
       baseSpecPath: "openapi/openapi.yaml",
+      engine: "oasdiff",
       failBuildOnBreaking: false,
       reportOutputPath: "reports/openapi-diff.md",
       revisionSpecPath: "openapi/openapi.yaml",
@@ -75,12 +109,14 @@ describe("CI snippets", () => {
     const defaults = createDefaultCiPaths();
     const localBundle = createCiSnippetBundle({
       ...defaults,
+      engine: "oasdiff",
       failBuildOnBreaking: true,
       settings: createAnalysisSettings(),
       target: "local",
     });
     const dockerBundle = createCiSnippetBundle({
       ...defaults,
+      engine: "oasdiff",
       failBuildOnBreaking: true,
       settings: createAnalysisSettings(),
       target: "docker",

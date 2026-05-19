@@ -6,8 +6,11 @@ import type { AnalysisSettings } from "@/features/openapi-diff/types";
 
 export type CiSnippetTarget = "docker" | "github" | "gitlab" | "local";
 
+export type CiSnippetEngine = "authos" | "oasdiff";
+
 export type CiSnippetConfig = {
   baseSpecPath: string;
+  engine: CiSnippetEngine;
   failBuildOnBreaking: boolean;
   reportOutputPath: string;
   revisionSpecPath: string;
@@ -29,8 +32,28 @@ const OASDIFF_INSTALL_SCRIPT_URL =
   "https://raw.githubusercontent.com/oasdiff/oasdiff/main/install.sh";
 const OASDIFF_DOCKER_IMAGE = "tufin/oasdiff";
 
-export const CI_SNIPPET_PARITY_NOTE =
-  "The CI snippet uses the selected open-source engine. Results may differ slightly from this browser report for complex refs or unsupported schema features.";
+export const CI_SNIPPET_PARITY_NOTE_OASDIFF =
+  "The oasdiff CI snippet may differ slightly from this browser report for complex refs or unsupported schema features.";
+
+export const CI_SNIPPET_PARITY_NOTE_AUTHOS =
+  "The Authos engine snippet runs the same semantic engine as this browser report (pnpm openapi-diff).";
+
+export const ciSnippetEngineOptions = [
+  {
+    description: "Same engine as this browser report. Recommended for parity with the UI.",
+    label: "Authos engine",
+    value: "authos",
+  },
+  {
+    description: "Popular open-source OpenAPI diff for pipelines that already use oasdiff.",
+    label: "oasdiff",
+    value: "oasdiff",
+  },
+] as const satisfies ReadonlyArray<{
+  description: string;
+  label: string;
+  value: CiSnippetEngine;
+}>;
 
 export const ciSnippetTargetOptions = [
   {
@@ -60,15 +83,32 @@ export const ciSnippetTargetOptions = [
 }>;
 
 export function createCiSnippetBundle(config: CiSnippetConfig): CiSnippetBundle {
+  const engineLabel = config.engine === "authos" ? "authos" : "oasdiff";
+
   return {
-    engineLabel: "oasdiff",
-    parityNote: CI_SNIPPET_PARITY_NOTE,
+    engineLabel,
+    parityNote:
+      config.engine === "authos"
+        ? CI_SNIPPET_PARITY_NOTE_AUTHOS
+        : CI_SNIPPET_PARITY_NOTE_OASDIFF,
     settingsSummary: createSettingsSummary(config),
     snippet: createSnippet(config),
     targetLabel:
       ciSnippetTargetOptions.find((option) => option.value === config.target)?.label ??
       ciSnippetTargetOptions[0].label,
-    usageHint: createUsageHint(config.target),
+    usageHint: createUsageHint(config),
+  };
+}
+
+export function createGitHubWorkflowDownload(config: CiSnippetConfig) {
+  const snippet = createCiSnippetBundle({ ...config, target: "github" });
+
+  return {
+    content: snippet.snippet,
+    fileName:
+      config.engine === "authos"
+        ? ".github/workflows/authos-openapi-diff.yml"
+        : ".github/workflows/openapi-diff.yml",
   };
 }
 
@@ -81,6 +121,20 @@ export function createDefaultCiPaths() {
 }
 
 function createSnippet(config: CiSnippetConfig) {
+  if (config.engine === "authos") {
+    switch (config.target) {
+      case "github":
+        return createAuthosGitHubActionsSnippet(config);
+      case "gitlab":
+        return createAuthosGitLabSnippet(config);
+      case "docker":
+        return createAuthosDockerSnippet(config);
+      case "local":
+      default:
+        return createAuthosLocalSnippet(config);
+    }
+  }
+
   switch (config.target) {
     case "github":
       return createGitHubActionsSnippet(config);
@@ -92,6 +146,87 @@ function createSnippet(config: CiSnippetConfig) {
     default:
       return createLocalCliSnippet(config);
   }
+}
+
+function createAuthosFailOnFlag(config: Pick<CiSnippetConfig, "failBuildOnBreaking">) {
+  return config.failBuildOnBreaking ? " --fail-on breaking,dangerous" : "";
+}
+
+function createAuthosLocalSnippet(config: CiSnippetConfig) {
+  return [
+    "pnpm install --frozen-lockfile",
+    `pnpm openapi-diff --base ${quoteShell(config.baseSpecPath)} --revision ${quoteShell(config.revisionSpecPath)} --format markdown --output ${quoteShell(config.reportOutputPath)}${createAuthosFailOnFlag(config)}`,
+  ].join("\n");
+}
+
+function createAuthosDockerSnippet(config: CiSnippetConfig) {
+  return [
+    "docker run --rm -t \\",
+    '  -v "${PWD}:/work" \\',
+    "  -w /work \\",
+    "  node:20-bookworm \\",
+    `  bash -lc "corepack enable && pnpm install --frozen-lockfile && pnpm openapi-diff --base ${config.baseSpecPath} --revision ${config.revisionSpecPath} --format markdown --output ${config.reportOutputPath}${createAuthosFailOnFlag(config)}"`,
+  ].join("\n");
+}
+
+function createAuthosGitHubActionsSnippet(config: CiSnippetConfig) {
+  const watchedPaths = [...new Set([config.baseSpecPath, config.revisionSpecPath])];
+  const failStep = config.failBuildOnBreaking
+    ? [
+        "      - name: Fail on breaking changes",
+        `        run: pnpm openapi-diff --base ${quoteYaml(`origin/\${{ github.base_ref }}:${config.baseSpecPath}`)} --revision ${quoteYaml(`HEAD:${config.revisionSpecPath}`)} --fail-on breaking`,
+      ]
+    : [];
+
+  return [
+    "name: Authos OpenAPI diff",
+    "",
+    "on:",
+    "  pull_request:",
+    "    paths:",
+    ...watchedPaths.map((path) => `      - ${quoteYaml(path)}`),
+    "",
+    "jobs:",
+    "  authos-openapi-diff:",
+    "    runs-on: ubuntu-latest",
+    "    steps:",
+    "      - uses: actions/checkout@v6",
+    "      - uses: pnpm/action-setup@v4",
+    "        with:",
+    "          version: 10",
+    "      - uses: actions/setup-node@v4",
+    "        with:",
+    "          node-version: 20",
+    "          cache: pnpm",
+    "      - run: pnpm install --frozen-lockfile",
+    "      - name: Fetch base branch",
+    "        run: git fetch --depth=1 origin ${{ github.base_ref }}",
+    "      - name: Write Markdown report",
+    `        run: pnpm openapi-diff --base ${quoteYaml(`origin/\${{ github.base_ref }}:${config.baseSpecPath}`)} --revision ${quoteYaml(`HEAD:${config.revisionSpecPath}`)} --format markdown --output ${quoteYaml(config.reportOutputPath)}`,
+    ...failStep,
+  ].join("\n");
+}
+
+function createAuthosGitLabSnippet(config: CiSnippetConfig) {
+  const baseRefPath = `origin/$CI_MERGE_REQUEST_TARGET_BRANCH_NAME:${config.baseSpecPath}`;
+
+  return [
+    "authos_openapi_diff:",
+    "  image: node:20-bookworm",
+    "  stage: test",
+    "  rules:",
+    '    - if: $CI_PIPELINE_SOURCE == "merge_request_event"',
+    "  before_script:",
+    "    - corepack enable",
+    "    - pnpm install --frozen-lockfile",
+    "    - git fetch --depth=1 origin \"$CI_MERGE_REQUEST_TARGET_BRANCH_NAME\"",
+    "  script:",
+    `    - pnpm openapi-diff --base ${quoteShell(baseRefPath)} --revision ${quoteShell(config.revisionSpecPath)} --format markdown --output ${quoteShell(config.reportOutputPath)}${createAuthosFailOnFlag(config)}`,
+    "  artifacts:",
+    "    when: always",
+    "    paths:",
+    `      - ${quoteYaml(config.reportOutputPath)}`,
+  ].join("\n");
 }
 
 function createGitHubActionsSnippet(config: CiSnippetConfig) {
@@ -207,12 +342,16 @@ function createSettingsSummary(config: CiSnippetConfig) {
   ];
 }
 
-function createUsageHint(target: CiSnippetTarget) {
-  if (target === "github" || target === "gitlab") {
+function createUsageHint(config: CiSnippetConfig) {
+  if (config.engine === "authos") {
+    return "Authos snippets run pnpm openapi-diff so CI matches the browser engine.";
+  }
+
+  if (config.target === "github" || config.target === "gitlab") {
     return "Use CI when you want pull requests to produce a repeatable report and optionally block merges on breaking changes.";
   }
 
-  if (target === "docker") {
+  if (config.target === "docker") {
     return "Use Docker when you want the open-source engine without installing a local binary on the machine running the check.";
   }
 

@@ -69,6 +69,15 @@ async function handleWorkerRequest(
       return;
     }
 
+    if (process.env.NEXT_PUBLIC_E2E_SLOW_ANALYSIS === "1") {
+      await new Promise((resolve) => setTimeout(resolve, 4_000));
+    }
+
+    if (cancelledAnalysisRequests.has(request.requestId)) {
+      cancelledAnalysisRequests.delete(request.requestId);
+      return;
+    }
+
     const result = await analyzeOpenApiSpecs(request.base, request.revision, {
       onProgress: (label) => {
         if (cancelledAnalysisRequests.has(request.requestId)) {

@@ -1,6 +1,7 @@
 import type { ReportExportFormat } from "@/features/openapi-diff/lib/report-export";
 import {
   createDefaultCiPaths,
+  type CiSnippetEngine,
   type CiSnippetTarget,
 } from "@/features/openapi-diff/lib/ci-snippets";
 import {
@@ -28,6 +29,7 @@ export type ReportExplorerUiState = {
   ciFailBuildOnBreaking: boolean;
   ciReportOutputPath: string;
   ciRevisionSpecPath: string;
+  ciEngine: CiSnippetEngine;
   ciTarget: CiSnippetTarget;
   exportPreviewFormat: ReportExportFormat;
   filters: FindingsExplorerFilters;
@@ -53,6 +55,7 @@ const CI_SNIPPET_TARGETS = [
   "gitlab",
   "local",
 ] as const satisfies readonly CiSnippetTarget[];
+const CI_SNIPPET_ENGINES = ["authos", "oasdiff"] as const satisfies readonly CiSnippetEngine[];
 const REPORT_EXPORT_FORMATS = [
   "html",
   "json",
@@ -103,6 +106,7 @@ export function createDefaultReportExplorerUiState(): ReportExplorerUiState {
     ciFailBuildOnBreaking: true,
     ciReportOutputPath: ciDefaults.reportOutputPath,
     ciRevisionSpecPath: ciDefaults.revisionSpecPath,
+    ciEngine: "authos",
     ciTarget: "github",
     exportPreviewFormat: "markdown",
     filters: createDefaultFindingsExplorerFilters(),
@@ -121,6 +125,7 @@ export function cloneReportExplorerUiState(
     ciFailBuildOnBreaking: state.ciFailBuildOnBreaking,
     ciReportOutputPath: state.ciReportOutputPath,
     ciRevisionSpecPath: state.ciRevisionSpecPath,
+    ciEngine: state.ciEngine,
     ciTarget: state.ciTarget,
     exportPreviewFormat: state.exportPreviewFormat,
     filters: { ...state.filters },
@@ -167,6 +172,11 @@ export function parseReportExplorerUiState(value: unknown): ReportExplorerUiStat
       value.ciRevisionSpecPath,
       defaults.ciRevisionSpecPath,
     ),
+    ciEngine:
+      typeof value.ciEngine === "string" &&
+      CI_SNIPPET_ENGINES.includes(value.ciEngine as CiSnippetEngine)
+        ? (value.ciEngine as CiSnippetEngine)
+        : defaults.ciEngine,
     ciTarget:
       typeof value.ciTarget === "string" &&
       CI_SNIPPET_TARGETS.includes(value.ciTarget as CiSnippetTarget)

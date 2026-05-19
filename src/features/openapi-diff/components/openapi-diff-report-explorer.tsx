@@ -20,14 +20,18 @@ import {
   createRuleIdIgnoreRule,
 } from "@/features/openapi-diff/lib/ignore-rules";
 import {
+  ciSnippetEngineOptions,
   ciSnippetTargetOptions,
   createCiSnippetBundle,
+  createGitHubWorkflowDownload,
+  type CiSnippetEngine,
   type CiSnippetTarget,
 } from "@/features/openapi-diff/lib/ci-snippets";
 import {
   createDefaultFindingsExplorerFilters,
   createFindingCopyValue,
   createFindingsFilterOptions,
+  createFindingsCsv,
   createReportFindingRows,
   filterAndSortFindingRows,
   formatCategoryLabel,
@@ -44,6 +48,7 @@ import {
   createReportExportBundle,
   type ReportExportFormat,
 } from "@/features/openapi-diff/lib/report-export";
+import { SaveReportButton } from "@/features/saved-reports/components/save-report-button";
 import {
   createExportCopiedEvent,
   createExportDownloadedEvent,
@@ -709,6 +714,7 @@ export function OpenApiDiffReportExplorer({
   const [exportPreviewFormat, setExportPreviewFormat] = useState<ReportExportFormat>(
     () => initialExplorerState.exportPreviewFormat,
   );
+  const [ciEngine, setCiEngine] = useState<CiSnippetEngine>(() => initialExplorerState.ciEngine);
   const [ciTarget, setCiTarget] = useState<CiSnippetTarget>(() => initialExplorerState.ciTarget);
   const [ciBaseSpecPath, setCiBaseSpecPath] = useState(
     () => initialExplorerState.ciBaseSpecPath,
@@ -808,6 +814,7 @@ export function OpenApiDiffReportExplorer({
     () =>
       createCiSnippetBundle({
         baseSpecPath: ciBaseSpecPath.trim() || initialExplorerState.ciBaseSpecPath,
+        engine: ciEngine,
         failBuildOnBreaking: ciFailBuildOnBreaking,
         reportOutputPath: ciReportOutputPath.trim() || initialExplorerState.ciReportOutputPath,
         revisionSpecPath:
@@ -817,10 +824,35 @@ export function OpenApiDiffReportExplorer({
       }),
     [
       ciBaseSpecPath,
+      ciEngine,
       ciFailBuildOnBreaking,
       ciReportOutputPath,
       ciRevisionSpecPath,
       ciTarget,
+      initialExplorerState.ciBaseSpecPath,
+      initialExplorerState.ciReportOutputPath,
+      initialExplorerState.ciRevisionSpecPath,
+      report.settings,
+    ],
+  );
+  const ciWorkflowDownload = useMemo(
+    () =>
+      createGitHubWorkflowDownload({
+        baseSpecPath: ciBaseSpecPath.trim() || initialExplorerState.ciBaseSpecPath,
+        engine: ciEngine,
+        failBuildOnBreaking: ciFailBuildOnBreaking,
+        reportOutputPath: ciReportOutputPath.trim() || initialExplorerState.ciReportOutputPath,
+        revisionSpecPath:
+          ciRevisionSpecPath.trim() || initialExplorerState.ciRevisionSpecPath,
+        settings: report.settings,
+        target: "github",
+      }),
+    [
+      ciBaseSpecPath,
+      ciEngine,
+      ciFailBuildOnBreaking,
+      ciReportOutputPath,
+      ciRevisionSpecPath,
       initialExplorerState.ciBaseSpecPath,
       initialExplorerState.ciReportOutputPath,
       initialExplorerState.ciRevisionSpecPath,
@@ -837,6 +869,7 @@ export function OpenApiDiffReportExplorer({
       ciFailBuildOnBreaking,
       ciReportOutputPath,
       ciRevisionSpecPath,
+      ciEngine,
       ciTarget,
       exportPreviewFormat,
       filters: { ...filters },
@@ -847,6 +880,7 @@ export function OpenApiDiffReportExplorer({
     [
       activeTab,
       ciBaseSpecPath,
+      ciEngine,
       ciFailBuildOnBreaking,
       ciReportOutputPath,
       ciRevisionSpecPath,
@@ -1778,6 +1812,23 @@ export function OpenApiDiffReportExplorer({
                   check.
                 </p>
                 <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                  <FilterField label="CI engine">
+                    <select
+                      aria-label="CI snippet engine"
+                      className="border-line bg-panel w-full rounded-xl border px-3 py-2 text-sm"
+                      onChange={(event) =>
+                        setCiEngine(event.currentTarget.value as CiSnippetEngine)
+                      }
+                      value={ciEngine}
+                    >
+                      {ciSnippetEngineOptions.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </FilterField>
+
                   <FilterField label="Snippet target">
                     <select
                       aria-label="CI snippet target"
@@ -1882,11 +1933,30 @@ export function OpenApiDiffReportExplorer({
                 <CardHeader className="space-y-3">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <CardTitle>Copyable snippet</CardTitle>
-                    <CopyButton
-                      label="Copy snippet"
-                      value={ciSnippetBundle.snippet}
-                      variant="secondary"
-                    />
+                    <div className="flex flex-wrap gap-2">
+                      <CopyButton
+                        label="Copy snippet"
+                        value={ciSnippetBundle.snippet}
+                        variant="secondary"
+                      />
+                      <Button
+                        onClick={() => {
+                          const blob = new Blob([ciWorkflowDownload.content], {
+                            type: "text/yaml;charset=utf-8",
+                          });
+                          const url = URL.createObjectURL(blob);
+                          const anchor = document.createElement("a");
+                          anchor.href = url;
+                          anchor.download = ciWorkflowDownload.fileName;
+                          anchor.click();
+                          URL.revokeObjectURL(url);
+                        }}
+                        type="button"
+                        variant="secondary"
+                      >
+                        Download workflow
+                      </Button>
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -1927,6 +1997,7 @@ export function OpenApiDiffReportExplorer({
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
+                <SaveReportButton report={report} />
                 <label className="border-line bg-panel-muted inline-flex items-center gap-3 rounded-2xl border px-4 py-3 text-sm">
                   <input
                     checked={includeSafeInExport}
@@ -2076,6 +2147,27 @@ export function OpenApiDiffReportExplorer({
                       variant="secondary"
                     >
                       Download JSON
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        if (!confirmPotentiallyUnsafeExport()) {
+                          return;
+                        }
+
+                        const csv = createFindingsCsv(exportBundle.includedRows);
+                        const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+                        const downloadUrl = window.URL.createObjectURL(blob);
+                        const anchor = document.createElement("a");
+                        anchor.href = downloadUrl;
+                        anchor.download = `${exportBundle.fileBaseName}.csv`;
+                        document.body.append(anchor);
+                        anchor.click();
+                        anchor.remove();
+                        window.setTimeout(() => window.URL.revokeObjectURL(downloadUrl), 0);
+                      }}
+                      variant="secondary"
+                    >
+                      Download CSV
                     </Button>
                     <Button onClick={() => setIsShareModalOpen(true)} variant="secondary">
                       Share

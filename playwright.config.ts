@@ -18,6 +18,10 @@ export default defineConfig({
   },
   webServer: {
     command: `pnpm exec next dev --hostname ${HOST} --port ${PORT}`,
+    env: {
+      AUTH_SECRET: process.env.AUTH_SECRET ?? "playwright-dev-auth-secret",
+      NEXT_PUBLIC_E2E_SLOW_ANALYSIS: "1",
+    },
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
     url: baseURL,

@@ -23,7 +23,8 @@ type OpenApiDiffFeedbackButtonProps = {
   report: DiffReport | null;
 };
 
-const feedbackEndpoint = process.env.NEXT_PUBLIC_FEEDBACK_ENDPOINT?.trim() || null;
+const feedbackEndpoint =
+  process.env.NEXT_PUBLIC_FEEDBACK_ENDPOINT?.trim() || "/api/feedback";
 const feedbackEmail = process.env.NEXT_PUBLIC_FEEDBACK_EMAIL?.trim() || null;
 
 export function OpenApiDiffFeedbackButton({

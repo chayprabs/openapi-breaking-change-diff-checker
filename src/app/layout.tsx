@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import { AppProviders } from "@/components/layout/app-providers";
-import { siteConfig } from "@/data/site";
 import { IBM_Plex_Mono, IBM_Plex_Sans } from "next/font/google";
+import { AnalyticsScripts } from "@/components/layout/analytics-scripts";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteHeader } from "@/components/layout/site-header";
+import { getSiteUrl } from "@/lib/site-url";
 import "./globals.css";
 
 const plexSans = IBM_Plex_Sans({
@@ -21,7 +22,7 @@ const plexMono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL(siteConfig.url),
+  metadataBase: new URL(getSiteUrl()),
   title: {
     default: "Authos",
     template: "%s | Authos",
@@ -40,6 +41,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${plexSans.variable} ${plexMono.variable} h-full antialiased`}>
       <body className="bg-background text-foreground min-h-full">
+        <AnalyticsScripts />
         <AppProviders>
           <div className="flex min-h-screen flex-col">
             <SiteHeader />

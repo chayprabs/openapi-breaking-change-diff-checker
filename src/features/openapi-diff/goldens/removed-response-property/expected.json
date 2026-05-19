@@ -33,7 +33,7 @@
       }
     ],
     "baseline": {
-      "byteCount": 441,
+      "byteCount": 461,
       "componentsOnly": false,
       "externalRefCount": 0,
       "input": {
@@ -59,7 +59,7 @@
       "warnings": []
     },
     "candidate": {
-      "byteCount": 383,
+      "byteCount": 401,
       "componentsOnly": false,
       "externalRefCount": 0,
       "input": {

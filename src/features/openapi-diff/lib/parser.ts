@@ -255,7 +255,7 @@ export async function parseOpenApiSpec(
       code: "component-only",
       editorId,
       message:
-        "This spec only defines reusable components. Path-level comparison will stay limited until the diff engine lands.",
+        "This spec only defines reusable components. Path and operation comparison stays limited; schema-level rules still apply where components are referenced.",
       source: "openapi",
     });
   }

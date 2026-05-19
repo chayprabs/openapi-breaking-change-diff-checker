@@ -1,9 +1,10 @@
 import type { FooterColumn, SiteLinkItem } from "@/types/navigation";
 import type { ToolCategory, ToolDirectoryItem } from "@/types/tool";
+import { getSiteUrl } from "@/lib/site-url";
 
 export const siteConfig = {
   name: "Authos",
-  url: "https://authos.dev",
+  url: getSiteUrl(),
   tagline: "Local-first developer tools for API compatibility and release confidence",
   description:
     "Authos is a privacy-aware developer-tools website starting with OpenAPI Diff. Compare two OpenAPI or Swagger specs in the browser, understand breaking changes, export review-ready reports, and share redacted results without requiring login.",
@@ -17,7 +18,13 @@ export const primaryNavigation: SiteLinkItem[] = [
   {
     href: "/tools/api-and-schema",
     label: "API Tools",
-    matchRoutes: ["/tools/api-and-schema", "/tools/openapi-diff-breaking-changes"],
+    matchRoutes: [
+      "/tools/api-and-schema",
+      "/tools/openapi-diff-breaking-changes",
+      "/tools/graphql-schema-guard",
+      "/tools/json-schema-compatibility",
+      "/tools/webhook-contract-checker",
+    ],
   },
   { href: "/privacy", label: "Privacy", match: "exact" },
   { href: "/about", label: "About", match: "exact" },
@@ -36,18 +43,20 @@ export const toolCategories: ToolCategory[] = [
   {
     id: "devops",
     name: "DevOps",
-    label: "Roadmap",
+    label: "Live",
+    href: "/tools/release-gate-auditor",
     summary: "Change intelligence around CI, deployments, and release gates.",
     description:
-      "Future tools can help engineering teams monitor release drift, pipeline regressions, and deployment safety signals without adding noisy process.",
+      "Tools that help engineering teams monitor release drift, pipeline regressions, and deployment safety signals.",
   },
   {
     id: "database",
     name: "Database",
-    label: "Roadmap",
+    label: "Live",
+    href: "/tools/migration-risk-radar",
     summary: "Migration review, schema drift analysis, and data safety checks.",
     description:
-      "Future database tools can help teams read migration risk, schema drift, and rollback safety before changes land.",
+      "Tools that help teams read migration risk, schema drift, and rollback safety before changes land.",
   },
 ];
 
@@ -66,42 +75,96 @@ export const toolDirectory: ToolDirectoryItem[] = [
   {
     id: "graphql-schema-guard",
     name: "GraphQL Schema Guard",
+    href: "/tools/graphql-schema-guard",
     category: "api-and-schema",
-    badge: "Roadmap",
+    badge: "API and Schema",
     summary:
       "Track GraphQL schema drift across releases and flag risky field removals, renames, and nullability changes.",
-    status: "Research preview",
-    availability: "coming-soon",
+    status: "Available now",
+    availability: "live",
+  },
+  {
+    id: "json-schema-compatibility",
+    name: "JSON Schema compatibility checker",
+    href: "/tools/json-schema-compatibility",
+    category: "api-and-schema",
+    badge: "API and Schema",
+    summary: "Semantic JSON Schema compatibility checks across versioned payload contracts.",
+    status: "Available now",
+    availability: "live",
   },
   {
     id: "webhook-contract-checker",
     name: "Webhook Contract Checker",
+    href: "/tools/webhook-contract-checker",
     category: "api-and-schema",
-    badge: "Roadmap",
+    badge: "API and Schema",
     summary:
       "Review version-to-version webhook payload changes and surface downstream integration risks.",
-    status: "Research preview",
-    availability: "coming-soon",
+    status: "Available now",
+    availability: "live",
   },
   {
     id: "release-gate-auditor",
     name: "Release Gate Auditor",
+    href: "/tools/release-gate-auditor",
     category: "devops",
-    badge: "Roadmap",
+    badge: "DevOps",
     summary:
       "Audit CI and deployment conditions to understand what changed between two release definitions.",
-    status: "Research preview",
-    availability: "coming-soon",
+    status: "Available now",
+    availability: "live",
+  },
+  {
+    id: "ci-drift-watch",
+    name: "CI Drift Watch",
+    href: "/tools/ci-drift-watch",
+    category: "devops",
+    badge: "DevOps",
+    summary: "Compare CI workflow definitions for job and step drift between revisions.",
+    status: "Available now",
+    availability: "live",
+  },
+  {
+    id: "deploy-checklists",
+    name: "Deploy Checklists",
+    href: "/tools/deploy-checklists",
+    category: "devops",
+    badge: "DevOps",
+    summary: "Compare deployment checklist YAML between revisions.",
+    status: "Available now",
+    availability: "live",
   },
   {
     id: "migration-risk-radar",
     name: "Migration Risk Radar",
+    href: "/tools/migration-risk-radar",
     category: "database",
-    badge: "Roadmap",
+    badge: "Database",
     summary:
       "Scan migration plans for destructive operations, backfill hazards, and rollback complexity.",
-    status: "Research preview",
-    availability: "coming-soon",
+    status: "Available now",
+    availability: "live",
+  },
+  {
+    id: "schema-drift-diff",
+    name: "Schema Drift Diff",
+    href: "/tools/schema-drift-diff",
+    category: "database",
+    badge: "Database",
+    summary: "Compare SQL DDL snapshots for structural drift and destructive changes.",
+    status: "Available now",
+    availability: "live",
+  },
+  {
+    id: "rollback-planner",
+    name: "Rollback Planner",
+    href: "/tools/rollback-planner",
+    category: "database",
+    badge: "Database",
+    summary: "Review forward and rollback SQL pairs for risky reversals.",
+    status: "Available now",
+    availability: "live",
   },
 ];
 
@@ -124,31 +187,31 @@ export const footerColumns: FooterColumn[] = [
     items: [
       { href: "/tools/api-and-schema", label: "Category overview" },
       { href: "/tools/openapi-diff-breaking-changes", label: "OpenAPI Diff" },
-      { badge: "Roadmap", label: "GraphQL Schema Guard", placeholder: true },
+      { href: "/tools/graphql-schema-guard", label: "GraphQL Schema Guard" },
     ],
   },
   {
     title: "DevOps",
     items: [
-      { badge: "Roadmap", label: "Release Gate Auditor", placeholder: true },
-      { badge: "Roadmap", label: "CI Drift Watch", placeholder: true },
-      { badge: "Roadmap", label: "Deploy Checklists", placeholder: true },
+      { href: "/tools/release-gate-auditor", label: "Release Gate Auditor" },
+      { href: "/tools/ci-drift-watch", label: "CI Drift Watch" },
     ],
   },
   {
     title: "Database",
     items: [
-      { badge: "Roadmap", label: "Migration Risk Radar", placeholder: true },
-      { badge: "Roadmap", label: "Schema Drift Diff", placeholder: true },
-      { badge: "Roadmap", label: "Rollback Planner", placeholder: true },
+      { href: "/tools/migration-risk-radar", label: "Migration Risk Radar" },
+      { href: "/tools/schema-drift-diff", label: "Schema Drift Diff" },
+      { href: "/tools/rollback-planner", label: "Rollback Planner" },
     ],
   },
   {
     title: "Company",
     items: [
       { href: "/about", label: "About" },
+      { href: "/docs", label: "Documentation" },
       { href: "/privacy", label: "Privacy" },
-      { href: "/login", label: "Account preview" },
+      { href: "/login", label: "Account" },
     ],
   },
 ];
@@ -162,11 +225,11 @@ export const homeHighlights = [
   {
     title: "Review-ready exports",
     description: "From browser audit to PR comment in one pass",
-    body: "The first tool already ships Markdown, HTML, JSON, CI snippet generation, share links, redaction controls, ignore rules, and severity-aware findings instead of stopping at a raw diff.",
+    body: "Ship Markdown, HTML, JSON, CSV, CI snippet generation, share links, redaction controls, ignore rules, and severity-aware findings.",
   },
   {
-    title: "Free core workflow",
-    description: "No login and no AI dependency required",
-    body: "The launch workflow stays open without auth, and the app does not depend on AI APIs. Accounts are reserved for future additions like saved reports, team rules, and private sharing.",
+    title: "Full tool directory",
+    description: "API, DevOps, and database workflows",
+    body: "Authos ships live tools for OpenAPI, GraphQL, JSON Schema, webhooks, release gates, CI drift, and SQL migration review.",
   },
 ];
