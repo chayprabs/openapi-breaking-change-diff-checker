@@ -168,11 +168,11 @@ describe("openapi diff feedback", () => {
 
   it("flags likely raw spec pastes and validates optional email addresses", () => {
     expect(
-      looksLikeRawSpecContent(`openapi: 3.1.0\ninfo:\n  title: Demo\npaths:\n  /users:\n    get:\n      responses:\n        "200":\n          description: ok\ncomponents:\n  schemas: {}`),
+      looksLikeRawSpecContent(
+        `openapi: 3.1.0\ninfo:\n  title: Demo\npaths:\n  /users:\n    get:\n      responses:\n        "200":\n          description: ok\ncomponents:\n  schemas: {}`,
+      ),
     ).toBe(true);
-    expect(looksLikeRawSpecContent("The result looks off when I compare the sample.")).toBe(
-      false,
-    );
+    expect(looksLikeRawSpecContent("The result looks off when I compare the sample.")).toBe(false);
     expect(normalizeFeedbackEmail(" reviewer@example.com ")).toBe("reviewer@example.com");
     expect(normalizeFeedbackEmail("not-an-email")).toBeNull();
   });

@@ -37,7 +37,7 @@ export type OpenApiDiffFeedbackPayload = {
   email?: string;
   kind: FeedbackKind;
   message: string;
-  page: "/tools/openapi-diff-breaking-changes";
+  page: "/";
   rating: FeedbackRating;
   reportMetadata?: FeedbackReportMetadata;
   tool: "openapi_diff";
@@ -56,7 +56,7 @@ export function createOpenApiDiffFeedbackPayload(input: {
     ...(input.email ? { email: input.email } : {}),
     kind: input.kind,
     message: input.message.trim(),
-    page: "/tools/openapi-diff-breaking-changes",
+    page: "/",
     rating: input.rating,
     ...(input.includeReportMetadata && input.report
       ? { reportMetadata: createFeedbackReportMetadata(input.report) }
@@ -66,9 +66,7 @@ export function createOpenApiDiffFeedbackPayload(input: {
   };
 }
 
-export function createFeedbackReportMetadata(
-  report: DiffReport,
-): FeedbackReportMetadata {
+export function createFeedbackReportMetadata(report: DiffReport): FeedbackReportMetadata {
   return {
     affectedEndpointCount: report.affectedEndpoints.length,
     affectedSchemaCount: report.affectedSchemas.length,
@@ -137,7 +135,10 @@ export function createFeedbackText(payload: OpenApiDiffFeedbackPayload) {
     );
   }
 
-  lines.push("", "Note: Raw specs, finding details, URLs inside specs, and report bodies are not attached automatically.");
+  lines.push(
+    "",
+    "Note: Raw specs, finding details, URLs inside specs, and report bodies are not attached automatically.",
+  );
 
   return lines.join("\n");
 }

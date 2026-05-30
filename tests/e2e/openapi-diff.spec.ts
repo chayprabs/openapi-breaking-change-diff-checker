@@ -1,11 +1,10 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
-const TOOL_PATH = "/tools/openapi-diff-breaking-changes";
+const TOOL_PATH = "/";
 
 test("loads the OpenAPI diff page", async ({ page }) => {
   await openTool(page);
 
-  await expect(page.getByTestId("sample-select")).toBeVisible();
   await expect(page.getByTestId("sample-select")).toBeVisible();
   await expect(page.getByTestId("analyze-specs-button")).toBeVisible();
 });
