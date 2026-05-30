@@ -19,7 +19,7 @@
     ],
     "affectedSchemas": [],
     "baseline": {
-      "byteCount": 261,
+      "byteCount": 248,
       "componentsOnly": false,
       "externalRefCount": 0,
       "input": {
@@ -45,7 +45,7 @@
       "warnings": []
     },
     "candidate": {
-      "byteCount": 317,
+      "byteCount": 304,
       "componentsOnly": false,
       "externalRefCount": 0,
       "input": {
