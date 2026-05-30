@@ -66,9 +66,7 @@ export function createOpenApiDiffFeedbackPayload(input: {
   };
 }
 
-export function createFeedbackReportMetadata(
-  report: DiffReport,
-): FeedbackReportMetadata {
+export function createFeedbackReportMetadata(report: DiffReport): FeedbackReportMetadata {
   return {
     affectedEndpointCount: report.affectedEndpoints.length,
     affectedSchemaCount: report.affectedSchemas.length,
@@ -137,7 +135,10 @@ export function createFeedbackText(payload: OpenApiDiffFeedbackPayload) {
     );
   }
 
-  lines.push("", "Note: Raw specs, finding details, URLs inside specs, and report bodies are not attached automatically.");
+  lines.push(
+    "",
+    "Note: Raw specs, finding details, URLs inside specs, and report bodies are not attached automatically.",
+  );
 
   return lines.join("\n");
 }
