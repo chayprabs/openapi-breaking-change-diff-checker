@@ -97,7 +97,7 @@ export function createFeedbackReportMetadata(
 
 export function createFeedbackText(payload: OpenApiDiffFeedbackPayload) {
   const lines = [
-    "Authos OpenAPI Diff feedback",
+    "OpenAPI Diff feedback",
     "",
     `Rating: ${payload.rating}/5`,
     `Type: ${formatFeedbackKind(payload.kind)}`,
