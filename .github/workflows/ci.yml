@@ -43,11 +43,14 @@ jobs:
 
       - name: CLI smoke test
         run: |
+          set +e
           pnpm openapi-diff \
             --base src/features/openapi-diff/goldens/removed-endpoint/base.yaml \
             --revision src/features/openapi-diff/goldens/removed-endpoint/revision.yaml \
             --fail-on breaking
-          test $? -eq 2
+          exit_code=$?
+          set -e
+          test "$exit_code" -eq 2
 
   e2e:
     runs-on: ubuntu-latest
