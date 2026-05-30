@@ -97,7 +97,7 @@ export function createFeedbackReportMetadata(
 
 export function createFeedbackText(payload: OpenApiDiffFeedbackPayload) {
   const lines = [
-    "OpenAPI Diff feedback",
+    "Authos OpenAPI Diff feedback",
     "",
     `Rating: ${payload.rating}/5`,
     `Type: ${formatFeedbackKind(payload.kind)}`,
@@ -146,7 +146,7 @@ export function createFeedbackMailtoHref(
   emailAddress: string,
   payload: OpenApiDiffFeedbackPayload,
 ) {
-  const subject = `[Authos Feedback] ${formatFeedbackKind(payload.kind)} (${payload.rating}/5)`;
+  const subject = `[OpenAPI Diff Feedback] ${formatFeedbackKind(payload.kind)} (${payload.rating}/5)`;
   const body = createFeedbackText(payload);
 
   return `mailto:${emailAddress}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
