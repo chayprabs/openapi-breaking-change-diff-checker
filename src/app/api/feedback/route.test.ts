@@ -12,15 +12,39 @@ vi.mock("@/lib/db", () => {
   };
 });
 
-function createRequest(body: unknown) {
+function createRequest(body: unknown, headers: Record<string, string> = {}) {
   return new Request("http://localhost/api/feedback", {
     body: JSON.stringify(body),
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      ...headers,
+    },
     method: "POST",
   });
 }
 
 describe("POST /api/feedback", () => {
+  it("returns 403 for cross-origin requests", async () => {
+    const response = await POST(
+      createRequest(
+        {
+          kind: "idea",
+          message: "Add a keyboard shortcut for re-run.",
+          page: "/tools/openapi-diff-breaking-changes",
+          rating: 5,
+          tool: "openapi_diff",
+          toolVersion: "test",
+        },
+        { origin: "https://evil.example" },
+      ),
+    );
+
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toMatchObject({
+      code: "origin-not-allowed",
+    });
+  });
+
   it("returns 400 when message is missing", async () => {
     const response = await POST(
       createRequest({

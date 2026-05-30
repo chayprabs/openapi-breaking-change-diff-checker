@@ -37,9 +37,7 @@ describe("POST /api/fetch-spec", () => {
   });
 
   it("blocks localhost URLs with a safe error", async () => {
-    const response = await POST(
-      createRequest({ url: "http://127.0.0.1/openapi.yaml" }),
-    );
+    const response = await POST(createRequest({ url: "http://127.0.0.1/openapi.yaml" }));
 
     expect(response.status).toBe(403);
     const body = await response.json();

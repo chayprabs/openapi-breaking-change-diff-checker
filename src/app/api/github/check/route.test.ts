@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   baseSampleOpenApi31,
   revisionSampleOpenApi31,
@@ -57,6 +57,31 @@ describe("POST /api/github/check", () => {
     const body = await response.json();
     expect(body.conclusion).toBe("failure");
     expect(body.breaking).toBeGreaterThan(0);
+  });
+
+  it("returns 503 in production when webhook secret is not configured", async () => {
+    const previousSecret = process.env.GITHUB_APP_WEBHOOK_SECRET;
+    vi.stubEnv("NODE_ENV", "production");
+    delete process.env.GITHUB_APP_WEBHOOK_SECRET;
+
+    try {
+      const response = await POST(
+        createRequest({
+          baseContent: baseSampleOpenApi31,
+          revisionContent: baseSampleOpenApi31,
+        }),
+      );
+
+      expect(response.status).toBe(503);
+    } finally {
+      vi.unstubAllEnvs();
+
+      if (previousSecret === undefined) {
+        delete process.env.GITHUB_APP_WEBHOOK_SECRET;
+      } else {
+        process.env.GITHUB_APP_WEBHOOK_SECRET = previousSecret;
+      }
+    }
   });
 
   it("returns 401 when webhook secret is configured and header is wrong", async () => {
