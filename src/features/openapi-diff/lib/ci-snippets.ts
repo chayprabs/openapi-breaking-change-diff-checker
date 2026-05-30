@@ -6,7 +6,7 @@ import type { AnalysisSettings } from "@/features/openapi-diff/types";
 
 export type CiSnippetTarget = "docker" | "github" | "gitlab" | "local";
 
-export type CiSnippetEngine = "builtin" | "oasdiff";
+export type CiSnippetEngine = "authos" | "oasdiff";
 
 export type CiSnippetConfig = {
   baseSpecPath: string;
@@ -35,14 +35,14 @@ const OASDIFF_DOCKER_IMAGE = "tufin/oasdiff";
 export const CI_SNIPPET_PARITY_NOTE_OASDIFF =
   "The oasdiff CI snippet may differ slightly from this browser report for complex refs or unsupported schema features.";
 
-export const CI_SNIPPET_PARITY_NOTE_BUILTIN =
-  "The built-in engine snippet runs the same semantic engine as this browser report (pnpm openapi-diff).";
+export const CI_SNIPPET_PARITY_NOTE_AUTHOS =
+  "The Authos engine snippet runs the same semantic engine as this browser report (pnpm openapi-diff).";
 
 export const ciSnippetEngineOptions = [
   {
     description: "Same engine as this browser report. Recommended for parity with the UI.",
-    label: "Built-in engine",
-    value: "builtin",
+    label: "Authos engine",
+    value: "authos",
   },
   {
     description: "Popular open-source OpenAPI diff for pipelines that already use oasdiff.",
@@ -83,12 +83,14 @@ export const ciSnippetTargetOptions = [
 }>;
 
 export function createCiSnippetBundle(config: CiSnippetConfig): CiSnippetBundle {
-  const engineLabel = config.engine === "builtin" ? "builtin" : "oasdiff";
+  const engineLabel = config.engine === "authos" ? "authos" : "oasdiff";
 
   return {
     engineLabel,
     parityNote:
-      config.engine === "builtin" ? CI_SNIPPET_PARITY_NOTE_BUILTIN : CI_SNIPPET_PARITY_NOTE_OASDIFF,
+      config.engine === "authos"
+        ? CI_SNIPPET_PARITY_NOTE_AUTHOS
+        : CI_SNIPPET_PARITY_NOTE_OASDIFF,
     settingsSummary: createSettingsSummary(config),
     snippet: createSnippet(config),
     targetLabel:
@@ -104,8 +106,8 @@ export function createGitHubWorkflowDownload(config: CiSnippetConfig) {
   return {
     content: snippet.snippet,
     fileName:
-      config.engine === "builtin"
-        ? ".github/workflows/openapi-diff-builtin.yml"
+      config.engine === "authos"
+        ? ".github/workflows/authos-openapi-diff.yml"
         : ".github/workflows/openapi-diff.yml",
   };
 }
@@ -119,17 +121,17 @@ export function createDefaultCiPaths() {
 }
 
 function createSnippet(config: CiSnippetConfig) {
-  if (config.engine === "builtin") {
+  if (config.engine === "authos") {
     switch (config.target) {
       case "github":
-        return createBuiltinGitHubActionsSnippet(config);
+        return createAuthosGitHubActionsSnippet(config);
       case "gitlab":
-        return createBuiltinGitLabSnippet(config);
+        return createAuthosGitLabSnippet(config);
       case "docker":
-        return createBuiltinDockerSnippet(config);
+        return createAuthosDockerSnippet(config);
       case "local":
       default:
-        return createBuiltinLocalSnippet(config);
+        return createAuthosLocalSnippet(config);
     }
   }
 
@@ -146,38 +148,38 @@ function createSnippet(config: CiSnippetConfig) {
   }
 }
 
-function createBuiltinFailOnFlag(config: Pick<CiSnippetConfig, "failBuildOnBreaking">) {
+function createAuthosFailOnFlag(config: Pick<CiSnippetConfig, "failBuildOnBreaking">) {
   return config.failBuildOnBreaking ? " --fail-on breaking,dangerous" : "";
 }
 
-function createBuiltinLocalSnippet(config: CiSnippetConfig) {
+function createAuthosLocalSnippet(config: CiSnippetConfig) {
   return [
     "pnpm install --frozen-lockfile",
-    `pnpm openapi-diff --base ${quoteShell(config.baseSpecPath)} --revision ${quoteShell(config.revisionSpecPath)} --format markdown --output ${quoteShell(config.reportOutputPath)}${createBuiltinFailOnFlag(config)}`,
+    `pnpm openapi-diff --base ${quoteShell(config.baseSpecPath)} --revision ${quoteShell(config.revisionSpecPath)} --format markdown --output ${quoteShell(config.reportOutputPath)}${createAuthosFailOnFlag(config)}`,
   ].join("\n");
 }
 
-function createBuiltinDockerSnippet(config: CiSnippetConfig) {
+function createAuthosDockerSnippet(config: CiSnippetConfig) {
   return [
     "docker run --rm -t \\",
     '  -v "${PWD}:/work" \\',
     "  -w /work \\",
     "  node:20-bookworm \\",
-    `  bash -lc "corepack enable && pnpm install --frozen-lockfile && pnpm openapi-diff --base ${config.baseSpecPath} --revision ${config.revisionSpecPath} --format markdown --output ${config.reportOutputPath}${createBuiltinFailOnFlag(config)}"`,
+    `  bash -lc "corepack enable && pnpm install --frozen-lockfile && pnpm openapi-diff --base ${config.baseSpecPath} --revision ${config.revisionSpecPath} --format markdown --output ${config.reportOutputPath}${createAuthosFailOnFlag(config)}"`,
   ].join("\n");
 }
 
-function createBuiltinGitHubActionsSnippet(config: CiSnippetConfig) {
+function createAuthosGitHubActionsSnippet(config: CiSnippetConfig) {
   const watchedPaths = [...new Set([config.baseSpecPath, config.revisionSpecPath])];
   const failStep = config.failBuildOnBreaking
     ? [
         "      - name: Fail on breaking changes",
-        `        run: pnpm openapi-diff --base ${quoteYaml(`origin/\${{ github.base_ref }}:${config.baseSpecPath}`)} --revision ${quoteYaml(`HEAD:${config.revisionSpecPath}`)} --fail-on breaking`,
+        `        run: pnpm openapi-diff --base ${quoteYaml(`origin/\${{ github.base_ref }}:${config.baseSpecPath}`)} --revision ${quoteYaml(`HEAD:${config.revisionSpecPath}`)}${createBuiltinFailOnFlag(config)}`,
       ]
     : [];
 
   return [
-    "name: OpenAPI diff (built-in engine)",
+    "name: Authos OpenAPI diff",
     "",
     "on:",
     "  pull_request:",
@@ -185,7 +187,7 @@ function createBuiltinGitHubActionsSnippet(config: CiSnippetConfig) {
     ...watchedPaths.map((path) => `      - ${quoteYaml(path)}`),
     "",
     "jobs:",
-    "  openapi-diff-builtin:",
+    "  authos-openapi-diff:",
     "    runs-on: ubuntu-latest",
     "    steps:",
     "      - uses: actions/checkout@v6",
@@ -205,11 +207,11 @@ function createBuiltinGitHubActionsSnippet(config: CiSnippetConfig) {
   ].join("\n");
 }
 
-function createBuiltinGitLabSnippet(config: CiSnippetConfig) {
+function createAuthosGitLabSnippet(config: CiSnippetConfig) {
   const baseRefPath = `origin/$CI_MERGE_REQUEST_TARGET_BRANCH_NAME:${config.baseSpecPath}`;
 
   return [
-    "openapi_diff_builtin:",
+    "authos_openapi_diff:",
     "  image: node:20-bookworm",
     "  stage: test",
     "  rules:",
@@ -217,9 +219,9 @@ function createBuiltinGitLabSnippet(config: CiSnippetConfig) {
     "  before_script:",
     "    - corepack enable",
     "    - pnpm install --frozen-lockfile",
-    '    - git fetch --depth=1 origin "$CI_MERGE_REQUEST_TARGET_BRANCH_NAME"',
+    "    - git fetch --depth=1 origin \"$CI_MERGE_REQUEST_TARGET_BRANCH_NAME\"",
     "  script:",
-    `    - pnpm openapi-diff --base ${quoteShell(baseRefPath)} --revision ${quoteShell(config.revisionSpecPath)} --format markdown --output ${quoteShell(config.reportOutputPath)}${createBuiltinFailOnFlag(config)}`,
+    `    - pnpm openapi-diff --base ${quoteShell(baseRefPath)} --revision ${quoteShell(config.revisionSpecPath)} --format markdown --output ${quoteShell(config.reportOutputPath)}${createAuthosFailOnFlag(config)}`,
     "  artifacts:",
     "    when: always",
     "    paths:",
@@ -229,7 +231,9 @@ function createBuiltinGitLabSnippet(config: CiSnippetConfig) {
 
 function createGitHubActionsSnippet(config: CiSnippetConfig) {
   const watchedPaths = [...new Set([config.baseSpecPath, config.revisionSpecPath])];
-  const failOnLines = config.failBuildOnBreaking ? ["          fail-on: ERR"] : [];
+  const failOnLines = config.failBuildOnBreaking
+    ? ["          fail-on: ERR"]
+    : [];
 
   return [
     "name: OpenAPI breaking changes",
@@ -296,7 +300,11 @@ function createGitLabSnippet(config: CiSnippetConfig) {
 function createLocalCliSnippet(config: CiSnippetConfig) {
   return [
     `mkdir -p "$(dirname ${quoteShell(config.reportOutputPath)})"`,
-    createChangelogCommand(config.baseSpecPath, config.revisionSpecPath, config.reportOutputPath),
+    createChangelogCommand(
+      config.baseSpecPath,
+      config.revisionSpecPath,
+      config.reportOutputPath,
+    ),
     createBreakingCommand(config, config.baseSpecPath, config.revisionSpecPath),
   ].join("\n");
 }
@@ -335,8 +343,8 @@ function createSettingsSummary(config: CiSnippetConfig) {
 }
 
 function createUsageHint(config: CiSnippetConfig) {
-  if (config.engine === "builtin") {
-    return "Built-in snippets run pnpm openapi-diff so CI matches the browser engine.";
+  if (config.engine === "authos") {
+    return "Authos snippets run pnpm openapi-diff so CI matches the browser engine.";
   }
 
   if (config.target === "github" || config.target === "gitlab") {
