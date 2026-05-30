@@ -37,7 +37,7 @@ export type OpenApiDiffFeedbackPayload = {
   email?: string;
   kind: FeedbackKind;
   message: string;
-  page: "/tools/openapi-diff-breaking-changes";
+  page: "/";
   rating: FeedbackRating;
   reportMetadata?: FeedbackReportMetadata;
   tool: "openapi_diff";
