@@ -25,9 +25,7 @@ export function createRateLimitHeaders(rateLimit: {
   resetAt: number;
 }) {
   return {
-    "Retry-After": String(
-      Math.max(1, Math.ceil((rateLimit.resetAt - Date.now()) / 1000)),
-    ),
+    "Retry-After": String(Math.max(1, Math.ceil((rateLimit.resetAt - Date.now()) / 1000))),
     "X-RateLimit-Limit": String(rateLimit.limit),
     "X-RateLimit-Remaining": String(rateLimit.remaining),
     "X-RateLimit-Reset": String(Math.ceil(rateLimit.resetAt / 1000)),
@@ -69,7 +67,7 @@ export function originForbiddenResponse(rateLimit?: SimpleRateLimitResult) {
   return jsonResponse(
     {
       code: "origin-not-allowed",
-      error: "This endpoint only accepts same-origin requests from the Authos app.",
+      error: "This endpoint only accepts same-origin requests from the OpenAPI Diff app.",
     },
     init,
   );

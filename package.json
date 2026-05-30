@@ -1,9 +1,9 @@
 {
-  "name": "authos",
+  "name": "openapi-breaking-change-diff-checker",
   "version": "0.1.0",
   "private": true,
   "bin": {
-    "authos-openapi-diff": "./scripts/openapi-diff-cli.ts"
+    "openapi-diff": "./scripts/openapi-diff-cli.ts"
   },
   "packageManager": "pnpm@10.33.1",
   "engines": {

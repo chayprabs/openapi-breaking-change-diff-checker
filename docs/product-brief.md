@@ -2,7 +2,7 @@
 
 ## Product
 
-**OpenAPI Breaking-Change Diff and Contract Risk Report** — the first live tool on the Authos developer-tools site.
+**OpenAPI Breaking-Change Diff and Contract Risk Report** — the first live tool on the OpenAPI Diff developer-tools site.
 
 ## Summary
 
@@ -40,4 +40,4 @@ Give API teams a fast way to understand whether a new OpenAPI document is safe t
 
 ## Domain note
 
-Do not deploy canonical metadata to `https://authos.dev` unless you control that domain for this product. That hostname currently serves a separate AuthOS identity platform. Use `NEXT_PUBLIC_SITE_URL` for your deployment origin (see `.env.example` and `docs/resolved-decisions.md`).
+Do not deploy canonical metadata to `https://example.com` unless you control that domain for this product. That hostname currently serves a separate unrelated identity platform. Use `NEXT_PUBLIC_SITE_URL` for your deployment origin (see `.env.example` and `docs/resolved-decisions.md`).

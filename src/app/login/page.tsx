@@ -18,7 +18,7 @@ export default function LoginPage() {
     <PageShell
       eyebrow="Accounts"
       title="Sign in for saved reports and team features"
-      description="OpenAPI Diff and the other Authos tools stay available without login. Sign in when you want saved reports, team ignore rules, or private share links."
+      description="OpenAPI Diff and the other OpenAPI Diff tools stay available without login. Sign in when you want saved reports, team ignore rules, or private share links."
     >
       <Section
         title="Continue without signing in"

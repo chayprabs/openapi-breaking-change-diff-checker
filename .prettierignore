@@ -5,3 +5,5 @@ coverage
 node_modules
 pnpm-lock.yaml
 pnpm-workspace.yaml
+src/features/openapi-diff/goldens/**/revision.yaml
+src/features/openapi-diff/goldens/**/base.yaml

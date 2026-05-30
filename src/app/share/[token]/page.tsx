@@ -23,11 +23,7 @@ type CommentRow = {
   createdAt: string;
 };
 
-export default function PrivateSharePage({
-  params,
-}: {
-  params: Promise<{ token: string }>;
-}) {
+export default function PrivateSharePage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = use(params);
   const [state, setState] = useState<ShareState>({ status: "loading" });
   const [comments, setComments] = useState<CommentRow[]>([]);

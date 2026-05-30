@@ -11,7 +11,10 @@ import {
 describe("public spec URL safety", () => {
   it("blocks unsupported protocols, auth URLs, internal hosts, and private IPv6 targets", () => {
     expectErrorCode("ftp://example.com/openapi.yaml", "unsupported-protocol");
-    expectErrorCode("https://user:pass@example.com/openapi.yaml", "authenticated-urls-not-supported");
+    expectErrorCode(
+      "https://user:pass@example.com/openapi.yaml",
+      "authenticated-urls-not-supported",
+    );
     expectErrorCode("https://service/openapi.yaml", "blocked-host");
     expectErrorCode("https://metadata.google.internal/openapi.yaml", "blocked-host");
     expectErrorCode("https://[::1]/openapi.yaml", "blocked-host");
@@ -38,16 +41,10 @@ describe("public spec URL safety", () => {
       ),
     ).not.toThrow();
     expect(() =>
-      assertAllowedSpecContentType(
-        "application/x-yaml",
-        "https://example.com/openapi.yaml",
-      ),
+      assertAllowedSpecContentType("application/x-yaml", "https://example.com/openapi.yaml"),
     ).not.toThrow();
     expect(() =>
-      assertAllowedSpecContentType(
-        "application/octet-stream",
-        "https://example.com/openapi.bin",
-      ),
+      assertAllowedSpecContentType("application/octet-stream", "https://example.com/openapi.bin"),
     ).toThrow(PublicSpecFetchError);
   });
 
@@ -84,7 +81,9 @@ describe("public spec URL safety", () => {
   });
 
   it("returns a validated public URL when the input is safe", () => {
-    const result = validatePublicSpecUrl("https://raw.githubusercontent.com/acme/api/main/openapi.yaml");
+    const result = validatePublicSpecUrl(
+      "https://raw.githubusercontent.com/acme/api/main/openapi.yaml",
+    );
 
     expect(result.url.hostname).toBe("raw.githubusercontent.com");
     expect(result.url.pathname).toBe("/acme/api/main/openapi.yaml");

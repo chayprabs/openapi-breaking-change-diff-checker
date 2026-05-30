@@ -3,11 +3,7 @@
 import { json } from "@codemirror/lang-json";
 import { yaml } from "@codemirror/lang-yaml";
 import type { Extension } from "@codemirror/state";
-import {
-  Decoration,
-  EditorView,
-  placeholder as editorPlaceholder,
-} from "@codemirror/view";
+import { Decoration, EditorView, placeholder as editorPlaceholder } from "@codemirror/view";
 import CodeMirror from "@uiw/react-codemirror";
 import type { ChangeEvent, DragEvent } from "react";
 import {
@@ -77,9 +73,7 @@ import {
   createSampleLoadedEvent,
 } from "@/features/openapi-diff/lib/privacy-safe-analytics";
 import { redactTextSources } from "@/features/openapi-diff/lib/redaction";
-import {
-  createTooManyFindingsWarning,
-} from "@/features/openapi-diff/lib/report-display";
+import { createTooManyFindingsWarning } from "@/features/openapi-diff/lib/report-display";
 import { parseShareStateFromUrl } from "@/features/openapi-diff/lib/share-links";
 import {
   createDefaultReportExplorerUiState,
@@ -203,10 +197,7 @@ const DEFAULT_SETTINGS: WorkspaceSettings = {
   selectedSampleId: null,
 };
 
-const ANALYSIS_PROGRESS_DESCRIPTIONS: Record<
-  (typeof analysisProgressLabels)[number],
-  string
-> = {
+const ANALYSIS_PROGRESS_DESCRIPTIONS: Record<(typeof analysisProgressLabels)[number], string> = {
   "Building report": "Turning normalized findings into the final contract risk report.",
   "Classifying impact": "Applying the selected compatibility profile and rule catalog.",
   "Comparing parameters, responses, and schemas":
@@ -216,8 +207,7 @@ const ANALYSIS_PROGRESS_DESCRIPTIONS: Record<
   "Parsing base spec": "Reading the current or production contract into the worker pipeline.",
   "Parsing revision spec": "Reading the proposed contract into the worker pipeline.",
   "Resolving references": "Normalizing local references before semantic comparison.",
-  "Validating OpenAPI documents":
-    "Running structural and OpenAPI-specific validation checks.",
+  "Validating OpenAPI documents": "Running structural and OpenAPI-specific validation checks.",
 };
 
 const WORKSPACE_DIFF_CATEGORIES = new Set([
@@ -232,12 +222,7 @@ const WORKSPACE_DIFF_CATEGORIES = new Set([
   "schema",
   "security",
 ]);
-const WORKSPACE_DIFF_SEVERITIES = new Set([
-  "breaking",
-  "dangerous",
-  "safe",
-  "info",
-]);
+const WORKSPACE_DIFF_SEVERITIES = new Set(["breaking", "dangerous", "safe", "info"]);
 const WORKSPACE_EXPORT_FORMATS = new Set(["json", "markdown", "html", "csv"]);
 const WORKSPACE_HTTP_METHODS = new Set([
   "delete",
@@ -367,7 +352,7 @@ function parseStoredAnalysisSettings(
     (option) => option.value === value.consumerProfile,
   )
     ? (value.consumerProfile as ConsumerProfile)
-    : legacyConsumerProfile ?? DEFAULT_SETTINGS.analysisSettings.consumerProfile;
+    : (legacyConsumerProfile ?? DEFAULT_SETTINGS.analysisSettings.consumerProfile);
   const remoteRefPolicy = remoteRefPolicyOptions.some(
     (option) => option.value === value.remoteRefPolicy,
   )
@@ -394,7 +379,11 @@ function parseStoredAnalysisSettings(
   const customRedactionRules = Array.isArray(value.customRedactionRules)
     ? value.customRedactionRules
         .map((entry) => {
-          if (!isRecord(entry) || typeof entry.id !== "string" || typeof entry.pattern !== "string") {
+          if (
+            !isRecord(entry) ||
+            typeof entry.id !== "string" ||
+            typeof entry.pattern !== "string"
+          ) {
             return null;
           }
 
@@ -405,8 +394,8 @@ function parseStoredAnalysisSettings(
             ...(typeof entry.label === "string" ? { label: entry.label } : {}),
           } satisfies AnalysisSettings["customRedactionRules"][number];
         })
-        .filter(
-          (entry): entry is AnalysisSettings["customRedactionRules"][number] => Boolean(entry),
+        .filter((entry): entry is AnalysisSettings["customRedactionRules"][number] =>
+          Boolean(entry),
         )
     : undefined;
   const ignoreRules = Array.isArray(value.ignoreRules)
@@ -441,27 +430,18 @@ function parseStoredAnalysisSettings(
                   ),
                 }
               : {}),
-            ...(typeof entry.expiresAt === "string"
-              ? { expiresAt: entry.expiresAt }
-              : {}),
-            ...(typeof entry.findingId === "string"
-              ? { findingId: entry.findingId }
-              : {}),
+            ...(typeof entry.expiresAt === "string" ? { expiresAt: entry.expiresAt } : {}),
+            ...(typeof entry.findingId === "string" ? { findingId: entry.findingId } : {}),
             ...(typeof entry.jsonPathPrefix === "string"
               ? { jsonPathPrefix: entry.jsonPathPrefix }
               : {}),
             ...(typeof entry.method === "string" && WORKSPACE_HTTP_METHODS.has(entry.method)
               ? {
-                  method:
-                    entry.method as AnalysisSettings["ignoreRules"][number]["method"],
+                  method: entry.method as AnalysisSettings["ignoreRules"][number]["method"],
                 }
               : {}),
-            ...(typeof entry.operationId === "string"
-              ? { operationId: entry.operationId }
-              : {}),
-            ...(typeof entry.pathPattern === "string"
-              ? { pathPattern: entry.pathPattern }
-              : {}),
+            ...(typeof entry.operationId === "string" ? { operationId: entry.operationId } : {}),
+            ...(typeof entry.pathPattern === "string" ? { pathPattern: entry.pathPattern } : {}),
             ...(typeof entry.ruleId === "string" ? { ruleId: entry.ruleId } : {}),
             ...(typeof entry.tag === "string" ? { tag: entry.tag } : {}),
           } as AnalysisSettings["ignoreRules"][number];
@@ -480,9 +460,7 @@ function parseStoredAnalysisSettings(
     ...(typeof value.includeInfoFindings === "boolean"
       ? { includeInfoFindings: value.includeInfoFindings }
       : {}),
-    ...(typeof value.redactExamples === "boolean"
-      ? { redactExamples: value.redactExamples }
-      : {}),
+    ...(typeof value.redactExamples === "boolean" ? { redactExamples: value.redactExamples } : {}),
     ...(typeof value.redactServerUrls === "boolean"
       ? { redactServerUrls: value.redactServerUrls }
       : {}),
@@ -497,9 +475,7 @@ function parseStoredAnalysisSettings(
   });
 }
 
-function parseStoredSpecs(
-  value: unknown,
-): Record<WorkspacePanelId, SpecInput> | null {
+function parseStoredSpecs(value: unknown): Record<WorkspacePanelId, SpecInput> | null {
   if (!isRecord(value)) {
     return null;
   }
@@ -517,10 +493,7 @@ function parseStoredSpecs(
   };
 }
 
-function parseStoredSpecInput(
-  panelId: WorkspacePanelId,
-  value: unknown,
-): SpecInput | null {
+function parseStoredSpecInput(panelId: WorkspacePanelId, value: unknown): SpecInput | null {
   if (!isRecord(value) || typeof value.content !== "string") {
     return null;
   }
@@ -609,9 +582,7 @@ function readStoredWorkspaceSettings(): WorkspaceSettings {
   }
 
   try {
-    const rawSettings = window.localStorage.getItem(
-      OPENAPI_WORKSPACE_SETTINGS_STORAGE_KEY,
-    );
+    const rawSettings = window.localStorage.getItem(OPENAPI_WORKSPACE_SETTINGS_STORAGE_KEY);
 
     if (!rawSettings) {
       return DEFAULT_SETTINGS;
@@ -654,7 +625,7 @@ function readStoredWorkspaceSettings(): WorkspaceSettings {
 function createInitialWorkspaceState(): WorkspaceStateSnapshot {
   const settings = readStoredWorkspaceSettings();
   const shareState = readWorkspaceShareState();
-  const rememberedSpecs = settings.rememberEditorContents ? settings.specs ?? null : null;
+  const rememberedSpecs = settings.rememberEditorContents ? (settings.specs ?? null) : null;
   const baseSnapshot = rememberedSpecs
     ? rememberedSpecs
     : settings.selectedSampleId
@@ -670,8 +641,7 @@ function createInitialWorkspaceState(): WorkspaceStateSnapshot {
       analysisSettings: shareState.analysisSettings ?? settings.analysisSettings,
       autoRunAnalysis: settings.autoRunAnalysis,
       rememberEditorContents: settings.rememberEditorContents,
-      reportExplorerUiState:
-        shareState.reportExplorerUiState ?? settings.reportExplorerUiState,
+      reportExplorerUiState: shareState.reportExplorerUiState ?? settings.reportExplorerUiState,
       selectedSampleId: null,
       shareState: {
         errorMessage: null,
@@ -687,13 +657,11 @@ function createInitialWorkspaceState(): WorkspaceStateSnapshot {
   }
 
   return {
-    activeMobileTab:
-      shareState.sharedActiveMobileTab ?? settings.activeMobileTab,
+    activeMobileTab: shareState.sharedActiveMobileTab ?? settings.activeMobileTab,
     analysisSettings: shareState.analysisSettings ?? settings.analysisSettings,
     autoRunAnalysis: settings.autoRunAnalysis,
     rememberEditorContents: settings.rememberEditorContents,
-    reportExplorerUiState:
-      shareState.reportExplorerUiState ?? settings.reportExplorerUiState,
+    reportExplorerUiState: shareState.reportExplorerUiState ?? settings.reportExplorerUiState,
     selectedSampleId: settings.selectedSampleId,
     shareState: {
       errorMessage: shareState.errorMessage,
@@ -775,10 +743,7 @@ function dedupeIssues<T extends SpecParserIssue>(issues: T[]) {
   });
 }
 
-function areIssuesEqual(
-  previous: readonly SpecParserIssue[],
-  next: readonly SpecParserIssue[],
-) {
+function areIssuesEqual(previous: readonly SpecParserIssue[], next: readonly SpecParserIssue[]) {
   if (previous.length !== next.length) {
     return false;
   }
@@ -822,9 +787,7 @@ function formatMissingSpecTitle(missingPanels: readonly WorkspacePanelId[]) {
     return "Both specs are required";
   }
 
-  return missingPanels[0] === "revision"
-    ? "Revision spec is required"
-    : "Base spec is required";
+  return missingPanels[0] === "revision" ? "Revision spec is required" : "Base spec is required";
 }
 
 function formatMissingSpecMessage(
@@ -834,8 +797,7 @@ function formatMissingSpecMessage(
   const missingLabels = missingPanels.map((panelId) =>
     panelId === "revision" ? "revision spec" : "base spec",
   );
-  const joinedLabels =
-    missingLabels.length === 2 ? "base and revision specs" : missingLabels[0];
+  const joinedLabels = missingLabels.length === 2 ? "base and revision specs" : missingLabels[0];
 
   if (hasPreviousReport) {
     return `Add the ${joinedLabels} back in and rerun analysis. The previous successful report stays visible until a newer valid run completes.`;
@@ -1238,17 +1200,10 @@ const WorkspaceEditorPanel = memo(function WorkspaceEditorPanel({
           <Button onClick={() => fileInputRef.current?.click()} variant="secondary">
             Upload file
           </Button>
-          <Button
-            disabled={!readClipboardSupported}
-            onClick={onClipboardRead}
-            variant="outline"
-          >
+          <Button disabled={!readClipboardSupported} onClick={onClipboardRead} variant="outline">
             Paste clipboard
           </Button>
-          <Button
-            onClick={() => setIsUrlImportOpen((current) => !current)}
-            variant="outline"
-          >
+          <Button onClick={() => setIsUrlImportOpen((current) => !current)} variant="outline">
             Import from URL
           </Button>
           <Button disabled={!spec.content} onClick={onClear} variant="ghost">
@@ -1260,19 +1215,14 @@ const WorkspaceEditorPanel = memo(function WorkspaceEditorPanel({
           <div className="border-line bg-panel-muted space-y-3 rounded-2xl border p-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <p className="text-sm font-medium text-foreground">Import from URL</p>
+                <p className="text-foreground text-sm font-medium">Import from URL</p>
                 <p className="text-muted mt-1 text-sm leading-6">
-                  Public raw GitHub URLs, public docs URLs, and public API endpoints are
-                  supported. Authenticated and private URLs are not supported in the free
-                  web tool.
+                  Public raw GitHub URLs, public docs URLs, and public API endpoints are supported.
+                  Authenticated and private URLs are not supported in the free web tool.
                 </p>
               </div>
               {urlImportState.channel ? (
-                <Badge
-                  variant={
-                    urlImportState.channel === "browser" ? "safe" : "info"
-                  }
-                >
+                <Badge variant={urlImportState.channel === "browser" ? "safe" : "info"}>
                   {formatFetchChannelLabel(urlImportState.channel)}
                 </Badge>
               ) : null}
@@ -1320,7 +1270,7 @@ const WorkspaceEditorPanel = memo(function WorkspaceEditorPanel({
       <CardContent className="space-y-4">
         <div
           className={`border-line bg-panel relative overflow-hidden rounded-2xl border ${
-            isDragActive ? "ring-2 ring-accent/30" : ""
+            isDragActive ? "ring-accent/30 ring-2" : ""
           }`}
           onDragEnter={handleDragEnter}
           onDragLeave={handleDragLeave}
@@ -1328,7 +1278,7 @@ const WorkspaceEditorPanel = memo(function WorkspaceEditorPanel({
           onDrop={handleDrop}
         >
           {isDragActive ? (
-            <div className="bg-overlay absolute inset-0 z-10 flex items-center justify-center px-6 text-center text-sm font-medium text-foreground">
+            <div className="bg-overlay text-foreground absolute inset-0 z-10 flex items-center justify-center px-6 text-center text-sm font-medium">
               Drop a YAML or JSON file to replace the current {label.toLowerCase()}.
             </div>
           ) : null}
@@ -1352,7 +1302,7 @@ const WorkspaceEditorPanel = memo(function WorkspaceEditorPanel({
             <span>{characterCount.toLocaleString()} chars</span>
             <span>{formatBytes(byteCount)}</span>
           </div>
-          <span className="text-muted font-mono text-[0.68rem] uppercase tracking-[0.18em]">
+          <span className="text-muted font-mono text-[0.68rem] tracking-[0.18em] uppercase">
             .yaml .yml .json
           </span>
         </div>
@@ -1428,9 +1378,7 @@ function WorkspaceResultsPanel({
   revisionSpec,
   selectedSampleId,
 }: WorkspaceResultsPanelProps) {
-  const selectedSample = selectedSampleId
-    ? getWorkspaceSample(selectedSampleId)
-    : null;
+  const selectedSample = selectedSampleId ? getWorkspaceSample(selectedSampleId) : null;
   const missingPanels = getMissingSpecPanels(baseSpec, revisionSpec);
   const hasBothSpecs = missingPanels.length === 0;
   const baseStatus = getParseStatusSummary(editorStates.base);
@@ -1443,10 +1391,12 @@ function WorkspaceResultsPanel({
     ? createTooManyFindingsWarning(report.summary.totalFindings)
     : null;
   const reportWarnings = report
-    ? [...new Set([
-        ...report.warnings,
-        ...(tooManyFindingsWarning ? [tooManyFindingsWarning] : []),
-      ])]
+    ? [
+        ...new Set([
+          ...report.warnings,
+          ...(tooManyFindingsWarning ? [tooManyFindingsWarning] : []),
+        ]),
+      ]
     : [];
 
   if (!hasBothSpecs && !analysisState.result) {
@@ -1460,10 +1410,7 @@ function WorkspaceResultsPanel({
             {formatMissingSpecMessage(missingPanels, false)}
           </Alert>
           {globalAnalysisErrors.length ? (
-            <Alert
-              title="Worker error"
-              variant={getAnalysisErrorVariant(globalAnalysisErrors)}
-            >
+            <Alert title="Worker error" variant={getAnalysisErrorVariant(globalAnalysisErrors)}>
               {renderIssueList(globalAnalysisErrors)}
             </Alert>
           ) : null}
@@ -1487,8 +1434,8 @@ function WorkspaceResultsPanel({
           <div>
             <CardTitle>Parsing and validation</CardTitle>
             <p className="text-muted mt-1 text-sm leading-6">
-              Parsing and OpenAPI checks now run in a Web Worker so medium-sized
-              specs do not block the editor surface.
+              Parsing and OpenAPI checks now run in a Web Worker so medium-sized specs do not block
+              the editor surface.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -1516,8 +1463,8 @@ function WorkspaceResultsPanel({
           <Alert title={analysisProgressLabel} variant="info">
             <div className="space-y-4">
               <p>
-                The worker is processing both specs off the main thread. You can
-                keep editing while it runs.
+                The worker is processing both specs off the main thread. You can keep editing while
+                it runs.
               </p>
               <ProgressSteps steps={analysisSteps} />
               <div className="flex flex-wrap gap-3">
@@ -1585,11 +1532,7 @@ function WorkspaceResultsPanel({
             description="Current worker validation mode"
             label="Analysis source"
             severity={analysisState.result?.validationSource === "scalar" ? "safe" : "info"}
-            value={
-              analysisState.result?.validationSource === "scalar"
-                ? "Scalar"
-                : "Lightweight"
-            }
+            value={analysisState.result?.validationSource === "scalar" ? "Scalar" : "Lightweight"}
           />
           <MetricCard
             description="Warnings across the last successful analysis"
@@ -1624,17 +1567,13 @@ function WorkspaceResultsPanel({
               <MetricCard
                 description="Revision schemas minus base schemas"
                 label="Schema delta"
-                severity={
-                  analysisState.result.summary.schemaDelta >= 0 ? "info" : "dangerous"
-                }
+                severity={analysisState.result.summary.schemaDelta >= 0 ? "info" : "dangerous"}
                 value={analysisState.result.summary.schemaDelta}
               />
               <MetricCard
                 description="Unresolved refs across both specs"
                 label="Unresolved refs"
-                severity={
-                  analysisState.result.summary.totalUnresolvedRefs ? "dangerous" : "safe"
-                }
+                severity={analysisState.result.summary.totalUnresolvedRefs ? "dangerous" : "safe"}
                 value={analysisState.result.summary.totalUnresolvedRefs}
               />
             </div>
@@ -1656,11 +1595,8 @@ function WorkspaceResultsPanel({
                     ["Resolve refs", analysisState.result.performance.refResolutionMs],
                     ["Total", analysisState.result.performance.totalMs],
                   ].map(([label, durationMs]) => (
-                    <div
-                      key={label}
-                      className="border-line bg-panel-muted rounded-2xl border p-4"
-                    >
-                      <p className="text-xs font-semibold tracking-[0.18em] text-muted uppercase">
+                    <div key={label} className="border-line bg-panel-muted rounded-2xl border p-4">
+                      <p className="text-muted text-xs font-semibold tracking-[0.18em] uppercase">
                         {label}
                       </p>
                       <p className="mt-2 text-2xl font-semibold">
@@ -1679,9 +1615,9 @@ function WorkspaceResultsPanel({
                   variant="info"
                 >
                   Last successful analysis ran at{" "}
-                  {new Date(analysisState.result.generatedAt).toLocaleTimeString()}.
-                  Findings below come from the normalized OpenAPI models, so they reflect
-                  contract impact rather than a raw text diff.
+                  {new Date(analysisState.result.generatedAt).toLocaleTimeString()}. Findings below
+                  come from the normalized OpenAPI models, so they reflect contract impact rather
+                  than a raw text diff.
                 </Alert>
 
                 <OpenApiDiffReportExplorer
@@ -1696,21 +1632,25 @@ function WorkspaceResultsPanel({
               </div>
             ) : (
               <Alert title="Rebuilding report view" variant="info">
-                The latest successful worker output is ready. The report interface is
-                catching up with the newest analysis snapshot.
+                The latest successful worker output is ready. The report interface is catching up
+                with the newest analysis snapshot.
               </Alert>
             )}
           </>
         ) : (
           <Alert title="Ready to analyze" variant="info">
             Press <KeyboardShortcut keys={["Ctrl", "Enter"]} /> or{" "}
-            <KeyboardShortcut keys={["Cmd", "Enter"]} /> to run parsing and validation.
-            Inline editor errors update automatically; the full cross-spec check runs on demand.
+            <KeyboardShortcut keys={["Cmd", "Enter"]} /> to run parsing and validation. Inline
+            editor errors update automatically; the full cross-spec check runs on demand.
           </Alert>
         )}
 
         <div className="flex flex-wrap items-center gap-3">
-          <Button disabled={analysisState.status === "running"} onClick={onAnalyze} variant="secondary">
+          <Button
+            disabled={analysisState.status === "running"}
+            onClick={onAnalyze}
+            variant="secondary"
+          >
             {analysisState.status === "running" ? "Analyzing..." : "Analyze specs"}
           </Button>
           {analysisState.status === "running" ? (
@@ -1756,7 +1696,7 @@ function SharedReportReadOnlyPanel({
             </Button>
             {sharedToolVersion ? (
               <span className="text-muted text-sm">
-                Shared from Authos v{sharedToolVersion}
+                Shared from OpenAPI Diff v{sharedToolVersion}
               </span>
             ) : null}
           </div>
@@ -1806,9 +1746,7 @@ export function OpenApiDiffWorkbench() {
   const [clientErrors, setClientErrors] = useState<
     Partial<Record<WorkspacePanelId, SpecParserError[]>>
   >({});
-  const [urlImportStates, setUrlImportStates] = useState<
-    Record<WorkspacePanelId, UrlImportState>
-  >({
+  const [urlImportStates, setUrlImportStates] = useState<Record<WorkspacePanelId, UrlImportState>>({
     base: { isLoading: false },
     revision: { isLoading: false },
   });
@@ -1834,8 +1772,8 @@ export function OpenApiDiffWorkbench() {
       sharedReport
         ? sharedReport
         : deferredAnalysisResult
-        ? reclassifyDiffReport(deferredAnalysisResult.report, analysisSettings)
-        : null,
+          ? reclassifyDiffReport(deferredAnalysisResult.report, analysisSettings)
+          : null,
     [analysisSettings, deferredAnalysisResult, sharedReport],
   );
 
@@ -1944,16 +1882,9 @@ export function OpenApiDiffWorkbench() {
     privacyInspection.detectedSecrets || Boolean(displayReport?.redaction?.detectedSecrets);
 
   const updateAnalysisSettings = useCallback(
-    (
-      updater:
-        | AnalysisSettings
-        | ((current: AnalysisSettings) => AnalysisSettings),
-    ) => {
+    (updater: AnalysisSettings | ((current: AnalysisSettings) => AnalysisSettings)) => {
       setAnalysisSettingsState((current) => {
-        const nextSettings =
-          typeof updater === "function"
-            ? updater(current)
-            : updater;
+        const nextSettings = typeof updater === "function" ? updater(current) : updater;
 
         return createAnalysisSettings(nextSettings);
       });
@@ -2046,19 +1977,19 @@ export function OpenApiDiffWorkbench() {
     }));
   }, []);
 
-  const setUrlImportState = useCallback(
-    (panelId: WorkspacePanelId, nextState: UrlImportState) => {
-      setUrlImportStates((current) => ({
-        ...current,
-        [panelId]: nextState,
-      }));
-    },
-    [],
-  );
+  const setUrlImportState = useCallback((panelId: WorkspacePanelId, nextState: UrlImportState) => {
+    setUrlImportStates((current) => ({
+      ...current,
+      [panelId]: nextState,
+    }));
+  }, []);
 
-  const clearUrlImportState = useCallback((panelId: WorkspacePanelId) => {
-    setUrlImportState(panelId, { isLoading: false });
-  }, [setUrlImportState]);
+  const clearUrlImportState = useCallback(
+    (panelId: WorkspacePanelId) => {
+      setUrlImportState(panelId, { isLoading: false });
+    },
+    [setUrlImportState],
+  );
 
   const handleAddIgnoreRule = useCallback(
     (ignoreRule: AnalysisSettings["ignoreRules"][number]) => {
@@ -2178,11 +2109,7 @@ export function OpenApiDiffWorkbench() {
   );
 
   const updateWorkspaceSpec = useCallback(
-    (
-      panelId: WorkspacePanelId,
-      nextContent: string,
-      overrides?: WorkspaceSpecOverrides,
-    ) => {
+    (panelId: WorkspacePanelId, nextContent: string, overrides?: WorkspaceSpecOverrides) => {
       const nextBytes = getSpecContentBytes(nextContent);
 
       if (nextBytes > SPEC_SIZE_HARD_LIMIT_BYTES) {
@@ -2196,8 +2123,7 @@ export function OpenApiDiffWorkbench() {
           {
             code: "spec-too-large",
             editorId: panelId,
-            message:
-              "This input exceeds the 10 MB hard limit for the in-browser workspace.",
+            message: "This input exceeds the 10 MB hard limit for the in-browser workspace.",
             source: "worker",
           },
         ]);
@@ -2207,9 +2133,7 @@ export function OpenApiDiffWorkbench() {
       setWorkspaceSpecs((current) => {
         const currentSpec = current[panelId];
         const nextFilename =
-          overrides && "filename" in overrides
-            ? overrides.filename
-            : currentSpec.filename;
+          overrides && "filename" in overrides ? overrides.filename : currentSpec.filename;
         const nextUrl =
           overrides && "url" in overrides
             ? overrides.url
@@ -2281,10 +2205,7 @@ export function OpenApiDiffWorkbench() {
       return;
     }
 
-    const missingPanels = getMissingSpecPanels(
-      workspaceSpecs.base,
-      workspaceSpecs.revision,
-    );
+    const missingPanels = getMissingSpecPanels(workspaceSpecs.base, workspaceSpecs.revision);
 
     if (missingPanels.length > 0) {
       setActiveMobileTab("results");
@@ -2593,8 +2514,7 @@ export function OpenApiDiffWorkbench() {
     updateAnalysisSettings(createAnalysisSettings());
     clearAllStates();
     notify({
-      description:
-        "Saved settings and remembered editor contents were removed from this browser.",
+      description: "Saved settings and remembered editor contents were removed from this browser.",
       title: "Local data cleared",
       variant: "success",
     });
@@ -2629,8 +2549,7 @@ export function OpenApiDiffWorkbench() {
           },
         ]);
         notify({
-          description:
-            "Files larger than 10 MB are blocked to avoid freezing the browser editor.",
+          description: "Files larger than 10 MB are blocked to avoid freezing the browser editor.",
           title: "File exceeds hard limit",
           variant: "error",
         });
@@ -2672,8 +2591,7 @@ export function OpenApiDiffWorkbench() {
 
         if (!clipboardText.trim()) {
           notify({
-            description:
-              "Copy a YAML or JSON document first, then try the clipboard button again.",
+            description: "Copy a YAML or JSON document first, then try the clipboard button again.",
             title: "Clipboard was empty",
             variant: "warning",
           });
@@ -2712,9 +2630,7 @@ export function OpenApiDiffWorkbench() {
             ? error.message
             : "Enter a valid public http or https URL.";
 
-        setClientPanelErrors(panelId, [
-          createPanelError(panelId, "url-import-blocked", message),
-        ]);
+        setClientPanelErrors(panelId, [createPanelError(panelId, "url-import-blocked", message)]);
         notify({
           description: message,
           title: "URL import blocked",
@@ -2746,9 +2662,7 @@ export function OpenApiDiffWorkbench() {
         const imported = updateWorkspaceSpec(panelId, result.content, {
           source: "url",
           url: result.finalUrl,
-          ...(typeof importedFilename === "string"
-            ? { filename: importedFilename }
-            : {}),
+          ...(typeof importedFilename === "string" ? { filename: importedFilename } : {}),
         });
 
         if (!imported) {
@@ -2782,9 +2696,7 @@ export function OpenApiDiffWorkbench() {
           isLoading: false,
           requestedUrl: rawUrl.trim(),
         });
-        setClientPanelErrors(panelId, [
-          createPanelError(panelId, "url-import-failed", message),
-        ]);
+        setClientPanelErrors(panelId, [createPanelError(panelId, "url-import-failed", message)]);
         notify({
           description: message,
           title: "URL import failed",
@@ -2792,13 +2704,7 @@ export function OpenApiDiffWorkbench() {
         });
       }
     },
-    [
-      clearClientPanelErrors,
-      notify,
-      setClientPanelErrors,
-      setUrlImportState,
-      updateWorkspaceSpec,
-    ],
+    [clearClientPanelErrors, notify, setClientPanelErrors, setUrlImportState, updateWorkspaceSpec],
   );
 
   const baseWarning =
@@ -2812,15 +2718,10 @@ export function OpenApiDiffWorkbench() {
   const workerStatusLabel = getWorkerStatusLabel(progress, analysisState, editorStates);
   const activeIgnoreRules = analysisSettings.ignoreRules;
 
-  const renderEditorPanel = (
-    panelId: WorkspacePanelId,
-    placeholder: string,
-  ) => {
+  const renderEditorPanel = (panelId: WorkspacePanelId, placeholder: string) => {
     const spec = workspaceSpecs[panelId];
     const workerState = editorStates[panelId];
-    const analysisErrors = analysisState.errors.filter(
-      (error) => error.editorId === panelId,
-    );
+    const analysisErrors = analysisState.errors.filter((error) => error.editorId === panelId);
     const errors = dedupeIssues([
       ...(clientErrors[panelId] ?? []),
       ...workerState.errors,
@@ -2979,7 +2880,7 @@ export function OpenApiDiffWorkbench() {
         }
       >
         <label className="text-muted flex items-center gap-3 text-sm">
-          <span className="font-medium text-foreground">Load sample</span>
+          <span className="text-foreground font-medium">Load sample</span>
           <select
             aria-label="Load sample workspace"
             className="border-line bg-panel rounded-xl border px-3 py-2 text-sm"
@@ -3002,7 +2903,7 @@ export function OpenApiDiffWorkbench() {
           </select>
         </label>
         <label className="text-muted flex items-center gap-3 text-sm">
-          <span className="font-medium text-foreground">Profile</span>
+          <span className="text-foreground font-medium">Profile</span>
           <select
             aria-label="Compatibility profile"
             className="border-line bg-panel rounded-xl border px-3 py-2 text-sm"
@@ -3050,9 +2951,7 @@ export function OpenApiDiffWorkbench() {
         </span>
         <span className="text-muted inline-flex items-center gap-2 text-sm">
           Worker status:
-          <span className="font-medium text-foreground">
-            {workerStatusLabel}
-          </span>
+          <span className="text-foreground font-medium">{workerStatusLabel}</span>
         </span>
         <span className="text-muted inline-flex items-center gap-2 text-sm">
           Workspace size: {formatBytes(combinedSpecBytes)}
@@ -3080,12 +2979,12 @@ export function OpenApiDiffWorkbench() {
                   key={ignoreRule.id}
                   className="border-line bg-panel-muted inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs"
                 >
-                  <span className="font-medium text-foreground">
+                  <span className="text-foreground font-medium">
                     {getIgnoreRuleLabel(ignoreRule)}
                   </span>
                   <button
                     aria-label={`Remove ${getIgnoreRuleLabel(ignoreRule)}`}
-                    className="text-muted transition hover:text-foreground"
+                    className="text-muted hover:text-foreground transition"
                     onClick={() => handleRemoveIgnoreRule(ignoreRule.id)}
                     type="button"
                   >
@@ -3110,16 +3009,10 @@ export function OpenApiDiffWorkbench() {
             <TabsTrigger value="results">Results</TabsTrigger>
           </TabsList>
           <TabsContent value="base">
-            {renderEditorPanel(
-              "base",
-              "Paste the old or production OpenAPI YAML/JSON here.",
-            )}
+            {renderEditorPanel("base", "Paste the old or production OpenAPI YAML/JSON here.")}
           </TabsContent>
           <TabsContent value="revision">
-            {renderEditorPanel(
-              "revision",
-              "Paste the new or proposed OpenAPI YAML/JSON here.",
-            )}
+            {renderEditorPanel("revision", "Paste the new or proposed OpenAPI YAML/JSON here.")}
           </TabsContent>
           <TabsContent value="results">
             <WorkspaceResultsPanel
@@ -3147,14 +3040,8 @@ export function OpenApiDiffWorkbench() {
 
       <div className="hidden space-y-6 md:block">
         <div className="grid gap-6 lg:grid-cols-2">
-          {renderEditorPanel(
-            "base",
-            "Paste the old or production OpenAPI YAML/JSON here.",
-          )}
-          {renderEditorPanel(
-            "revision",
-            "Paste the new or proposed OpenAPI YAML/JSON here.",
-          )}
+          {renderEditorPanel("base", "Paste the old or production OpenAPI YAML/JSON here.")}
+          {renderEditorPanel("revision", "Paste the new or proposed OpenAPI YAML/JSON here.")}
         </div>
 
         <WorkspaceResultsPanel

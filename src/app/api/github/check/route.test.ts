@@ -1,8 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import {
-  baseSampleOpenApi31,
-  revisionSampleOpenApi31,
-} from "@/features/openapi-diff/fixtures";
+import { baseSampleOpenApi31, revisionSampleOpenApi31 } from "@/features/openapi-diff/fixtures";
 import { POST } from "./route";
 
 function createRequest(body: unknown, secret?: string) {
@@ -11,7 +8,7 @@ function createRequest(body: unknown, secret?: string) {
   };
 
   if (secret) {
-    headers["x-authos-github-secret"] = secret;
+    headers["x-builtin-github-secret"] = secret;
   }
 
   return new Request("http://localhost/api/github/check", {

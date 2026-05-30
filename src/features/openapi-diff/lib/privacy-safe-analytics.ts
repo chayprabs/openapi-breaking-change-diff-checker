@@ -11,9 +11,7 @@ type RedactionUsageScope = "analysis_settings" | "custom_rule" | "export";
 
 const TOOL_ID = "openapi_diff";
 
-export function createSampleLoadedEvent(
-  sampleId: WorkspaceSampleId,
-): AnalyticsEvent {
+export function createSampleLoadedEvent(sampleId: WorkspaceSampleId): AnalyticsEvent {
   return {
     name: "sample_loaded",
     properties: {

@@ -169,9 +169,7 @@ export async function parseOpenApiSpec(
   }
 
   const parsedDocument =
-    format === "json"
-      ? parseJsonDocument(source, editorId)
-      : parseYamlDocument(source, editorId);
+    format === "json" ? parseJsonDocument(source, editorId) : parseYamlDocument(source, editorId);
 
   warnings.push(...parsedDocument.warnings);
 
@@ -193,8 +191,7 @@ export async function parseOpenApiSpec(
         {
           code: MISSING_VERSION_ERROR_CODE,
           editorId,
-          message:
-            'The document must include either an "openapi" field or a "swagger" field.',
+          message: 'The document must include either an "openapi" field or a "swagger" field.',
           source: "openapi",
         },
       ],
@@ -330,20 +327,16 @@ export async function analyzeOpenApiSpecs(
 
   throwIfAborted();
   options.onProgress?.("Parsing base spec");
-  const baseParsePhase = await measureAnalysisPhase(
-    measurementPrefix,
-    "parse-base",
-    () => parseOpenApiSpec(base),
+  const baseParsePhase = await measureAnalysisPhase(measurementPrefix, "parse-base", () =>
+    parseOpenApiSpec(base),
   );
   performanceSummary.parseBaseMs = baseParsePhase.durationMs;
   const baseResult = baseParsePhase.value;
 
   throwIfAborted();
   options.onProgress?.("Parsing revision spec");
-  const revisionParsePhase = await measureAnalysisPhase(
-    measurementPrefix,
-    "parse-revision",
-    () => parseOpenApiSpec(revision),
+  const revisionParsePhase = await measureAnalysisPhase(measurementPrefix, "parse-revision", () =>
+    parseOpenApiSpec(revision),
   );
   performanceSummary.parseRevisionMs = revisionParsePhase.durationMs;
   const revisionResult = revisionParsePhase.value;
@@ -370,11 +363,7 @@ export async function analyzeOpenApiSpecs(
     warnings: [...revisionResult.parsed.warnings],
   };
   let analysisWarnings = [...combinedWarnings];
-  let reportWarnings = buildRemoteRefPolicyWarnings(
-    analysisSettings,
-    nextBase,
-    nextRevision,
-  );
+  let reportWarnings = buildRemoteRefPolicyWarnings(analysisSettings, nextBase, nextRevision);
   let validationSource: ParserImplementation = "lightweight";
   const useLargeSpecLightweightFallback = shouldUseLargeSpecLightweightFallback(
     nextBase.byteCount,
@@ -395,18 +384,15 @@ export async function analyzeOpenApiSpecs(
 
   throwIfAborted();
   options.onProgress?.("Validating OpenAPI documents");
-  const validationPhase = await measureAnalysisPhase(
-    measurementPrefix,
-    "validate",
-    async () =>
-      Promise.all([
-        runAdvancedValidation(base, nextBase, analysisSettings, {
-          skipAdvancedChecks: useLargeSpecLightweightFallback,
-        }),
-        runAdvancedValidation(revision, nextRevision, analysisSettings, {
-          skipAdvancedChecks: useLargeSpecLightweightFallback,
-        }),
-      ]),
+  const validationPhase = await measureAnalysisPhase(measurementPrefix, "validate", async () =>
+    Promise.all([
+      runAdvancedValidation(base, nextBase, analysisSettings, {
+        skipAdvancedChecks: useLargeSpecLightweightFallback,
+      }),
+      runAdvancedValidation(revision, nextRevision, analysisSettings, {
+        skipAdvancedChecks: useLargeSpecLightweightFallback,
+      }),
+    ]),
   );
   performanceSummary.validationMs = validationPhase.durationMs;
   throwIfAborted();
@@ -471,9 +457,7 @@ export async function analyzeOpenApiSpecs(
           nextBase.externalRefCount > 0
             ? resolvePublicRemoteRefs(baseResult.document, {
                 panelId: "base",
-                ...(options.fetchRemoteText
-                  ? { fetchRemoteText: options.fetchRemoteText }
-                  : {}),
+                ...(options.fetchRemoteText ? { fetchRemoteText: options.fetchRemoteText } : {}),
                 ...(base.url ? { sourceUrl: base.url } : {}),
               })
             : Promise.resolve({
@@ -483,9 +467,7 @@ export async function analyzeOpenApiSpecs(
           nextRevision.externalRefCount > 0
             ? resolvePublicRemoteRefs(revisionResult.document, {
                 panelId: "revision",
-                ...(options.fetchRemoteText
-                  ? { fetchRemoteText: options.fetchRemoteText }
-                  : {}),
+                ...(options.fetchRemoteText ? { fetchRemoteText: options.fetchRemoteText } : {}),
                 ...(revision.url ? { sourceUrl: revision.url } : {}),
               })
             : Promise.resolve({
@@ -522,17 +504,10 @@ export async function analyzeOpenApiSpecs(
 
     throwIfAborted();
 
-    const normalizePhase = await measureAnalysisPhase(
-      measurementPrefix,
-      "normalize",
-      () => ({
-        baseModel: normalizeOpenApiDocument(nextBase, baseDocumentForNormalization),
-        revisionModel: normalizeOpenApiDocument(
-          nextRevision,
-          revisionDocumentForNormalization,
-        ),
-      }),
-    );
+    const normalizePhase = await measureAnalysisPhase(measurementPrefix, "normalize", () => ({
+      baseModel: normalizeOpenApiDocument(nextBase, baseDocumentForNormalization),
+      revisionModel: normalizeOpenApiDocument(nextRevision, revisionDocumentForNormalization),
+    }));
     performanceSummary.normalizeMs = normalizePhase.durationMs;
     normalizedBase = normalizePhase.value.baseModel;
     normalizedRevision = normalizePhase.value.revisionModel;
@@ -561,18 +536,15 @@ export async function analyzeOpenApiSpecs(
   ]);
 
   throwIfAborted();
-  const dereferencePhase = await measureAnalysisPhase(
-    measurementPrefix,
-    "dereference",
-    async () =>
-      Promise.all([
-        runAdvancedDereference(base, nextBase, analysisSettings, {
-          skipAdvancedChecks: useLargeSpecLightweightFallback,
-        }),
-        runAdvancedDereference(revision, nextRevision, analysisSettings, {
-          skipAdvancedChecks: useLargeSpecLightweightFallback,
-        }),
-      ]),
+  const dereferencePhase = await measureAnalysisPhase(measurementPrefix, "dereference", async () =>
+    Promise.all([
+      runAdvancedDereference(base, nextBase, analysisSettings, {
+        skipAdvancedChecks: useLargeSpecLightweightFallback,
+      }),
+      runAdvancedDereference(revision, nextRevision, analysisSettings, {
+        skipAdvancedChecks: useLargeSpecLightweightFallback,
+      }),
+    ]),
   );
   performanceSummary.validationMs += dereferencePhase.durationMs;
   throwIfAborted();
@@ -603,29 +575,22 @@ export async function analyzeOpenApiSpecs(
   let report;
 
   try {
-    const diffPhase = await measureAnalysisPhase(
-      measurementPrefix,
-      "diff",
-      () => {
-        options.onProgress?.("Comparing paths and operations");
-        let nextFindings = diffPathsAndOperations(
-          normalizedBase.model,
-          normalizedRevision.model,
-        );
-        throwIfAborted();
-        options.onProgress?.("Comparing parameters, responses, and schemas");
-        nextFindings = [
-          ...nextFindings,
-          ...diffOperationDetailsAcrossPaths(normalizedBase.model, normalizedRevision.model),
-        ];
+    const diffPhase = await measureAnalysisPhase(measurementPrefix, "diff", () => {
+      options.onProgress?.("Comparing paths and operations");
+      let nextFindings = diffPathsAndOperations(normalizedBase.model, normalizedRevision.model);
+      throwIfAborted();
+      options.onProgress?.("Comparing parameters, responses, and schemas");
+      nextFindings = [
+        ...nextFindings,
+        ...diffOperationDetailsAcrossPaths(normalizedBase.model, normalizedRevision.model),
+      ];
 
-        return attachOperationContextToFindings(
-          nextFindings,
-          normalizedBase.model,
-          normalizedRevision.model,
-        );
-      },
-    );
+      return attachOperationContextToFindings(
+        nextFindings,
+        normalizedBase.model,
+        normalizedRevision.model,
+      );
+    });
     performanceSummary.diffMs = diffPhase.durationMs;
     rawFindings = diffPhase.value;
   } catch (error) {
@@ -648,10 +613,8 @@ export async function analyzeOpenApiSpecs(
 
   try {
     options.onProgress?.("Classifying impact");
-    const classifyPhase = await measureAnalysisPhase(
-      measurementPrefix,
-      "classify",
-      () => classifyOpenApiDiffFindings(rawFindings, analysisSettings),
+    const classifyPhase = await measureAnalysisPhase(measurementPrefix, "classify", () =>
+      classifyOpenApiDiffFindings(rawFindings, analysisSettings),
     );
     performanceSummary.classifyMs = classifyPhase.durationMs;
     classifiedFindings = classifyPhase.value;
@@ -675,17 +638,14 @@ export async function analyzeOpenApiSpecs(
 
   try {
     options.onProgress?.("Building report");
-    const reportPhase = await measureAnalysisPhase(
-      measurementPrefix,
-      "report",
-      () =>
-        buildReport(nextBase, nextRevision, classifiedFindings, analysisSettings, {
-          generatedAt,
-          warnings: [
-            ...getDiffReportWarnings(normalizedBase.model, normalizedRevision.model),
-            ...reportWarnings,
-          ],
-        }),
+    const reportPhase = await measureAnalysisPhase(measurementPrefix, "report", () =>
+      buildReport(nextBase, nextRevision, classifiedFindings, analysisSettings, {
+        generatedAt,
+        warnings: [
+          ...getDiffReportWarnings(normalizedBase.model, normalizedRevision.model),
+          ...reportWarnings,
+        ],
+      }),
     );
     performanceSummary.reportMs = reportPhase.durationMs;
     report = reportPhase.value;
@@ -725,8 +685,7 @@ export async function analyzeOpenApiSpecs(
       summary: {
         pathDelta: nextRevision.pathCount - nextBase.pathCount,
         schemaDelta: nextRevision.schemaCount - nextBase.schemaCount,
-        totalUnresolvedRefs:
-          nextBase.unresolvedRefs.length + nextRevision.unresolvedRefs.length,
+        totalUnresolvedRefs: nextBase.unresolvedRefs.length + nextRevision.unresolvedRefs.length,
         totalWarnings: analysisWarnings.length,
       },
       validationSource,
@@ -928,9 +887,7 @@ function inspectReferences(document: OpenApiDocument, editorId: WorkspacePanelId
     warnings.push({
       code: UNRESOLVED_REF_WARNING_CODE,
       editorId,
-      message: `Unresolved local $ref targets detected: ${formatRefList(
-        uniqueUnresolvedRefs,
-      )}.`,
+      message: `Unresolved local $ref targets detected: ${formatRefList(uniqueUnresolvedRefs)}.`,
       source: "openapi",
     });
   }
@@ -1001,9 +958,7 @@ function mapScalarErrors(
   return (errors ?? []).map((error) => ({
     code: error.code ?? OPENAPI_VALIDATION_ERROR_CODE,
     editorId,
-    message: error.path?.length
-      ? `${error.path.join("")}: ${error.message}`
-      : error.message,
+    message: error.path?.length ? `${error.path.join("")}: ${error.message}` : error.message,
     source: "scalar",
   }));
 }
@@ -1015,17 +970,12 @@ function mapScalarWarnings(
   return (errors ?? []).map((error) => ({
     code: error.code ?? SCALAR_DEREFERENCE_WARNING_CODE,
     editorId,
-    message: error.path?.length
-      ? `${error.path.join("")}: ${error.message}`
-      : error.message,
+    message: error.path?.length ? `${error.path.join("")}: ${error.message}` : error.message,
     source: "scalar",
   }));
 }
 
-function parseJsonDocument(
-  source: string,
-  editorId: WorkspacePanelId,
-): RawDocumentParseResult {
+function parseJsonDocument(source: string, editorId: WorkspacePanelId): RawDocumentParseResult {
   const parseErrors: ParseError[] = [];
   const document = parseJson(source, parseErrors, {
     allowEmptyContent: false,
@@ -1076,10 +1026,7 @@ function parseJsonDocument(
   };
 }
 
-function parseYamlDocument(
-  source: string,
-  editorId: WorkspacePanelId,
-): RawDocumentParseResult {
+function parseYamlDocument(source: string, editorId: WorkspacePanelId): RawDocumentParseResult {
   const lineCounter = new LineCounter();
   const documents = parseAllDocuments(source, {
     lineCounter,
@@ -1124,17 +1071,13 @@ function parseYamlDocument(
       .map((error) => mapYamlIssue(error, editorId, lineCounter, "warning")),
   );
   warnings.push(
-    ...document.warnings.map((warning) =>
-      mapYamlIssue(warning, editorId, lineCounter, "warning"),
-    ),
+    ...document.warnings.map((warning) => mapYamlIssue(warning, editorId, lineCounter, "warning")),
   );
 
   if (fatalErrors.length > 0) {
     return {
       ok: false,
-      errors: fatalErrors.map((error) =>
-        mapYamlIssue(error, editorId, lineCounter, "error"),
-      ),
+      errors: fatalErrors.map((error) => mapYamlIssue(error, editorId, lineCounter, "error")),
       warnings,
     };
   }
@@ -1254,8 +1197,7 @@ async function runAdvancedDereference(
 
   if (
     parsed.externalRefCount > 0 &&
-    (settings.remoteRefPolicy === "localOnly" ||
-      settings.remoteRefPolicy === "publicRemote")
+    (settings.remoteRefPolicy === "localOnly" || settings.remoteRefPolicy === "publicRemote")
   ) {
     return [] satisfies SpecWarning[];
   }
@@ -1299,8 +1241,7 @@ async function runAdvancedValidation(
 
   if (
     parsed.externalRefCount > 0 &&
-    (settings.remoteRefPolicy === "localOnly" ||
-      settings.remoteRefPolicy === "publicRemote")
+    (settings.remoteRefPolicy === "localOnly" || settings.remoteRefPolicy === "publicRemote")
   ) {
     return {
       ok: true as const,
@@ -1357,13 +1298,7 @@ function detectJsonDuplicateKeys(source: string, editorId: WorkspacePanelId) {
       onObjectEnd: () => {
         objectKeys.pop();
       },
-      onObjectProperty: (
-        property,
-        offset,
-        _length,
-        startLine,
-        startCharacter,
-      ) => {
+      onObjectProperty: (property, offset, _length, startLine, startCharacter) => {
         const currentObject = objectKeys.at(-1);
 
         if (!currentObject) {
@@ -1401,7 +1336,9 @@ function getErrorMessage(error: unknown) {
       previewLimit: 0,
       redactedSource: "Worker error",
       sourceLabel: "Worker error",
-    }).redactedValue.replace(/\s+/g, " ").trim();
+    })
+      .redactedValue.replace(/\s+/g, " ")
+      .trim();
 
     if (!sanitizedMessage.length) {
       return "Unexpected internal error";
@@ -1419,11 +1356,7 @@ function toWorkspacePanelId(value: string): WorkspacePanelId {
   return value === "revision" ? "revision" : "base";
 }
 
-async function measureAnalysisPhase<T>(
-  prefix: string,
-  label: string,
-  run: () => Promise<T> | T,
-) {
+async function measureAnalysisPhase<T>(prefix: string, label: string, run: () => Promise<T> | T) {
   const startMark = `${prefix}:${label}:start`;
   const endMark = `${prefix}:${label}:end`;
   const measureName = `${prefix}:${label}`;

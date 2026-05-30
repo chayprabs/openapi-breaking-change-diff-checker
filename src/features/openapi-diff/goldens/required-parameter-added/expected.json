@@ -10,9 +10,7 @@
         "key": "/reports::get",
         "method": "get",
         "path": "/reports",
-        "ruleIds": [
-          "parameter.required.added"
-        ]
+        "ruleIds": ["parameter.required.added"]
       }
     ],
     "affectedSchemas": [],
@@ -94,9 +92,7 @@
             "readOnly": false,
             "refKind": "inline",
             "required": [],
-            "type": [
-              "string"
-            ],
+            "type": ["string"],
             "writeOnly": false
           },
           "style": null
@@ -148,9 +144,7 @@
       "customRedactionRules": [],
       "consumerProfile": "publicApi",
       "exportFormats": [],
-      "failOnSeverities": [
-        "breaking"
-      ],
+      "failOnSeverities": ["breaking"],
       "ignoreRules": [],
       "includeCategories": [
         "docs",

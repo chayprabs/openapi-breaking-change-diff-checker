@@ -10,9 +10,7 @@
         "key": "/legacy/reports::",
         "method": null,
         "path": "/legacy/reports",
-        "ruleIds": [
-          "path.removed"
-        ]
+        "ruleIds": ["path.removed"]
       },
       {
         "findingCount": 1,
@@ -20,9 +18,7 @@
         "key": "/legacy/reports::get",
         "method": "get",
         "path": "/legacy/reports",
-        "ruleIds": [
-          "operation.removed"
-        ]
+        "ruleIds": ["operation.removed"]
       }
     ],
     "affectedSchemas": [],
@@ -84,9 +80,7 @@
         "afterValue": null,
         "baseSeverity": "breaking",
         "beforeValue": {
-          "methods": [
-            "get"
-          ],
+          "methods": ["get"],
           "path": "/legacy/reports"
         },
         "category": "path",
@@ -168,9 +162,7 @@
       "customRedactionRules": [],
       "consumerProfile": "publicApi",
       "exportFormats": [],
-      "failOnSeverities": [
-        "breaking"
-      ],
+      "failOnSeverities": ["breaking"],
       "ignoreRules": [],
       "includeCategories": [
         "docs",

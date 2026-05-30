@@ -27,18 +27,14 @@ workerScope.addEventListener("message", (event: MessageEvent<OpenApiDiffWorkerRe
   void handleWorkerRequest(event.data);
 });
 
-async function handleWorkerRequest(
-  request: Exclude<OpenApiDiffWorkerRequest, { type: "cancel" }>,
-) {
+async function handleWorkerRequest(request: Exclude<OpenApiDiffWorkerRequest, { type: "cancel" }>) {
   try {
     if (request.type === "parse") {
       workerScope.postMessage(
         createWorkerProgressMessage(
           "parse",
           request.requestId,
-          request.editorId === "revision"
-            ? "Parsing revision spec"
-            : "Parsing base spec",
+          request.editorId === "revision" ? "Parsing revision spec" : "Parsing base spec",
           request.editorId,
         ),
       );
@@ -84,9 +80,7 @@ async function handleWorkerRequest(
           return;
         }
 
-        workerScope.postMessage(
-          createWorkerProgressMessage("analyze", request.requestId, label),
-        );
+        workerScope.postMessage(createWorkerProgressMessage("analyze", request.requestId, label));
       },
       shouldAbort: () => cancelledAnalysisRequests.has(request.requestId),
       ...(request.settings ? { settings: request.settings } : {}),
@@ -99,12 +93,7 @@ async function handleWorkerRequest(
 
     if (!result.ok) {
       workerScope.postMessage(
-        createWorkerErrorMessage(
-          "analyze",
-          request.requestId,
-          result.errors,
-          result.warnings,
-        ),
+        createWorkerErrorMessage("analyze", request.requestId, result.errors, result.warnings),
       );
       return;
     }

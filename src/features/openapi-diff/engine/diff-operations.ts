@@ -37,7 +37,10 @@ export function createOperationAddedFinding(operation: NormalizedOperation): Dif
     afterValue: createOperationSnapshot(operation),
     beforeValue: null,
     evidence: {
-      revision: createEvidenceLocation(createOperationPointer(operation.path, operation.method), operation.evidence),
+      revision: createEvidenceLocation(
+        createOperationPointer(operation.path, operation.method),
+        operation.evidence,
+      ),
     },
     jsonPointer: createOperationPointer(operation.path, operation.method),
     message: `${operationLabel} is present in the revision spec but not in the base spec.`,
@@ -57,7 +60,10 @@ export function createOperationRemovedFinding(operation: NormalizedOperation): D
     afterValue: null,
     beforeValue: createOperationSnapshot(operation),
     evidence: {
-      base: createEvidenceLocation(createOperationPointer(operation.path, operation.method), operation.evidence),
+      base: createEvidenceLocation(
+        createOperationPointer(operation.path, operation.method),
+        operation.evidence,
+      ),
     },
     jsonPointer: createOperationPointer(operation.path, operation.method),
     message: `${operationLabel} is present in the base spec but not in the revision spec.`,

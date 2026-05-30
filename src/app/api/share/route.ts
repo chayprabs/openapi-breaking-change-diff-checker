@@ -9,10 +9,7 @@ import { consumeSharedRateLimit } from "@/lib/server/shared-rate-limit";
 
 export const dynamic = "force-dynamic";
 
-const SHARE_CREATE_RATE_LIMIT = Math.max(
-  1,
-  Number(process.env.SHARE_CREATE_RATE_LIMIT ?? 20),
-);
+const SHARE_CREATE_RATE_LIMIT = Math.max(1, Number(process.env.SHARE_CREATE_RATE_LIMIT ?? 20));
 const SHARE_CREATE_RATE_LIMIT_WINDOW_MS = Math.max(
   1_000,
   Number(process.env.SHARE_CREATE_RATE_LIMIT_WINDOW_MS ?? 60_000),

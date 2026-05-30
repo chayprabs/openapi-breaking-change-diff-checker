@@ -1,7 +1,4 @@
-import {
-  consumeSimpleRateLimit,
-  type SimpleRateLimitResult,
-} from "@/lib/server/simple-rate-limit";
+import { consumeSimpleRateLimit, type SimpleRateLimitResult } from "@/lib/server/simple-rate-limit";
 
 type SharedRateLimitOptions = {
   limit: number;
@@ -32,7 +29,7 @@ async function consumeUpstashRateLimit(
   upstashUrl: string,
   upstashToken: string,
 ): Promise<SimpleRateLimitResult> {
-  const windowKey = `authos:ratelimit:${key}:${Math.floor(Date.now() / options.windowMs)}`;
+  const windowKey = `odiff:ratelimit:${key}:${Math.floor(Date.now() / options.windowMs)}`;
   const response = await fetch(`${upstashUrl}/pipeline`, {
     method: "POST",
     headers: {

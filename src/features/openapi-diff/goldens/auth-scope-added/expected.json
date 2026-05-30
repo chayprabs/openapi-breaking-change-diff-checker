@@ -10,9 +10,7 @@
         "key": "/exports/accounts::get",
         "method": "get",
         "path": "/exports/accounts",
-        "ruleIds": [
-          "security.scope.added"
-        ]
+        "ruleIds": ["security.scope.added"]
       }
     ],
     "affectedSchemas": [],
@@ -71,14 +69,9 @@
     "executiveSummary": "No breaking changes were found for the Public API profile, but 1 dangerous changes still affect 1 affected endpoint and 0 affected schemas. Review rollout risk before release.",
     "findings": [
       {
-        "afterValue": [
-          "accounts:export",
-          "accounts:read"
-        ],
+        "afterValue": ["accounts:export", "accounts:read"],
         "baseSeverity": "dangerous",
-        "beforeValue": [
-          "accounts:read"
-        ],
+        "beforeValue": ["accounts:read"],
         "category": "security",
         "evidence": {
           "base": {
@@ -129,9 +122,7 @@
       "customRedactionRules": [],
       "consumerProfile": "publicApi",
       "exportFormats": [],
-      "failOnSeverities": [
-        "breaking"
-      ],
+      "failOnSeverities": ["breaking"],
       "ignoreRules": [],
       "includeCategories": [
         "docs",

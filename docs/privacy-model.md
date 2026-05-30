@@ -2,7 +2,7 @@
 
 ## Summary
 
-Authos is designed so the launch OpenAPI Diff workflow is useful without login, without AI APIs, and without automatically sending raw specs off-device.
+OpenAPI Diff is designed so the launch OpenAPI Diff workflow is useful without login, without AI APIs, and without automatically sending raw specs off-device.
 
 The short version:
 
@@ -158,7 +158,7 @@ Environment variables:
 - `OPENAPI_FETCH_PROXY_RATE_LIMIT`
 - `OPENAPI_FETCH_PROXY_RATE_LIMIT_WINDOW_MS`
 
-See [`.env.example`](../.env.example) and [resolved-decisions.md](./resolved-decisions.md) for deployment notes (including the `authos.dev` domain collision).
+See [`.env.example`](../.env.example) and [resolved-decisions.md](./resolved-decisions.md) for deployment notes (including the `unrelated third-party domains` domain collision).
 
 If these are absent, the site still works:
 

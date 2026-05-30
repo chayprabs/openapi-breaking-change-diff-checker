@@ -30,10 +30,12 @@ export function diffOperationSecurity(
   const operationId = revisionOperation.operationId ?? baseOperation.operationId;
   const operationTags = [...new Set([...baseOperation.tags, ...revisionOperation.tags])];
   const operationDeprecated = baseOperation.deprecated || revisionOperation.deprecated;
-  const schemeNames = [...new Set([
-    ...Object.keys(baseSnapshot.requirements),
-    ...Object.keys(revisionSnapshot.requirements),
-  ])].sort((left, right) => left.localeCompare(right));
+  const schemeNames = [
+    ...new Set([
+      ...Object.keys(baseSnapshot.requirements),
+      ...Object.keys(revisionSnapshot.requirements),
+    ]),
+  ].sort((left, right) => left.localeCompare(right));
   const operationLabel = `${toMethodLabel(revisionOperation.method)} ${revisionOperation.path}`;
 
   for (const schemeName of schemeNames) {

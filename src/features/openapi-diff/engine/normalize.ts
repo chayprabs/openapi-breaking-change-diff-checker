@@ -200,10 +200,7 @@ export function normalizeOpenApiDocument(
     Object.keys(componentSchemas ?? {})
       .sort((left, right) => left.localeCompare(right))
       .map((schemaName) => {
-        const schemaSourcePath = appendPointer(
-          "#/components/schemas",
-          schemaName,
-        );
+        const schemaSourcePath = appendPointer("#/components/schemas", schemaName);
 
         return [
           schemaSourcePath,
@@ -228,12 +225,7 @@ export function normalizeOpenApiDocument(
       .sort((left, right) => left.localeCompare(right))
       .map((pathKey) => {
         const pathSourcePath = appendPointer("#/paths", pathKey);
-        const pathItem = normalizePathItem(
-          pathKey,
-          pathsRecord[pathKey],
-          pathSourcePath,
-          state,
-        );
+        const pathItem = normalizePathItem(pathKey, pathsRecord[pathKey], pathSourcePath, state);
 
         for (const operation of Object.values(pathItem.operations)) {
           if (operation) {
@@ -288,11 +280,7 @@ function buildEvidence(
   };
 }
 
-function createCircularRefWarning(
-  state: NormalizeState,
-  subject: RefSubject,
-  pointer: string,
-) {
+function createCircularRefWarning(state: NormalizeState, subject: RefSubject, pointer: string) {
   state.warnings.push({
     code: "normalize.circular-local-ref",
     editorId: state.editorId,
@@ -317,10 +305,7 @@ function createJsonObject(value: unknown): Record<string, JsonValue> {
   return Object.fromEntries(entries);
 }
 
-function createInvalidParameterWarning(
-  state: NormalizeState,
-  sourcePath: string,
-) {
+function createInvalidParameterWarning(state: NormalizeState, sourcePath: string) {
   state.warnings.push({
     code: "normalize.invalid-parameter",
     editorId: state.editorId,
@@ -335,11 +320,7 @@ function createOrderedRecord<T>(entries: ReadonlyArray<readonly [string, T]>) {
   ) as Record<string, T>;
 }
 
-function createRemoteRefWarning(
-  state: NormalizeState,
-  subject: RefSubject,
-  pointer: string,
-) {
+function createRemoteRefWarning(state: NormalizeState, subject: RefSubject, pointer: string) {
   state.warnings.push({
     code: "normalize.unsupported-remote-ref",
     editorId: state.editorId,
@@ -386,11 +367,7 @@ function createSchemaPlaceholder(
   } satisfies NormalizedSchema;
 }
 
-function createUnresolvedRefWarning(
-  state: NormalizeState,
-  subject: RefSubject,
-  pointer: string,
-) {
+function createUnresolvedRefWarning(state: NormalizeState, subject: RefSubject, pointer: string) {
   state.warnings.push({
     code: "normalize.unresolved-local-ref",
     editorId: state.editorId,
@@ -428,9 +405,7 @@ function extractExtensions(value: unknown): NormalizedExtensions {
   }
 
   return createJsonObject(
-    Object.fromEntries(
-      Object.entries(value).filter(([key]) => key.startsWith("x-")),
-    ),
+    Object.fromEntries(Object.entries(value).filter(([key]) => key.startsWith("x-"))),
   );
 }
 
@@ -549,16 +524,10 @@ function normalizeArrayOfSchemas(
     normalizeSchema(
       entry,
       {
-        originPath: appendPointer(
-          appendPointer(location.originPath, arrayKey),
-          String(index),
-        ),
+        originPath: appendPointer(appendPointer(location.originPath, arrayKey), String(index)),
         refChain: location.refChain,
         refStack: location.refStack,
-        sourcePath: appendPointer(
-          appendPointer(location.sourcePath, arrayKey),
-          String(index),
-        ),
+        sourcePath: appendPointer(appendPointer(location.sourcePath, arrayKey), String(index)),
       },
       state,
     ),
@@ -570,9 +539,7 @@ function normalizeInfo(value: unknown): NormalizedOpenApiInfo {
 
   return {
     extensions: extractExtensions(record),
-    ...(typeof record.description === "string"
-      ? { description: record.description }
-      : {}),
+    ...(typeof record.description === "string" ? { description: record.description } : {}),
     ...(typeof record.summary === "string" ? { summary: record.summary } : {}),
     ...(typeof record.title === "string" ? { title: record.title } : {}),
     ...(typeof record.version === "string" ? { version: record.version } : {}),
@@ -614,11 +581,7 @@ function normalizeMediaType(
   const record = isRecord(value) ? value : {};
 
   return {
-    evidence: buildEvidence(
-      location.originPath,
-      location.sourcePath,
-      location.refChain,
-    ),
+    evidence: buildEvidence(location.originPath, location.sourcePath, location.refChain),
     extensions: extractExtensions(record),
     key: mediaType,
     mediaType,
@@ -656,20 +619,23 @@ function normalizeMediaTypes(
   return createOrderedRecord(
     Object.keys(value)
       .sort((left, right) => left.localeCompare(right))
-      .map((mediaType) => [
-        mediaType,
-        normalizeMediaType(
-          mediaType,
-          value[mediaType],
-          {
-            originPath: appendPointer(location.originPath, mediaType),
-            refChain: location.refChain,
-            refStack: location.refStack,
-            sourcePath: appendPointer(location.sourcePath, mediaType),
-          },
-          state,
-        ),
-      ] as const),
+      .map(
+        (mediaType) =>
+          [
+            mediaType,
+            normalizeMediaType(
+              mediaType,
+              value[mediaType],
+              {
+                originPath: appendPointer(location.originPath, mediaType),
+                refChain: location.refChain,
+                refStack: location.refStack,
+                sourcePath: appendPointer(location.sourcePath, mediaType),
+              },
+              state,
+            ),
+          ] as const,
+      ),
   );
 }
 
@@ -690,16 +656,12 @@ function normalizeOperation(
 
   return {
     deprecated: Boolean(record.deprecated),
-    ...(typeof record.description === "string"
-      ? { description: record.description }
-      : {}),
+    ...(typeof record.description === "string" ? { description: record.description } : {}),
     evidence: buildEvidence(sourcePath, sourcePath, []),
     extensions: extractExtensions(record),
     key: getOperationKey(method, path),
     method,
-    ...(typeof record.operationId === "string"
-      ? { operationId: record.operationId }
-      : {}),
+    ...(typeof record.operationId === "string" ? { operationId: record.operationId } : {}),
     parameters: createOrderedRecord([
       ...Object.entries(pathParameters),
       ...Object.entries(operationParameters),
@@ -720,11 +682,7 @@ function normalizeOperation(
     securityDefined: record.security !== undefined,
     ...(record.security !== undefined
       ? {
-          securityEvidence: buildEvidence(
-            `${sourcePath}/security`,
-            `${sourcePath}/security`,
-            [],
-          ),
+          securityEvidence: buildEvidence(`${sourcePath}/security`, `${sourcePath}/security`, []),
         }
       : {}),
     ...(typeof record.summary === "string" ? { summary: record.summary } : {}),
@@ -749,7 +707,11 @@ function normalizeParameter(
     state,
   );
 
-  if (resolved.kind === "remote" || resolved.kind === "unresolved" || resolved.kind === "circular") {
+  if (
+    resolved.kind === "remote" ||
+    resolved.kind === "unresolved" ||
+    resolved.kind === "circular"
+  ) {
     return {
       content: {},
       deprecated: false,
@@ -770,8 +732,7 @@ function normalizeParameter(
 
   const record = resolved.value;
   const parameterIn = typeof record.in === "string" ? record.in : "unknown";
-  const parameterName =
-    typeof record.name === "string" ? record.name : resolved.originPath;
+  const parameterName = typeof record.name === "string" ? record.name : resolved.originPath;
   const examples = Array.isArray(record.examples)
     ? normalizeJsonArray(record.examples)
     : record.example !== undefined
@@ -794,9 +755,7 @@ function normalizeParameter(
       state,
     ),
     deprecated: Boolean(record.deprecated),
-    ...(typeof record.description === "string"
-      ? { description: record.description }
-      : {}),
+    ...(typeof record.description === "string" ? { description: record.description } : {}),
     evidence: buildEvidence(
       resolved.originPath,
       resolved.sourcePath,
@@ -829,24 +788,14 @@ function normalizeParameter(
   };
 }
 
-function normalizeParameterMap(
-  value: unknown,
-  sourcePath: string,
-  state: NormalizeState,
-) {
+function normalizeParameterMap(value: unknown, sourcePath: string, state: NormalizeState) {
   if (!Array.isArray(value)) {
     return {};
   }
 
   return createOrderedRecord(
     value.map((entry, index) => {
-      const parameter = normalizeParameter(
-        entry,
-        `${sourcePath}/${index}`,
-        state,
-        [],
-        [],
-      );
+      const parameter = normalizeParameter(entry, `${sourcePath}/${index}`, state, [], []);
 
       return [parameter.key, parameter] as const;
     }),
@@ -912,7 +861,11 @@ function normalizeRequestBody(
     state,
   );
 
-  if (resolved.kind === "remote" || resolved.kind === "unresolved" || resolved.kind === "circular") {
+  if (
+    resolved.kind === "remote" ||
+    resolved.kind === "unresolved" ||
+    resolved.kind === "circular"
+  ) {
     return {
       content: {},
       evidence: buildEvidence(
@@ -940,9 +893,7 @@ function normalizeRequestBody(
       },
       state,
     ),
-    ...(typeof record.description === "string"
-      ? { description: record.description }
-      : {}),
+    ...(typeof record.description === "string" ? { description: record.description } : {}),
     evidence: buildEvidence(
       resolved.originPath,
       resolved.sourcePath,
@@ -962,17 +913,13 @@ function normalizeResponse(
   sourcePath: string,
   state: NormalizeState,
 ): NormalizedResponse {
-  const resolved = resolveObjectReference(
-    value,
-    "response",
-    sourcePath,
-    sourcePath,
-    [],
-    [],
-    state,
-  );
+  const resolved = resolveObjectReference(value, "response", sourcePath, sourcePath, [], [], state);
 
-  if (resolved.kind === "remote" || resolved.kind === "unresolved" || resolved.kind === "circular") {
+  if (
+    resolved.kind === "remote" ||
+    resolved.kind === "unresolved" ||
+    resolved.kind === "circular"
+  ) {
     return {
       content: {},
       evidence: buildEvidence(
@@ -1000,9 +947,7 @@ function normalizeResponse(
       },
       state,
     ),
-    ...(typeof record.description === "string"
-      ? { description: record.description }
-      : {}),
+    ...(typeof record.description === "string" ? { description: record.description } : {}),
     evidence: buildEvidence(
       resolved.originPath,
       resolved.sourcePath,
@@ -1016,11 +961,7 @@ function normalizeResponse(
   };
 }
 
-function normalizeResponses(
-  value: unknown,
-  sourcePath: string,
-  state: NormalizeState,
-) {
+function normalizeResponses(value: unknown, sourcePath: string, state: NormalizeState) {
   if (!isRecord(value)) {
     return {};
   }
@@ -1028,15 +969,18 @@ function normalizeResponses(
   return createOrderedRecord(
     Object.keys(value)
       .sort((left, right) => left.localeCompare(right))
-      .map((statusCode) => [
-        statusCode,
-        normalizeResponse(
-          statusCode,
-          value[statusCode],
-          appendPointer(sourcePath, statusCode),
-          state,
-        ),
-      ] as const),
+      .map(
+        (statusCode) =>
+          [
+            statusCode,
+            normalizeResponse(
+              statusCode,
+              value[statusCode],
+              appendPointer(sourcePath, statusCode),
+              state,
+            ),
+          ] as const,
+      ),
   );
 }
 
@@ -1093,11 +1037,7 @@ function normalizeSchema(
       constraints: {},
       deprecated: false,
       enumValues: [],
-      evidence: buildEvidence(
-        resolved.originPath,
-        resolved.sourcePath,
-        resolved.refChain,
-      ),
+      evidence: buildEvidence(resolved.originPath, resolved.sourcePath, resolved.refChain),
       examples: [],
       extensions: {},
       key: resolved.sourcePath,
@@ -1124,9 +1064,7 @@ function normalizeSchema(
   const enumValues = Array.isArray(record.enum) ? normalizeJsonArray(record.enum) : [];
   const defaultValue = toJsonValue(record.default);
   const required = Array.isArray(record.required)
-    ? record.required.filter(
-        (entry: unknown): entry is string => typeof entry === "string",
-      )
+    ? record.required.filter((entry: unknown): entry is string => typeof entry === "string")
     : [];
   const types = normalizeSchemaType(record.type);
   const constraints: Record<string, JsonValue> = {};
@@ -1168,25 +1106,22 @@ function normalizeSchema(
     ? createOrderedRecord(
         Object.keys(propertiesRecord)
           .sort((left, right) => left.localeCompare(right))
-          .map((propertyName) => [
-            propertyName,
-            normalizeSchema(
-              propertiesRecord[propertyName],
-              {
-                originPath: appendPointer(
-                  `${resolved.originPath}/properties`,
-                  propertyName,
+          .map(
+            (propertyName) =>
+              [
+                propertyName,
+                normalizeSchema(
+                  propertiesRecord[propertyName],
+                  {
+                    originPath: appendPointer(`${resolved.originPath}/properties`, propertyName),
+                    refChain: resolved.refChain,
+                    refStack: resolved.refStack,
+                    sourcePath: appendPointer(`${resolved.sourcePath}/properties`, propertyName),
+                  },
+                  state,
                 ),
-                refChain: resolved.refChain,
-                refStack: resolved.refStack,
-                sourcePath: appendPointer(
-                  `${resolved.sourcePath}/properties`,
-                  propertyName,
-                ),
-              },
-              state,
-            ),
-          ] as const),
+              ] as const,
+          ),
       )
     : {};
 
@@ -1217,9 +1152,7 @@ function normalizeSchema(
     constraints: createOrderedRecord(Object.entries(constraints)),
     ...(defaultValue !== undefined ? { defaultValue } : {}),
     deprecated: Boolean(record.deprecated),
-    ...(typeof record.description === "string"
-      ? { description: record.description }
-      : {}),
+    ...(typeof record.description === "string" ? { description: record.description } : {}),
     enumValues,
     evidence: buildEvidence(
       resolved.originPath,
@@ -1295,17 +1228,11 @@ function normalizeSchemaType(value: unknown) {
   }
 
   return [
-    ...new Set(
-      value.filter((entry: unknown): entry is string => typeof entry === "string"),
-    ),
+    ...new Set(value.filter((entry: unknown): entry is string => typeof entry === "string")),
   ].sort((left, right) => left.localeCompare(right));
 }
 
-function reportInvalidLocalRefTarget(
-  state: NormalizeState,
-  subject: RefSubject,
-  pointer: string,
-) {
+function reportInvalidLocalRefTarget(state: NormalizeState, subject: RefSubject, pointer: string) {
   state.warnings.push({
     code: "normalize.invalid-local-ref-target",
     editorId: state.editorId,
@@ -1371,11 +1298,8 @@ function resolveObjectReference(
     };
   }
 
-  const siblings = Object.fromEntries(
-    Object.entries(value).filter(([key]) => key !== "$ref"),
-  );
-  const mergedTarget =
-    Object.keys(siblings).length > 0 ? { ...target, ...siblings } : target;
+  const siblings = Object.fromEntries(Object.entries(value).filter(([key]) => key !== "$ref"));
+  const mergedTarget = Object.keys(siblings).length > 0 ? { ...target, ...siblings } : target;
 
   return {
     kind: "local",
@@ -1478,11 +1402,8 @@ function resolveSchemaReference(
     };
   }
 
-  const siblings = Object.fromEntries(
-    Object.entries(value).filter(([key]) => key !== "$ref"),
-  );
-  const mergedTarget =
-    Object.keys(siblings).length > 0 ? { ...target, ...siblings } : target;
+  const siblings = Object.fromEntries(Object.entries(value).filter(([key]) => key !== "$ref"));
+  const mergedTarget = Object.keys(siblings).length > 0 ? { ...target, ...siblings } : target;
 
   return {
     kind: "local",

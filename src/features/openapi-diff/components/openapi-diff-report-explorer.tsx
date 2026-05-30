@@ -146,7 +146,7 @@ const sortOptions: Array<{ label: string; value: FindingsSortOption }> = [
 function FilterField({ children, label }: FilterFieldProps) {
   return (
     <label className="space-y-2 text-sm">
-      <span className="block font-medium text-foreground">{label}</span>
+      <span className="text-foreground block font-medium">{label}</span>
       {children}
     </label>
   );
@@ -169,9 +169,7 @@ function formatRuleExampleValue(value: string | undefined) {
 }
 
 function getDrawerTargetLabel(row: ReportFindingRow) {
-  return row.targetLabel === "Global contract change"
-    ? row.finding.jsonPointer
-    : row.targetLabel;
+  return row.targetLabel === "Global contract change" ? row.finding.jsonPointer : row.targetLabel;
 }
 
 function getFindingCountLabel(count: number) {
@@ -186,14 +184,14 @@ function renderFindingTargetText(row: ReportFindingRow) {
   if (row.endpointLabel && row.schemaLabel) {
     return (
       <>
-        <p className="font-medium text-foreground">{row.endpointLabel}</p>
+        <p className="text-foreground font-medium">{row.endpointLabel}</p>
         <p className="text-muted mt-1 text-xs leading-5">{row.schemaLabel}</p>
       </>
     );
   }
 
   return (
-    <p className="font-medium text-foreground">
+    <p className="text-foreground font-medium">
       {row.endpointLabel ?? row.schemaLabel ?? row.finding.humanPath ?? "Global contract change"}
     </p>
   );
@@ -226,7 +224,7 @@ function FindingsTable({
               {["Severity", "Change", "Endpoint/Schema", "Rule", "Category"].map((label) => (
                 <th
                   key={label}
-                  className="border-line bg-panel-muted px-4 py-3 text-left text-xs font-semibold tracking-[0.18em] text-muted uppercase first:rounded-l-2xl last:rounded-r-2xl"
+                  className="border-line bg-panel-muted text-muted px-4 py-3 text-left text-xs font-semibold tracking-[0.18em] uppercase first:rounded-l-2xl last:rounded-r-2xl"
                   scope="col"
                 >
                   {label}
@@ -253,7 +251,7 @@ function FindingsTable({
                     onClick={() => onOpenFinding(row.finding.id)}
                     type="button"
                   >
-                    <p className="font-semibold text-foreground">{row.finding.title}</p>
+                    <p className="text-foreground font-semibold">{row.finding.title}</p>
                     <p className="text-muted mt-2 text-sm leading-6">{row.finding.message}</p>
                   </button>
                 </td>
@@ -262,7 +260,7 @@ function FindingsTable({
                   <p className="text-muted mt-2 text-xs leading-5">{row.finding.jsonPointer}</p>
                 </td>
                 <td className="border-line border-b px-4 py-4 align-top">
-                  <p className="font-mono text-sm text-foreground">{row.finding.ruleId}</p>
+                  <p className="text-foreground font-mono text-sm">{row.finding.ruleId}</p>
                   {row.finding.operationId ? (
                     <p className="text-muted mt-2 text-xs leading-5">
                       operationId: {row.finding.operationId}
@@ -293,7 +291,7 @@ function FindingsTable({
             key={row.finding.id}
             className="border-line bg-panel group overflow-hidden rounded-[1.5rem] border shadow-[var(--shadow-card)]"
           >
-            <summary className="focus-visible:ring-accent/30 list-none cursor-pointer px-5 py-4 focus-visible:ring-2">
+            <summary className="focus-visible:ring-accent/30 cursor-pointer list-none px-5 py-4 focus-visible:ring-2">
               <div className="flex items-start justify-between gap-3">
                 <div className="space-y-3">
                   <div className="flex flex-wrap items-center gap-2">
@@ -304,7 +302,7 @@ function FindingsTable({
                     <Badge variant="neutral">{formatCategoryLabel(row.finding.category)}</Badge>
                   </div>
                   <div className="space-y-2">
-                    <p className="font-semibold text-foreground">{row.finding.title}</p>
+                    <p className="text-foreground font-semibold">{row.finding.title}</p>
                     <div>{renderFindingTargetText(row)}</div>
                   </div>
                 </div>
@@ -314,7 +312,7 @@ function FindingsTable({
               </div>
             </summary>
             <div className="border-line space-y-3 border-t px-5 pb-5">
-              <p className="pt-4 text-muted text-sm leading-6">{row.finding.message}</p>
+              <p className="text-muted pt-4 text-sm leading-6">{row.finding.message}</p>
               <p className="text-muted text-xs leading-5">{row.finding.jsonPointer}</p>
               {row.finding.ignoredBy?.length ? (
                 <div className="flex flex-wrap gap-2">
@@ -400,7 +398,12 @@ function EndpointList({
       {report.affectedEndpoints.length > visibleCount ? (
         <div className="flex justify-center">
           <Button onClick={onLoadMore} variant="secondary">
-            Load {Math.min(MAX_RENDERED_REPORT_ENDPOINTS, report.affectedEndpoints.length - visibleCount)} more endpoints
+            Load{" "}
+            {Math.min(
+              MAX_RENDERED_REPORT_ENDPOINTS,
+              report.affectedEndpoints.length - visibleCount,
+            )}{" "}
+            more endpoints
           </Button>
         </div>
       ) : null}
@@ -456,10 +459,7 @@ function SchemaList({
                 </Badge>
               ))}
             </div>
-            <Button
-              onClick={() => onJumpToFindings({ schema: schema.label })}
-              variant="secondary"
-            >
+            <Button onClick={() => onJumpToFindings({ schema: schema.label })} variant="secondary">
               View matching findings
             </Button>
           </CardContent>
@@ -468,7 +468,9 @@ function SchemaList({
       {report.affectedSchemas.length > visibleCount ? (
         <div className="flex justify-center">
           <Button onClick={onLoadMore} variant="secondary">
-            Load {Math.min(MAX_RENDERED_REPORT_SCHEMAS, report.affectedSchemas.length - visibleCount)} more schemas
+            Load{" "}
+            {Math.min(MAX_RENDERED_REPORT_SCHEMAS, report.affectedSchemas.length - visibleCount)}{" "}
+            more schemas
           </Button>
         </div>
       ) : null}
@@ -504,7 +506,11 @@ function FindingDrawer({
       description="Detailed evidence for the selected semantic diff finding."
       footer={
         <div className="flex flex-wrap gap-3">
-          <CopyButton label="Copy finding" value={createFindingCopyValue(row)} variant="secondary" />
+          <CopyButton
+            label="Copy finding"
+            value={createFindingCopyValue(row)}
+            variant="secondary"
+          />
           {!readOnly && onAddIgnoreRule && findingPath ? (
             <Button
               onClick={() => onAddIgnoreRule(createPathPatternIgnoreRule(findingPath))}
@@ -550,7 +556,7 @@ function FindingDrawer({
             <CardTitle className="text-base">Affected contract surface</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 text-sm">
-            <p className="font-medium text-foreground">{getDrawerTargetLabel(row)}</p>
+            <p className="text-foreground font-medium">{getDrawerTargetLabel(row)}</p>
             <p className="text-muted leading-6">Pointer: {finding.jsonPointer}</p>
             {finding.operationId ? (
               <p className="text-muted leading-6">operationId: {finding.operationId}</p>
@@ -612,14 +618,11 @@ function FindingDrawer({
                   className="border-line bg-panel-muted flex flex-wrap items-center justify-between gap-3 rounded-2xl border p-4"
                 >
                   <div className="space-y-1">
-                    <p className="font-medium text-foreground">{ignoreRule.label}</p>
+                    <p className="text-foreground font-medium">{ignoreRule.label}</p>
                     <p className="text-muted leading-6">{ignoreRule.reason}</p>
                   </div>
                   {!readOnly && onRemoveIgnoreRule ? (
-                    <Button
-                      onClick={() => onRemoveIgnoreRule(ignoreRule.id)}
-                      variant="ghost"
-                    >
+                    <Button onClick={() => onRemoveIgnoreRule(ignoreRule.id)} variant="ghost">
                       Remove rule
                     </Button>
                   ) : null}
@@ -636,9 +639,7 @@ function FindingDrawer({
           <CardContent className="space-y-3 text-sm">
             <p className="leading-6">{finding.message}</p>
             <p className="leading-6">{finding.whyItMatters}</p>
-            <p className="leading-6">
-              Profile-specific severity reason: {finding.severityReason}
-            </p>
+            <p className="leading-6">Profile-specific severity reason: {finding.severityReason}</p>
             {saferAlternative ? (
               <p className="leading-6">Safer alternative: {saferAlternative}</p>
             ) : null}
@@ -662,7 +663,7 @@ function FindingDrawer({
             {metadata.example ? (
               <div className="grid gap-4 lg:grid-cols-2">
                 <div className="space-y-2">
-                  <p className="text-xs font-semibold tracking-[0.18em] text-muted uppercase">
+                  <p className="text-muted text-xs font-semibold tracking-[0.18em] uppercase">
                     Rule example before
                   </p>
                   <pre className="border-line bg-panel-muted overflow-x-auto rounded-2xl border p-4 text-xs leading-6 whitespace-pre-wrap">
@@ -670,7 +671,7 @@ function FindingDrawer({
                   </pre>
                 </div>
                 <div className="space-y-2">
-                  <p className="text-xs font-semibold tracking-[0.18em] text-muted uppercase">
+                  <p className="text-muted text-xs font-semibold tracking-[0.18em] uppercase">
                     Rule example after
                   </p>
                   <pre className="border-line bg-panel-muted overflow-x-auto rounded-2xl border p-4 text-xs leading-6 whitespace-pre-wrap">
@@ -704,7 +705,9 @@ export function OpenApiDiffReportExplorer({
         : createDefaultReportExplorerUiState(),
     [initialUiState],
   );
-  const [activeTab, setActiveTab] = useState<ReportExplorerTab>(() => initialExplorerState.activeTab);
+  const [activeTab, setActiveTab] = useState<ReportExplorerTab>(
+    () => initialExplorerState.activeTab,
+  );
   const [includeIgnoredInExport, setIncludeIgnoredInExport] = useState(
     () => initialExplorerState.includeIgnoredInExport,
   );
@@ -716,9 +719,7 @@ export function OpenApiDiffReportExplorer({
   );
   const [ciEngine, setCiEngine] = useState<CiSnippetEngine>(() => initialExplorerState.ciEngine);
   const [ciTarget, setCiTarget] = useState<CiSnippetTarget>(() => initialExplorerState.ciTarget);
-  const [ciBaseSpecPath, setCiBaseSpecPath] = useState(
-    () => initialExplorerState.ciBaseSpecPath,
-  );
+  const [ciBaseSpecPath, setCiBaseSpecPath] = useState(() => initialExplorerState.ciBaseSpecPath);
   const [ciRevisionSpecPath, setCiRevisionSpecPath] = useState(
     () => initialExplorerState.ciRevisionSpecPath,
   );
@@ -752,22 +753,16 @@ export function OpenApiDiffReportExplorer({
     count: MAX_RENDERED_REPORT_SCHEMAS,
     key: report.generatedAt,
   }));
-  const [filters, setFilters] = useState<FindingsExplorerFilters>(
-    () => ({ ...initialExplorerState.filters }),
-  );
+  const [filters, setFilters] = useState<FindingsExplorerFilters>(() => ({
+    ...initialExplorerState.filters,
+  }));
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [shareMode, setShareMode] = useState<"report" | "settings">("settings");
   const deferredSearchText = useDeferredValue(filters.search);
 
   const allRows = useMemo(() => createReportFindingRows(report), [report]);
-  const activeRows = useMemo(
-    () => allRows.filter((row) => !row.finding.ignored),
-    [allRows],
-  );
-  const ignoredRows = useMemo(
-    () => allRows.filter((row) => row.finding.ignored),
-    [allRows],
-  );
+  const activeRows = useMemo(() => allRows.filter((row) => !row.finding.ignored), [allRows]);
+  const ignoredRows = useMemo(() => allRows.filter((row) => row.finding.ignored), [allRows]);
   const filterOptions = useMemo(() => createFindingsFilterOptions(allRows), [allRows]);
   const filteredRows = useMemo(
     () =>
@@ -792,7 +787,7 @@ export function OpenApiDiffReportExplorer({
   const selectedRow = useMemo(
     () =>
       selectedFindingId
-        ? allRows.find((row) => row.finding.id === selectedFindingId) ?? null
+        ? (allRows.find((row) => row.finding.id === selectedFindingId) ?? null)
         : null,
     [allRows, selectedFindingId],
   );
@@ -817,8 +812,7 @@ export function OpenApiDiffReportExplorer({
         engine: ciEngine,
         failBuildOnBreaking: ciFailBuildOnBreaking,
         reportOutputPath: ciReportOutputPath.trim() || initialExplorerState.ciReportOutputPath,
-        revisionSpecPath:
-          ciRevisionSpecPath.trim() || initialExplorerState.ciRevisionSpecPath,
+        revisionSpecPath: ciRevisionSpecPath.trim() || initialExplorerState.ciRevisionSpecPath,
         settings: report.settings,
         target: ciTarget,
       }),
@@ -842,8 +836,7 @@ export function OpenApiDiffReportExplorer({
         engine: ciEngine,
         failBuildOnBreaking: ciFailBuildOnBreaking,
         reportOutputPath: ciReportOutputPath.trim() || initialExplorerState.ciReportOutputPath,
-        revisionSpecPath:
-          ciRevisionSpecPath.trim() || initialExplorerState.ciRevisionSpecPath,
+        revisionSpecPath: ciRevisionSpecPath.trim() || initialExplorerState.ciRevisionSpecPath,
         settings: report.settings,
         target: "github",
       }),
@@ -923,14 +916,7 @@ export function OpenApiDiffReportExplorer({
       activeMobileTab,
       reportExplorer: currentUiState,
     });
-  }, [
-    activeMobileTab,
-    currentUiState,
-    isShareModalOpen,
-    redactBeforeExport,
-    report,
-    shareMode,
-  ]);
+  }, [activeMobileTab, currentUiState, isShareModalOpen, redactBeforeExport, report, shareMode]);
 
   useEffect(() => {
     onUiStateChange?.(cloneReportExplorerUiState(currentUiState));
@@ -1002,7 +988,8 @@ export function OpenApiDiffReportExplorer({
 
     if (!confirmed) {
       notify({
-        description: "Switch to redacted export mode to mask tokens, emails, internal hosts, and other detected values before copying.",
+        description:
+          "Switch to redacted export mode to mask tokens, emails, internal hosts, and other detected values before copying.",
         title: "Unredacted export cancelled",
         variant: "warning",
       });
@@ -1090,23 +1077,20 @@ export function OpenApiDiffReportExplorer({
                   <p className="text-sm leading-6">{report.sdkImpactSummary}</p>
                   <div className="grid gap-3 sm:grid-cols-2">
                     <div className="border-line bg-panel rounded-2xl border px-4 py-3">
-                      <p className="text-xs font-semibold tracking-[0.18em] text-muted uppercase">
+                      <p className="text-muted text-xs font-semibold tracking-[0.18em] uppercase">
                         Risk score
                       </p>
                       <p className="mt-2 text-2xl font-semibold">{report.riskScore}/100</p>
                     </div>
                     <div className="border-line bg-panel rounded-2xl border px-4 py-3">
-                      <p className="text-xs font-semibold tracking-[0.18em] text-muted uppercase">
+                      <p className="text-muted text-xs font-semibold tracking-[0.18em] uppercase">
                         Findings
                       </p>
-                      <p className="mt-2 text-2xl font-semibold">
-                        {report.summary.totalFindings}
-                      </p>
+                      <p className="mt-2 text-2xl font-semibold">{report.summary.totalFindings}</p>
                     </div>
                   </div>
                   <p className="text-muted text-sm leading-6">
-                    Last successful analysis:{" "}
-                    {new Date(report.generatedAt).toLocaleString()}
+                    Last successful analysis: {new Date(report.generatedAt).toLocaleString()}
                   </p>
                 </CardContent>
               </Card>
@@ -1130,12 +1114,12 @@ export function OpenApiDiffReportExplorer({
                     />
                   </div>
                   <p className="text-muted text-sm leading-6">
-                    0 means minimal contract risk. 100 means the report is saturated with
-                    release risk.
+                    0 means minimal contract risk. 100 means the report is saturated with release
+                    risk.
                   </p>
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div className="border-line bg-panel-muted rounded-2xl border p-4">
-                      <p className="text-xs font-semibold tracking-[0.18em] text-muted uppercase">
+                      <p className="text-muted text-xs font-semibold tracking-[0.18em] uppercase">
                         Affected endpoints
                       </p>
                       <p className="mt-2 text-2xl font-semibold">
@@ -1143,12 +1127,10 @@ export function OpenApiDiffReportExplorer({
                       </p>
                     </div>
                     <div className="border-line bg-panel-muted rounded-2xl border p-4">
-                      <p className="text-xs font-semibold tracking-[0.18em] text-muted uppercase">
+                      <p className="text-muted text-xs font-semibold tracking-[0.18em] uppercase">
                         Affected schemas
                       </p>
-                      <p className="mt-2 text-2xl font-semibold">
-                        {report.affectedSchemas.length}
-                      </p>
+                      <p className="mt-2 text-2xl font-semibold">{report.affectedSchemas.length}</p>
                     </div>
                   </div>
                 </CardContent>
@@ -1163,10 +1145,7 @@ export function OpenApiDiffReportExplorer({
                   label={formatSeverityLabel(severity)}
                   meta={
                     report.summary.bySeverity[severity] > 0 ? (
-                      <Button
-                        onClick={() => jumpToFindings({ severity })}
-                        variant="ghost"
-                      >
+                      <Button onClick={() => jumpToFindings({ severity })} variant="ghost">
                         Review
                       </Button>
                     ) : null
@@ -1243,11 +1222,9 @@ export function OpenApiDiffReportExplorer({
                               </Badge>
                             ) : null}
                           </div>
-                          <p className="mt-3 font-semibold text-foreground">{item.title}</p>
+                          <p className="text-foreground mt-3 font-semibold">{item.title}</p>
                           <p className="text-muted mt-2 text-sm leading-6">{item.message}</p>
-                          <p className="text-muted mt-2 text-xs leading-5">
-                            {item.jsonPointer}
-                          </p>
+                          <p className="text-muted mt-2 text-xs leading-5">{item.jsonPointer}</p>
                           <div className="mt-4">
                             <Button
                               onClick={() => setSelectedFindingId(item.id)}
@@ -1304,32 +1281,25 @@ export function OpenApiDiffReportExplorer({
                     { label: "Base spec", spec: report.baseline },
                     { label: "Revision spec", spec: report.candidate },
                   ].map(({ label, spec }) => (
-                    <div
-                      key={label}
-                      className="border-line bg-panel-muted rounded-2xl border p-4"
-                    >
+                    <div key={label} className="border-line bg-panel-muted rounded-2xl border p-4">
                       <div className="flex flex-wrap items-center justify-between gap-2">
-                        <p className="font-semibold text-foreground">{label}</p>
+                        <p className="text-foreground font-semibold">{label}</p>
                         <div className="flex flex-wrap gap-2">
                           <Badge variant="neutral">{spec.input.format.toUpperCase()}</Badge>
-                          <Badge
-                            variant={spec.validationSource === "scalar" ? "safe" : "info"}
-                          >
-                            {spec.validationSource === "scalar"
-                              ? "Scalar"
-                              : "Lightweight"}
+                          <Badge variant={spec.validationSource === "scalar" ? "safe" : "info"}>
+                            {spec.validationSource === "scalar" ? "Scalar" : "Lightweight"}
                           </Badge>
                         </div>
                       </div>
                       <div className="mt-4 grid gap-3 sm:grid-cols-2">
                         <div>
-                          <p className="text-xs font-semibold tracking-[0.18em] text-muted uppercase">
+                          <p className="text-muted text-xs font-semibold tracking-[0.18em] uppercase">
                             Paths
                           </p>
                           <p className="mt-2 text-2xl font-semibold">{spec.pathCount}</p>
                         </div>
                         <div>
-                          <p className="text-xs font-semibold tracking-[0.18em] text-muted uppercase">
+                          <p className="text-muted text-xs font-semibold tracking-[0.18em] uppercase">
                             Schemas
                           </p>
                           <p className="mt-2 text-2xl font-semibold">{spec.schemaCount}</p>
@@ -1362,7 +1332,7 @@ export function OpenApiDiffReportExplorer({
                         key={category}
                         className="border-line bg-panel-muted rounded-2xl border p-4"
                       >
-                        <p className="text-xs font-semibold tracking-[0.18em] text-muted uppercase">
+                        <p className="text-muted text-xs font-semibold tracking-[0.18em] uppercase">
                           {reportCategoryLabels[category]}
                         </p>
                         <p className="mt-2 text-2xl font-semibold">
@@ -1400,9 +1370,8 @@ export function OpenApiDiffReportExplorer({
             onLoadMore={() =>
               setVisibleSchemaState((current) => ({
                 count:
-                  (current.key === reportWindowKey
-                    ? current.count
-                    : MAX_RENDERED_REPORT_SCHEMAS) + MAX_RENDERED_REPORT_SCHEMAS,
+                  (current.key === reportWindowKey ? current.count : MAX_RENDERED_REPORT_SCHEMAS) +
+                  MAX_RENDERED_REPORT_SCHEMAS,
                 key: reportWindowKey,
               }))
             }
@@ -1432,8 +1401,8 @@ export function OpenApiDiffReportExplorer({
               </CardHeader>
               <CardContent>
                 <p className="text-muted text-sm leading-6">
-                  Security findings stay grouped here so teams can quickly review auth, scope,
-                  and access-model changes without scanning the full report.
+                  Security findings stay grouped here so teams can quickly review auth, scope, and
+                  access-model changes without scanning the full report.
                 </p>
               </CardContent>
             </Card>
@@ -1508,7 +1477,8 @@ export function OpenApiDiffReportExplorer({
                       onChange={(event) =>
                         setFilters((current) => ({
                           ...current,
-                          severity: event.currentTarget.value as FindingsExplorerFilters["severity"],
+                          severity: event.currentTarget
+                            .value as FindingsExplorerFilters["severity"],
                         }))
                       }
                       value={filters.severity}
@@ -1529,7 +1499,8 @@ export function OpenApiDiffReportExplorer({
                       onChange={(event) =>
                         setFilters((current) => ({
                           ...current,
-                          category: event.currentTarget.value as FindingsExplorerFilters["category"],
+                          category: event.currentTarget
+                            .value as FindingsExplorerFilters["category"],
                         }))
                       }
                       value={filters.category}
@@ -1658,8 +1629,8 @@ export function OpenApiDiffReportExplorer({
                     </p>
                   ) : (
                     <p className="text-muted text-sm">
-                      Search and filters are matched against path, operationId, schema, rule ID,
-                      and message text.
+                      Search and filters are matched against path, operationId, schema, rule ID, and
+                      message text.
                     </p>
                   )}
                 </div>
@@ -1753,8 +1724,8 @@ export function OpenApiDiffReportExplorer({
               <div className="space-y-4">
                 {filteredIgnoredRows.length > visibleIgnoredRows.length ? (
                   <Alert title="Progressively rendering ignored findings" variant="info">
-                    Ignored findings stay in the audit trail. This view is rendering them in
-                    smaller chunks so the browser stays responsive.
+                    Ignored findings stay in the audit trail. This view is rendering them in smaller
+                    chunks so the browser stays responsive.
                   </Alert>
                 ) : null}
                 <FindingsTable
@@ -1807,9 +1778,8 @@ export function OpenApiDiffReportExplorer({
               <CardContent className="space-y-4">
                 <p className="text-muted text-sm leading-6">
                   Use CI when you want pull requests to run a repeatable breaking-change gate on
-                  every spec update. The browser tool is still the fastest place to explore
-                  one-off diffs, tweak settings, and review findings before you codify a pipeline
-                  check.
+                  every spec update. The browser tool is still the fastest place to explore one-off
+                  diffs, tweak settings, and review findings before you codify a pipeline check.
                 </p>
                 <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                   <FilterField label="CI engine">
@@ -1901,7 +1871,7 @@ export function OpenApiDiffReportExplorer({
                 <p className="leading-6">{ciSnippetBundle.parityNote}</p>
                 <p className="leading-6">{ciSnippetBundle.usageHint}</p>
                 <a
-                  className="text-sm font-medium text-foreground underline-offset-4 transition hover:underline"
+                  className="text-foreground text-sm font-medium underline-offset-4 transition hover:underline"
                   href="#pull-request-checks"
                 >
                   How to add OpenAPI breaking-change checks to pull requests.
@@ -2043,7 +2013,10 @@ export function OpenApiDiffReportExplorer({
                         leak internal contract data.
                       </p>
                       <div className="flex flex-wrap gap-3">
-                        <Button onClick={() => handleSetRedactBeforeExport(true)} variant="secondary">
+                        <Button
+                          onClick={() => handleSetRedactBeforeExport(true)}
+                          variant="secondary"
+                        >
                           Redact before export
                         </Button>
                       </div>
@@ -2077,7 +2050,7 @@ export function OpenApiDiffReportExplorer({
                       </div>
                       <div className="mt-4 grid gap-4 xl:grid-cols-2">
                         <div className="space-y-2">
-                          <p className="text-xs font-semibold tracking-[0.18em] text-muted uppercase">
+                          <p className="text-muted text-xs font-semibold tracking-[0.18em] uppercase">
                             Before
                           </p>
                           <pre className="border-line bg-panel overflow-x-auto rounded-2xl border p-4 text-xs leading-6 whitespace-pre-wrap">
@@ -2085,7 +2058,7 @@ export function OpenApiDiffReportExplorer({
                           </pre>
                         </div>
                         <div className="space-y-2">
-                          <p className="text-xs font-semibold tracking-[0.18em] text-muted uppercase">
+                          <p className="text-muted text-xs font-semibold tracking-[0.18em] uppercase">
                             After
                           </p>
                           <pre className="border-line bg-panel overflow-x-auto rounded-2xl border p-4 text-xs leading-6 whitespace-pre-wrap">
@@ -2109,9 +2082,9 @@ export function OpenApiDiffReportExplorer({
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <p className="text-muted text-sm leading-6">
-                    Markdown is tuned for GitHub PR comments. HTML is a standalone printable
-                    report, JSON keeps the full machine-readable payload with export metadata, and
-                    Share creates hash-only links without uploading raw specs.
+                    Markdown is tuned for GitHub PR comments. HTML is a standalone printable report,
+                    JSON keeps the full machine-readable payload with export metadata, and Share
+                    creates hash-only links without uploading raw specs.
                   </p>
                   <div className="grid gap-3 sm:grid-cols-2">
                     <CopyButton
@@ -2130,22 +2103,13 @@ export function OpenApiDiffReportExplorer({
                       value={markdownExport}
                       variant="secondary"
                     />
-                    <Button
-                      onClick={() => handleDownloadExport("markdown")}
-                      variant="secondary"
-                    >
+                    <Button onClick={() => handleDownloadExport("markdown")} variant="secondary">
                       Download Markdown
                     </Button>
-                    <Button
-                      onClick={() => handleDownloadExport("html")}
-                      variant="secondary"
-                    >
+                    <Button onClick={() => handleDownloadExport("html")} variant="secondary">
                       Download HTML
                     </Button>
-                    <Button
-                      onClick={() => handleDownloadExport("json")}
-                      variant="secondary"
-                    >
+                    <Button onClick={() => handleDownloadExport("json")} variant="secondary">
                       Download JSON
                     </Button>
                     <Button
@@ -2275,9 +2239,9 @@ export function OpenApiDiffReportExplorer({
             <TabsContent value="report">
               <div className="space-y-4">
                 <p className="text-muted text-sm leading-6">
-                  Includes a compressed redacted <code>DiffReport</code>, current export UI
-                  toggles, and report tab state. The shared page opens in read-only mode and never
-                  includes raw spec contents.
+                  Includes a compressed redacted <code>DiffReport</code>, current export UI toggles,
+                  and report tab state. The shared page opens in read-only mode and never includes
+                  raw spec contents.
                 </p>
                 <div className="flex flex-wrap gap-2">
                   <Badge variant="neutral">Read-only view</Badge>
@@ -2292,7 +2256,10 @@ export function OpenApiDiffReportExplorer({
                         tokens, and other secret-like values are masked across the shared payload.
                       </p>
                       <div className="flex flex-wrap gap-3">
-                        <Button onClick={() => handleSetRedactBeforeExport(true)} variant="secondary">
+                        <Button
+                          onClick={() => handleSetRedactBeforeExport(true)}
+                          variant="secondary"
+                        >
                           Enable redaction
                         </Button>
                       </div>
@@ -2305,7 +2272,7 @@ export function OpenApiDiffReportExplorer({
 
           {shareLinkResult.ok ? (
             <div className="space-y-3">
-              <p className="text-sm font-medium text-foreground">Share link</p>
+              <p className="text-foreground text-sm font-medium">Share link</p>
               <textarea
                 className="border-line bg-panel-muted min-h-28 w-full rounded-2xl border p-4 text-xs leading-6"
                 readOnly
@@ -2317,9 +2284,7 @@ export function OpenApiDiffReportExplorer({
             </div>
           ) : shareLinkResult.message ? (
             <Alert
-              title={
-                shareMode === "report" ? "Report link unavailable" : "Share link unavailable"
-              }
+              title={shareMode === "report" ? "Report link unavailable" : "Share link unavailable"}
               variant="warning"
             >
               {shareLinkResult.message}

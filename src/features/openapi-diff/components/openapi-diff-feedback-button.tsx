@@ -23,13 +23,10 @@ type OpenApiDiffFeedbackButtonProps = {
   report: DiffReport | null;
 };
 
-const feedbackEndpoint =
-  process.env.NEXT_PUBLIC_FEEDBACK_ENDPOINT?.trim() || "/api/feedback";
+const feedbackEndpoint = process.env.NEXT_PUBLIC_FEEDBACK_ENDPOINT?.trim() || "/api/feedback";
 const feedbackEmail = process.env.NEXT_PUBLIC_FEEDBACK_EMAIL?.trim() || null;
 
-export function OpenApiDiffFeedbackButton({
-  report,
-}: OpenApiDiffFeedbackButtonProps) {
+export function OpenApiDiffFeedbackButton({ report }: OpenApiDiffFeedbackButtonProps) {
   const [open, setOpen] = useState(false);
   const [rating, setRating] = useState<FeedbackRating>(4);
   const [kind, setKind] = useState<FeedbackKind>("idea");
@@ -100,8 +97,7 @@ export function OpenApiDiffFeedbackButton({
 
     const payload = createOpenApiDiffFeedbackPayload({
       ...(normalizedEmail ? { email: normalizedEmail } : {}),
-      includeReportMetadata:
-        kind === "correctness" && includeReportMetadata && Boolean(report),
+      includeReportMetadata: kind === "correctness" && includeReportMetadata && Boolean(report),
       kind,
       message,
       rating,
@@ -144,7 +140,8 @@ export function OpenApiDiffFeedbackButton({
       }
 
       notify({
-        description: "Thanks. Your feedback was submitted without attaching raw specs or report bodies.",
+        description:
+          "Thanks. Your feedback was submitted without attaching raw specs or report bodies.",
         title: "Feedback sent",
         variant: "success",
       });
@@ -161,11 +158,7 @@ export function OpenApiDiffFeedbackButton({
 
   return (
     <>
-      <Button
-        aria-label="Open feedback form"
-        onClick={() => setOpen(true)}
-        variant="outline"
-      >
+      <Button aria-label="Open feedback form" onClick={() => setOpen(true)} variant="outline">
         Feedback
       </Button>
 
@@ -184,7 +177,7 @@ export function OpenApiDiffFeedbackButton({
 
           <div className="grid gap-4 md:grid-cols-2">
             <label className="space-y-2 text-sm">
-              <span className="block font-medium text-foreground">Rating</span>
+              <span className="text-foreground block font-medium">Rating</span>
               <select
                 aria-label="Feedback rating"
                 className="border-line bg-panel w-full rounded-xl border px-3 py-2"
@@ -203,7 +196,7 @@ export function OpenApiDiffFeedbackButton({
             </label>
 
             <label className="space-y-2 text-sm">
-              <span className="block font-medium text-foreground">Feedback type</span>
+              <span className="text-foreground block font-medium">Feedback type</span>
               <select
                 aria-label="Feedback type"
                 className="border-line bg-panel w-full rounded-xl border px-3 py-2"
@@ -221,7 +214,7 @@ export function OpenApiDiffFeedbackButton({
           </div>
 
           <label className="space-y-2 text-sm">
-            <span className="block font-medium text-foreground">Details</span>
+            <span className="text-foreground block font-medium">Details</span>
             <textarea
               aria-label="Feedback details"
               className="border-line bg-panel min-h-36 w-full rounded-2xl border p-4 leading-6"
@@ -235,7 +228,7 @@ export function OpenApiDiffFeedbackButton({
           </label>
 
           <label className="space-y-2 text-sm">
-            <span className="block font-medium text-foreground">Optional email</span>
+            <span className="text-foreground block font-medium">Optional email</span>
             <input
               aria-label="Feedback email"
               className="border-line bg-panel w-full rounded-xl border px-3 py-2"
@@ -272,9 +265,7 @@ export function OpenApiDiffFeedbackButton({
           {deliveryMode !== "api" ? (
             <Alert
               title={
-                deliveryMode === "mailto"
-                  ? "No feedback backend configured"
-                  : "Copyable fallback"
+                deliveryMode === "mailto" ? "No feedback backend configured" : "Copyable fallback"
               }
               variant="info"
             >
@@ -286,7 +277,7 @@ export function OpenApiDiffFeedbackButton({
 
           {preparedPayload ? (
             <div className="space-y-4">
-              <p className="text-sm font-medium text-foreground">Prepared feedback</p>
+              <p className="text-foreground text-sm font-medium">Prepared feedback</p>
               <textarea
                 aria-label="Prepared feedback text"
                 className="border-line bg-panel-muted min-h-36 w-full rounded-2xl border p-4 text-xs leading-6"
@@ -297,7 +288,7 @@ export function OpenApiDiffFeedbackButton({
                 <CopyButton label="Copy feedback text" value={preparedText} variant="secondary" />
                 {mailtoHref ? (
                   <a
-                    className="border-line bg-panel inline-flex min-h-10 items-center justify-center rounded-xl border px-4 py-2 text-sm font-medium text-foreground transition hover:bg-panel-muted"
+                    className="border-line bg-panel text-foreground hover:bg-panel-muted inline-flex min-h-10 items-center justify-center rounded-xl border px-4 py-2 text-sm font-medium transition"
                     href={mailtoHref}
                   >
                     Open email draft

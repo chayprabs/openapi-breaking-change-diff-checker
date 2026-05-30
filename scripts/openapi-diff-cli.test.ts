@@ -65,14 +65,7 @@ describe("openapi-diff CLI", () => {
     const { basePath, revisionPath } = writeSpecPair(directory);
 
     try {
-      const result = runCli([
-        "--base",
-        basePath,
-        "--revision",
-        revisionPath,
-        "--format",
-        "xml",
-      ]);
+      const result = runCli(["--base", basePath, "--revision", revisionPath, "--format", "xml"]);
 
       expect(result.status).toBe(1);
       expect(result.stderr).toContain("Unsupported format: xml");
@@ -87,13 +80,7 @@ describe("openapi-diff CLI", () => {
     const { basePath, revisionPath } = writeSpecPair(directory);
 
     try {
-      const result = runCli([
-        "--base",
-        basePath,
-        "--revision",
-        revisionPath,
-        "--totally-unknown",
-      ]);
+      const result = runCli(["--base", basePath, "--revision", revisionPath, "--totally-unknown"]);
 
       expect(result.status).toBe(1);
       expect(result.stderr).toContain("Unknown argument");

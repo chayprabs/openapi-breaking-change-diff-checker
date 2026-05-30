@@ -170,10 +170,7 @@ export function matchesIgnoreRule(
   finding: DiffFinding,
   consumerProfile: ConsumerProfile,
 ): boolean {
-  if (
-    ignoreRule.consumerProfiles &&
-    !ignoreRule.consumerProfiles.includes(consumerProfile)
-  ) {
+  if (ignoreRule.consumerProfiles && !ignoreRule.consumerProfiles.includes(consumerProfile)) {
     return false;
   }
 
@@ -201,10 +198,7 @@ export function matchesIgnoreRule(
     return false;
   }
 
-  if (
-    ignoreRule.jsonPathPrefix &&
-    !finding.jsonPointer.startsWith(ignoreRule.jsonPathPrefix)
-  ) {
+  if (ignoreRule.jsonPathPrefix && !finding.jsonPointer.startsWith(ignoreRule.jsonPathPrefix)) {
     return false;
   }
 
@@ -228,9 +222,7 @@ export function matchesPathPattern(pathPattern: string, path: string | null) {
     return true;
   }
 
-  const expression = new RegExp(
-    `^${escapeRegex(pathPattern).replaceAll("*", ".*")}$`,
-  );
+  const expression = new RegExp(`^${escapeRegex(pathPattern).replaceAll("*", ".*")}$`);
 
   return expression.test(path);
 }

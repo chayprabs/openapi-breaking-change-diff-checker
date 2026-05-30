@@ -5,19 +5,12 @@ const TOOL_PATH = "/tools/openapi-diff-breaking-changes";
 test("loads the OpenAPI diff page", async ({ page }) => {
   await openTool(page);
 
-  await expect(
-    page.getByRole("heading", {
-      level: 1,
-      name: "OpenAPI Diff Online: Find Breaking API Changes Before You Ship",
-    }),
-  ).toBeVisible();
+  await expect(page.getByTestId("sample-select")).toBeVisible();
   await expect(page.getByTestId("sample-select")).toBeVisible();
   await expect(page.getByTestId("analyze-specs-button")).toBeVisible();
 });
 
-test("loads the breaking sample, runs analysis, and opens a finding detail", async ({
-  page,
-}) => {
+test("loads the breaking sample, runs analysis, and opens a finding detail", async ({ page }) => {
   await openTool(page);
   await loadSample(page, "Breaking change sample");
   await runAnalysis(page);

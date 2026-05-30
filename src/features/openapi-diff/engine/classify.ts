@@ -49,10 +49,7 @@ export function applyAnalysisSettingsToFindings(
     .map((finding) => applyIgnoreSettings(finding, normalizedSettings));
 }
 
-export function classifyChange(
-  change: DiffFinding,
-  settings: AnalysisSettings,
-): DiffFinding {
+export function classifyChange(change: DiffFinding, settings: AnalysisSettings): DiffFinding {
   const normalizedSettings = createAnalysisSettings(settings);
   const rule = getRuleMetadata(change.ruleId);
   const baseSeverity = change.baseSeverity ?? change.severity ?? rule.defaultSeverity;
@@ -71,10 +68,7 @@ export function getRuleMetadata(ruleId: RuleId): RuleMetadata & { id: RuleId } {
   return ruleCatalog[ruleId];
 }
 
-export function reclassifyDiffReport(
-  report: DiffReport,
-  settings: AnalysisSettings,
-): DiffReport {
+export function reclassifyDiffReport(report: DiffReport, settings: AnalysisSettings): DiffReport {
   const normalizedSettings = createAnalysisSettings(settings);
   const findings = sortDiffFindings(
     applyAnalysisSettingsToFindings(report.findings, normalizedSettings),
@@ -276,10 +270,7 @@ function classifyByProfile(
   };
 }
 
-function elevateSeverity(
-  current: DiffSeverity,
-  next: DiffSeverity,
-): DiffSeverity {
+function elevateSeverity(current: DiffSeverity, next: DiffSeverity): DiffSeverity {
   const severityRank: Record<DiffSeverity, number> = {
     breaking: 0,
     dangerous: 1,

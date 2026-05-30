@@ -1,13 +1,6 @@
 "use client";
 
-import {
-  startTransition,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { startTransition, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type {
   AnalysisSettings,
   OpenApiAnalysisResult,
@@ -87,8 +80,7 @@ export function useOpenApiDiffWorker() {
   const analyzeInFlightRef = useRef(false);
   const [baseState, setBaseState] = useState<EditorWorkerState>(EMPTY_EDITOR_STATE);
   const [revisionState, setRevisionState] = useState<EditorWorkerState>(EMPTY_EDITOR_STATE);
-  const [analysisState, setAnalysisState] =
-    useState<AnalysisWorkerState>(EMPTY_ANALYSIS_STATE);
+  const [analysisState, setAnalysisState] = useState<AnalysisWorkerState>(EMPTY_ANALYSIS_STATE);
   const [progress, setProgress] = useState<WorkerProgressState>(null);
 
   const editorStates = useMemo(
@@ -106,23 +98,17 @@ export function useOpenApiDiffWorker() {
     }
   }, []);
 
-  const setEditorState = useCallback(
-    (panelId: WorkspacePanelId, nextState: EditorWorkerState) => {
-      if (panelId === "revision") {
-        setRevisionState(nextState);
-        return;
-      }
+  const setEditorState = useCallback((panelId: WorkspacePanelId, nextState: EditorWorkerState) => {
+    if (panelId === "revision") {
+      setRevisionState(nextState);
+      return;
+    }
 
-      setBaseState(nextState);
-    },
-    [],
-  );
+    setBaseState(nextState);
+  }, []);
 
   const updateEditorState = useCallback(
-    (
-      panelId: WorkspacePanelId,
-      updater: (current: EditorWorkerState) => EditorWorkerState,
-    ) => {
+    (panelId: WorkspacePanelId, updater: (current: EditorWorkerState) => EditorWorkerState) => {
       if (panelId === "revision") {
         setRevisionState((current) => updater(current));
         return;
@@ -171,10 +157,7 @@ export function useOpenApiDiffWorker() {
 
   const handleAnalyzeTimeout = useCallback(
     (requestId: string) => {
-      if (
-        !analyzeInFlightRef.current ||
-        analyzeRequestIdRef.current !== requestId
-      ) {
+      if (!analyzeInFlightRef.current || analyzeRequestIdRef.current !== requestId) {
         return;
       }
 
@@ -207,10 +190,7 @@ export function useOpenApiDiffWorker() {
             return;
           }
 
-          if (
-            message.action === "analyze" &&
-            analyzeRequestIdRef.current !== message.requestId
-          ) {
+          if (message.action === "analyze" && analyzeRequestIdRef.current !== message.requestId) {
             return;
           }
 
@@ -336,9 +316,7 @@ export function useOpenApiDiffWorker() {
       queueMicrotask(() => {
         handleWorkerRuntimeFailure(
           "worker-init",
-          error instanceof Error
-            ? error.message
-            : "Failed to initialize the OpenAPI worker.",
+          error instanceof Error ? error.message : "Failed to initialize the OpenAPI worker.",
         );
       });
 

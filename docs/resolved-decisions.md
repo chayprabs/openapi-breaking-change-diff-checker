@@ -4,7 +4,7 @@ This document closes the open questions from the initial repository survey with 
 
 ## Product shape
 
-**Decision:** Authos is a **multi-tool developer-tools website** with **one live product** (OpenAPI Diff) and roadmap placeholders for API/schema, DevOps, and database categories.
+**Decision:** OpenAPI Diff is a **multi-tool developer-tools website** with **one live product** (OpenAPI Diff) and roadmap placeholders for API/schema, DevOps, and database categories.
 
 **Evidence:** `src/data/site.ts` tool directory, footer roadmap items, `/tools/*` routes, `docs/future-roadmap.md`.
 
@@ -12,7 +12,7 @@ This document closes the open questions from the initial repository survey with 
 
 ## Canonical URL and domain
 
-**Decision:** Do **not** assume `https://authos.dev`. That domain hosts a **different product** (AuthOS identity/SSO by `@drmhse/sso`), verified by live fetch (May 2026).
+**Decision:** Do **not** assume `https://example.com`. That domain hosts a **different product** (unrelated identity/SSO by `@drmhse/sso`), verified by live fetch (May 2026).
 
 **Implementation:**
 
@@ -25,7 +25,7 @@ This document closes the open questions from the initial repository survey with 
 
 ## Repository vs package name
 
-**Decision:** Keep npm package name `authos` and Git repo folder `openapi-breaking-change-diff-checker` as-is. They reflect product brand vs descriptive GitHub repo name.
+**Decision:** Keep npm package name matches the GitHub repo and Git repo folder `openapi-breaking-change-diff-checker` as-is. They reflect product brand vs descriptive GitHub repo name.
 
 **Remote:** `https://github.com/chayprabs/openapi-breaking-change-diff-checker.git`
 
@@ -41,11 +41,11 @@ This document closes the open questions from the initial repository survey with 
 
 **Decision:** Adapter + optional script loading when env is set.
 
-| Provider | Env |
-| --- | --- |
-| `plausible` | `NEXT_PUBLIC_ANALYTICS_PROVIDER=plausible`, `NEXT_PUBLIC_PLAUSIBLE_DOMAIN` |
-| `posthog` | `NEXT_PUBLIC_ANALYTICS_PROVIDER=posthog`, `NEXT_PUBLIC_POSTHOG_KEY`, optional `NEXT_PUBLIC_POSTHOG_HOST` |
-| `console` / `custom` | No third-party script required |
+| Provider             | Env                                                                                                      |
+| -------------------- | -------------------------------------------------------------------------------------------------------- |
+| `plausible`          | `NEXT_PUBLIC_ANALYTICS_PROVIDER=plausible`, `NEXT_PUBLIC_PLAUSIBLE_DOMAIN`                               |
+| `posthog`            | `NEXT_PUBLIC_ANALYTICS_PROVIDER=posthog`, `NEXT_PUBLIC_POSTHOG_KEY`, optional `NEXT_PUBLIC_POSTHOG_HOST` |
+| `console` / `custom` | No third-party script required                                                                           |
 
 **Default:** Analytics disabled (no env).
 
@@ -59,11 +59,11 @@ This document closes the open questions from the initial repository survey with 
 
 **Verified locally (after `pnpm install`):**
 
-| Check | Result |
-| --- | --- |
-| `pnpm typecheck` | Pass |
-| `pnpm build` | Pass |
-| `pnpm test` | Pass after cross-platform golden normalization |
+| Check            | Result                                                                                |
+| ---------------- | ------------------------------------------------------------------------------------- |
+| `pnpm typecheck` | Pass                                                                                  |
+| `pnpm build`     | Pass                                                                                  |
+| `pnpm test`      | Pass after cross-platform golden normalization                                        |
 | Golden snapshots | LF-normalized in tests; regenerate with `UPDATE_GOLDENS=1` when engine output changes |
 
 **CI (`.github/workflows/ci.yml`):** lint, typecheck, unit tests, format check, build. E2E remains a release gate via `pnpm test:e2e` locally (Playwright starts `next dev`).
@@ -82,9 +82,9 @@ This document closes the open questions from the initial repository survey with 
 
 ## Platform stack (roadmap implementation)
 
-| Concern | Choice |
-| --- | --- |
-| Database | Drizzle ORM + PostgreSQL (`DATABASE_URL`); SQLite file fallback when unset for local dev |
-| Auth | Auth.js v5 (NextAuth) with GitHub OAuth + optional email; sessions via JWT |
-| Private blobs | Optional S3-compatible storage (`S3_*` env vars); JSON reports default to Postgres |
-| Rate limiting | In-memory default; Upstash Redis when `UPSTASH_REDIS_REST_URL` is set |
+| Concern       | Choice                                                                                   |
+| ------------- | ---------------------------------------------------------------------------------------- |
+| Database      | Drizzle ORM + PostgreSQL (`DATABASE_URL`); SQLite file fallback when unset for local dev |
+| Auth          | Auth.js v5 (NextAuth) with GitHub OAuth + optional email; sessions via JWT               |
+| Private blobs | Optional S3-compatible storage (`S3_*` env vars); JSON reports default to Postgres       |
+| Rate limiting | In-memory default; Upstash Redis when `UPSTASH_REDIS_REST_URL` is set                    |

@@ -78,13 +78,19 @@ export async function fetchPublicSpecTextViaProxy(
   const fetchImpl = options.fetchImpl ?? fetch;
   const timeoutMs = options.timeoutMs ?? SPEC_FETCH_TIMEOUT_MS;
   const { url } = validatePublicSpecUrl(input);
-  const response = await fetchWithTimeout(fetchImpl, getProxyEndpointUrl(), timeoutMs, options.signal, {
-    body: JSON.stringify({ url: url.toString() }),
-    headers: {
-      "Content-Type": "application/json",
+  const response = await fetchWithTimeout(
+    fetchImpl,
+    getProxyEndpointUrl(),
+    timeoutMs,
+    options.signal,
+    {
+      body: JSON.stringify({ url: url.toString() }),
+      headers: {
+        "Content-Type": "application/json",
+      },
+      method: "POST",
     },
-    method: "POST",
-  });
+  );
 
   const payload = (await response.json()) as {
     code?: string;

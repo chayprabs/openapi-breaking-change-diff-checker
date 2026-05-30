@@ -39,10 +39,7 @@ function createParsedSpec(label: string): ParsedSpec {
   };
 }
 
-function createFinding(
-  id: string,
-  overrides: Partial<DiffFinding> = {},
-): DiffFinding {
+function createFinding(id: string, overrides: Partial<DiffFinding> = {}): DiffFinding {
   return {
     afterValue: null,
     baseSeverity: "dangerous",
@@ -188,7 +185,7 @@ describe("share links", () => {
         },
       ],
     });
-    const url = buildSettingsShareLink("https://authos.dev/tools/openapi-diff", settings, {
+    const url = buildSettingsShareLink("https://example.com/tools/openapi-diff", settings, {
       activeMobileTab: "results",
       reportExplorer: {
         ...uiState,
@@ -207,12 +204,10 @@ describe("share links", () => {
     expect(parsed.mode === "settings" ? parsed.analysisSettings.consumerProfile : null).toBe(
       "sdkStrict",
     );
-    expect(parsed.mode === "settings" ? parsed.analysisSettings.ignoreRules[0]?.pathPattern : null).toBe(
-      "/internal/*",
-    );
-    expect(parsed.mode === "settings" ? parsed.ui.reportExplorer.activeTab : null).toBe(
-      "findings",
-    );
+    expect(
+      parsed.mode === "settings" ? parsed.analysisSettings.ignoreRules[0]?.pathPattern : null,
+    ).toBe("/internal/*");
+    expect(parsed.mode === "settings" ? parsed.ui.reportExplorer.activeTab : null).toBe("findings");
     expect(parsed.mode === "settings" ? parsed.ui.reportExplorer.filters.search : null).toBe(
       "response removed",
     );
@@ -229,14 +224,10 @@ describe("share links", () => {
           "This can leak reviewer@example.com and internal.corp if it is shared without redaction.",
       }),
     ]);
-    const result = buildRedactedReportShareLink(
-      "https://authos.dev/tools/openapi-diff",
-      report,
-      {
-        activeMobileTab: "base",
-        reportExplorer: createDefaultReportExplorerUiState(),
-      },
-    );
+    const result = buildRedactedReportShareLink("https://example.com/tools/openapi-diff", report, {
+      activeMobileTab: "base",
+      reportExplorer: createDefaultReportExplorerUiState(),
+    });
 
     expect(result.ok).toBe(true);
 
@@ -271,7 +262,7 @@ describe("share links", () => {
       ),
     ]);
     const result = buildRedactedReportShareLink(
-      "https://authos.dev/tools/openapi-diff",
+      "https://example.com/tools/openapi-diff",
       report,
       {
         activeMobileTab: "results",

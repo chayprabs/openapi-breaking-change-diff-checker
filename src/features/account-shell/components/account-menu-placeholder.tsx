@@ -63,7 +63,7 @@ export function AccountMenuPlaceholder() {
         >
           <div className="space-y-4">
             <div className="space-y-2">
-              <p className="font-semibold text-foreground">Auth-ready shell</p>
+              <p className="text-foreground font-semibold">Auth-ready shell</p>
               <p className="text-muted text-sm leading-6">
                 OpenAPI Diff stays free without login. This menu simply marks where accounts can
                 plug in later.
@@ -76,7 +76,7 @@ export function AccountMenuPlaceholder() {
                   className="border-line bg-panel-muted rounded-2xl border px-4 py-3"
                   key={benefit.title}
                 >
-                  <p className="text-sm font-medium text-foreground">{benefit.title}</p>
+                  <p className="text-foreground text-sm font-medium">{benefit.title}</p>
                   <p className="text-muted mt-2 text-sm leading-6">{benefit.body}</p>
                 </div>
               ))}

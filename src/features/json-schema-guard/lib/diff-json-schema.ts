@@ -14,8 +14,7 @@ function collectPropertyPaths(schema: Record<string, unknown>, prefix = ""): Map
 
   for (const [name, value] of Object.entries(properties)) {
     const path = prefix ? `${prefix}.${name}` : name;
-    const type =
-      isRecord(value) && typeof value.type === "string" ? value.type : "unknown";
+    const type = isRecord(value) && typeof value.type === "string" ? value.type : "unknown";
     paths.set(path, type);
 
     if (isRecord(value)) {

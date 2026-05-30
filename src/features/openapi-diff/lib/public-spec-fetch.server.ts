@@ -166,11 +166,7 @@ async function assertPublicDnsTarget(
   }
 }
 
-async function fetchWithTimeout(
-  fetchImpl: typeof fetch,
-  url: string,
-  timeoutMs: number,
-) {
+async function fetchWithTimeout(fetchImpl: typeof fetch, url: string, timeoutMs: number) {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 

@@ -45,11 +45,7 @@ export async function POST(request: Request) {
     const body = (await request.json()) as { url?: unknown };
 
     if (typeof body.url !== "string") {
-      throw new PublicSpecFetchError(
-        "invalid-url",
-        "A public http or https URL is required.",
-        400,
-      );
+      throw new PublicSpecFetchError("invalid-url", "A public http or https URL is required.", 400);
     }
 
     const result = await fetchPublicSpecText(body.url);
@@ -69,11 +65,7 @@ export async function POST(request: Request) {
   } catch (error) {
     const failure = isPublicSpecFetchError(error)
       ? error
-      : new PublicSpecFetchError(
-          "fetch-failed",
-          "The remote document could not be fetched.",
-          502,
-        );
+      : new PublicSpecFetchError("fetch-failed", "The remote document could not be fetched.", 502);
 
     return jsonResponse(
       {

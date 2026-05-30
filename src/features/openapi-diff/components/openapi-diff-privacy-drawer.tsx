@@ -40,10 +40,7 @@ export function OpenApiDiffPrivacyDrawer({
   const [customRulePattern, setCustomRulePattern] = useState("");
   const [customRuleFlags, setCustomRuleFlags] = useState("");
   const activeCustomRules = useMemo(
-    () =>
-      [...settings.customRedactionRules].sort((left, right) =>
-        left.id.localeCompare(right.id),
-      ),
+    () => [...settings.customRedactionRules].sort((left, right) => left.id.localeCompare(right.id)),
     [settings.customRedactionRules],
   );
 
@@ -68,7 +65,9 @@ export function OpenApiDiffPrivacyDrawer({
             <div className="flex flex-wrap items-center justify-between gap-3">
               <CardTitle className="text-base">Current workspace scan</CardTitle>
               <Badge variant={inspection.detectedSecrets ? "dangerous" : "safe"}>
-                {inspection.detectedSecrets ? "Secret-like values detected" : "No secret-like values found"}
+                {inspection.detectedSecrets
+                  ? "Secret-like values detected"
+                  : "No secret-like values found"}
               </Badge>
             </div>
           </CardHeader>
@@ -85,7 +84,7 @@ export function OpenApiDiffPrivacyDrawer({
                     key={match.placeholder}
                     className="border-line bg-panel-muted inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs"
                   >
-                    <span className="font-medium text-foreground">{match.placeholder}</span>
+                    <span className="text-foreground font-medium">{match.placeholder}</span>
                     <span className="text-muted">{match.preview}</span>
                   </span>
                 ))}
@@ -118,9 +117,9 @@ export function OpenApiDiffPrivacyDrawer({
               </label>
 
               <div className="space-y-3">
-                <p className="font-medium text-foreground">Custom regex redaction rules</p>
+                <p className="text-foreground font-medium">Custom regex redaction rules</p>
                 <label className="space-y-2">
-                  <span className="block text-muted">Label</span>
+                  <span className="text-muted block">Label</span>
                   <input
                     className="border-line bg-panel w-full rounded-xl border px-3 py-2"
                     onChange={(event) => setCustomRuleLabel(event.currentTarget.value)}
@@ -129,7 +128,7 @@ export function OpenApiDiffPrivacyDrawer({
                   />
                 </label>
                 <label className="space-y-2">
-                  <span className="block text-muted">Regex pattern</span>
+                  <span className="text-muted block">Regex pattern</span>
                   <input
                     className="border-line bg-panel w-full rounded-xl border px-3 py-2 font-mono"
                     onChange={(event) => setCustomRulePattern(event.currentTarget.value)}
@@ -138,7 +137,7 @@ export function OpenApiDiffPrivacyDrawer({
                   />
                 </label>
                 <label className="space-y-2">
-                  <span className="block text-muted">Flags</span>
+                  <span className="text-muted block">Flags</span>
                   <input
                     className="border-line bg-panel w-full rounded-xl border px-3 py-2 font-mono"
                     onChange={(event) => setCustomRuleFlags(event.currentTarget.value)}
@@ -169,7 +168,7 @@ export function OpenApiDiffPrivacyDrawer({
               </div>
 
               <div className="space-y-3">
-                <p className="font-medium text-foreground">Active custom rules</p>
+                <p className="text-foreground font-medium">Active custom rules</p>
                 {activeCustomRules.length ? (
                   <div className="flex flex-wrap gap-2">
                     {activeCustomRules.map((rule) => (
@@ -177,12 +176,12 @@ export function OpenApiDiffPrivacyDrawer({
                         key={rule.id}
                         className="border-line bg-panel-muted inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs"
                       >
-                        <span className="font-medium text-foreground">
+                        <span className="text-foreground font-medium">
                           {formatCustomRedactionRuleLabel(rule)}
                         </span>
                         <button
                           aria-label={`Remove ${formatCustomRedactionRuleLabel(rule)}`}
-                          className="text-muted transition hover:text-foreground"
+                          className="text-muted hover:text-foreground transition"
                           onClick={() => onRemoveCustomRedactionRule(rule.id)}
                           type="button"
                         >
@@ -192,9 +191,7 @@ export function OpenApiDiffPrivacyDrawer({
                     ))}
                   </div>
                 ) : (
-                  <p className="text-muted leading-6">
-                    No custom regex rules are active.
-                  </p>
+                  <p className="text-muted leading-6">No custom regex rules are active.</p>
                 )}
               </div>
             </CardContent>
@@ -206,27 +203,31 @@ export function OpenApiDiffPrivacyDrawer({
             </CardHeader>
             <CardContent className="space-y-4 text-sm">
               <div className="border-line bg-panel-muted rounded-2xl border p-4">
-                <p className="font-medium text-foreground">Stored locally</p>
+                <p className="text-foreground font-medium">Stored locally</p>
                 <p className="text-muted mt-2 leading-6">
-                  Only workspace preferences such as the selected sample, active tab, compatibility profile, ignore rules, and redaction settings are written to local storage.
+                  Only workspace preferences such as the selected sample, active tab, compatibility
+                  profile, ignore rules, and redaction settings are written to local storage.
                 </p>
               </div>
               <div className="border-line bg-panel-muted rounded-2xl border p-4">
-                <p className="font-medium text-foreground">Not stored by default</p>
+                <p className="text-foreground font-medium">Not stored by default</p>
                 <p className="text-muted mt-2 leading-6">
-                  Pasted specs, uploaded file contents, and generated exports stay in memory unless you explicitly copy or download them.
+                  Pasted specs, uploaded file contents, and generated exports stay in memory unless
+                  you explicitly copy or download them.
                 </p>
               </div>
               <div className="border-line bg-panel-muted rounded-2xl border p-4">
-                <p className="font-medium text-foreground">Not sent to analytics</p>
+                <p className="text-foreground font-medium">Not sent to analytics</p>
                 <p className="text-muted mt-2 leading-6">
-                  Spec bodies are not sent to analytics, and raw spec text is not intentionally included in worker error messages.
+                  Spec bodies are not sent to analytics, and raw spec text is not intentionally
+                  included in worker error messages.
                 </p>
               </div>
               <div className="border-line bg-panel-muted rounded-2xl border p-4">
-                <p className="font-medium text-foreground">Before you export</p>
+                <p className="text-foreground font-medium">Before you export</p>
                 <p className="text-muted mt-2 leading-6">
-                  Use the redacted export mode when the scan flags token-like values, internal hosts, or custom matches. Ignored findings stay visible either way.
+                  Use the redacted export mode when the scan flags token-like values, internal
+                  hosts, or custom matches. Ignored findings stay visible either way.
                 </p>
               </div>
             </CardContent>
@@ -253,7 +254,8 @@ export function OpenApiDiffPrivacyDrawer({
             <div className="flex flex-wrap items-center justify-between gap-3">
               <CardTitle className="text-base">Redaction preview</CardTitle>
               <Badge variant="neutral">
-                Showing {inspection.previews.length} snippet{inspection.previews.length === 1 ? "" : "s"}
+                Showing {inspection.previews.length} snippet
+                {inspection.previews.length === 1 ? "" : "s"}
               </Badge>
             </div>
           </CardHeader>
@@ -272,7 +274,7 @@ export function OpenApiDiffPrivacyDrawer({
                     </div>
                     <div className="mt-4 grid gap-4 xl:grid-cols-2">
                       <div className="space-y-2">
-                        <p className="text-xs font-semibold tracking-[0.18em] text-muted uppercase">
+                        <p className="text-muted text-xs font-semibold tracking-[0.18em] uppercase">
                           Before
                         </p>
                         <pre className="border-line bg-panel overflow-x-auto rounded-2xl border p-4 text-xs leading-6 whitespace-pre-wrap">
@@ -280,7 +282,7 @@ export function OpenApiDiffPrivacyDrawer({
                         </pre>
                       </div>
                       <div className="space-y-2">
-                        <p className="text-xs font-semibold tracking-[0.18em] text-muted uppercase">
+                        <p className="text-muted text-xs font-semibold tracking-[0.18em] uppercase">
                           After
                         </p>
                         <pre className="border-line bg-panel overflow-x-auto rounded-2xl border p-4 text-xs leading-6 whitespace-pre-wrap">
@@ -293,7 +295,8 @@ export function OpenApiDiffPrivacyDrawer({
               </div>
             ) : (
               <p className="text-muted text-sm leading-6">
-                No preview snippets are available yet. Open this panel after loading specs or running a report to inspect redaction candidates.
+                No preview snippets are available yet. Open this panel after loading specs or
+                running a report to inspect redaction candidates.
               </p>
             )}
           </CardContent>

@@ -33,10 +33,7 @@ function createParsedSpec(label: string): ParsedSpec {
   };
 }
 
-function createFinding(
-  id: string,
-  overrides: Partial<DiffFinding> = {},
-): DiffFinding {
+function createFinding(id: string, overrides: Partial<DiffFinding> = {}): DiffFinding {
   const baseFinding: DiffFinding = {
     afterValue: null,
     baseSeverity: "safe",

@@ -1,20 +1,6 @@
-# Authos
+# OpenAPI Diff
 
-Authos is a privacy-aware developer-tools website starting with **OpenAPI Diff**, a local-first OpenAPI and Swagger compatibility checker.
-
-The launch workflow lets a user:
-
-- land on the tool page and understand what it does
-- load a sample or paste two specs
-- run a semantic diff in the browser
-- review breaking, dangerous, safe, and docs-only findings
-- apply ignore rules
-- redact sensitive values before sharing or export
-- export Markdown, HTML, and JSON reports
-- generate CI snippets
-- share a redacted report without logging in
-
-The product does **not** use AI APIs for parsing, diffing, classification, redaction, export, or sharing.
+OpenAPI Diff is a privacy-aware, local-first OpenAPI and Swagger compatibility checker. Compare two specs in the browser, review breaking and non-breaking changes, export reports, and generate CI snippets—without sending raw contracts to analytics by default.
 
 ## Features
 
@@ -23,35 +9,29 @@ The product does **not** use AI APIs for parsing, diffing, classification, redac
 - Local `$ref` resolution and semantic normalization
 - Rule-based compatibility engine with profile-aware classification
 - Privacy controls for redaction, export, share links, and safe public URL fetching
-- Markdown, HTML, and JSON exports
-- CI snippet generation for repeatable checks
-- Vitest unit coverage for the engine and Playwright coverage for core product flows
+- Markdown, HTML, JSON, and CSV exports
+- CI snippet generation (built-in engine and oasdiff)
+- Vitest unit coverage and Playwright end-to-end tests
 
-## Tech Stack
+## Tech stack
 
 - Next.js App Router
 - React 19
 - TypeScript (strict)
 - Tailwind CSS v4
-- Vitest
-- Playwright
+- Vitest and Playwright
 - pnpm
 
-## Local Setup
+## Local setup
 
-Requirements:
-
-- Node.js 20+
-- pnpm 10+
-
-Install and run:
+Requirements: Node.js 20+, pnpm 10+.
 
 ```bash
 pnpm install
 pnpm dev
 ```
 
-Then open [http://localhost:3000](http://localhost:3000).
+Open [http://localhost:3000](http://localhost:3000).
 
 ## Scripts
 
@@ -65,116 +45,29 @@ pnpm test
 pnpm test:e2e
 pnpm format
 pnpm format:check
+pnpm openapi-diff --base base.yaml --revision revision.yaml
 ```
 
-## Environment Variables
+## Environment variables
 
-Copy [`.env.example`](./.env.example) to `.env.local` and fill in only the values you need.
+Copy [`.env.example`](./.env.example) to `.env.local` and set only what you need.
 
-| Variable | Required | Purpose |
-| --- | --- | --- |
-| `NEXT_PUBLIC_SITE_URL` | No | Public origin for canonical URLs and SEO. Defaults to `VERCEL_URL` on Vercel, otherwise `http://localhost:3000`. **Do not** point at `https://authos.dev` unless you control that domain for this product (it hosts a different AuthOS identity platform). |
-| `NEXT_PUBLIC_ANALYTICS_PROVIDER` | No | Enables metadata-only analytics. Leave unset to disable analytics entirely. Supported values: `disabled`, `console`, `custom`, `plausible`, `posthog`. |
-| `NEXT_PUBLIC_PLAUSIBLE_DOMAIN` | When using Plausible | Site domain passed to the Plausible script. |
-| `NEXT_PUBLIC_POSTHOG_KEY` | When using PostHog | Project API key for PostHog initialization. |
-| `NEXT_PUBLIC_POSTHOG_HOST` | No | PostHog API host (default `https://us.i.posthog.com`). |
-| `NEXT_PUBLIC_FEEDBACK_ENDPOINT` | No | Optional feedback API endpoint. If unset, feedback falls back to `mailto:` or copyable text. |
-| `NEXT_PUBLIC_FEEDBACK_EMAIL` | No | Optional feedback mailbox used for `mailto:` fallback. |
-| `OPENAPI_FETCH_PROXY_RATE_LIMIT` | No | Soft rate limit for the public URL fetch proxy. |
-| `OPENAPI_FETCH_PROXY_RATE_LIMIT_WINDOW_MS` | No | Window size for the public URL fetch proxy rate limit. |
+| Variable                         | Required | Purpose                                                                           |
+| -------------------------------- | -------- | --------------------------------------------------------------------------------- |
+| `NEXT_PUBLIC_SITE_URL`           | No       | Public origin for canonical URLs and SEO                                          |
+| `NEXT_PUBLIC_ANALYTICS_PROVIDER` | No       | Metadata-only analytics (`disabled`, `console`, `custom`, `plausible`, `posthog`) |
+| `OPENAPI_FETCH_PROXY_RATE_LIMIT` | No       | Rate limit for the public URL fetch proxy                                         |
 
-Testing-only helper:
+See `.env.example` for optional auth, database, and feedback settings.
 
-- `UPDATE_GOLDENS=1` refreshes the golden report snapshots during `pnpm test`.
+## Privacy
 
-## Headless CLI
-
-Run the same semantic engine as the browser without starting Next.js:
-
-```bash
-pnpm openapi-diff --base path/to/base.yaml --revision path/to/revision.yaml
-pnpm openapi-diff --base base.yaml --revision revision.yaml --format markdown --output report.md
-pnpm openapi-diff --base base.yaml --revision revision.yaml --fail-on breaking,dangerous
-```
-
-CI snippets in the UI still target **oasdiff** for pipeline parity; the CLI uses the in-repo engine. See [docs/resolved-decisions.md](./docs/resolved-decisions.md).
-
-## Privacy Model
-
-Default behavior:
-
-- paste and upload analysis runs in a Web Worker in the browser
-- raw specs are not stored automatically
-- analytics are disabled by default
-- raw specs, finding messages, report content, and pasted text are not sent to analytics by design
-- the core tool works without login
-
-Optional backend contact:
-
-- importing a public spec URL may use the restricted safe proxy if a browser fetch cannot access the document directly
-- feedback can hit a configured backend endpoint, but raw specs are never attached automatically
-
-See:
-
-- [docs/privacy-model.md](./docs/privacy-model.md)
-- [src/app/privacy/page.tsx](./src/app/privacy/page.tsx)
-
-## Testing And Quality
-
-Recommended verification before merge or deploy:
-
-```bash
-pnpm lint
-pnpm typecheck
-pnpm test
-pnpm test:e2e
-pnpm build
-```
-
-The test suite includes:
-
-- unit tests for parsing, version detection, normalization, diffing, classification, redaction, exports, share links, and safety helpers
-- golden scenario snapshots for common contract-change cases
-- Playwright coverage for the main end-user workflow
+Core paste/upload analysis runs in a Web Worker in the browser. Raw specs are not stored automatically. Analytics are disabled unless explicitly configured. See [docs/privacy-model.md](./docs/privacy-model.md) and [/privacy](https://github.com/chayprabs/openapi-breaking-change-diff-checker/blob/main/src/app/privacy/page.tsx).
 
 ## Deployment
 
-This app is ready for Vercel or another standard Next.js host.
+Ready for Vercel or any standard Next.js host. Connect the repository, use Node.js 20+, and run `pnpm install` / `pnpm build`.
 
-Notes:
+## License
 
-- no custom server is required
-- security headers are configured in `next.config.ts`
-- the safe public URL proxy is implemented as a normal App Router route
-- optional analytics and feedback features degrade gracefully when env vars are missing
-
-For a typical Vercel deployment:
-
-1. Connect the repo.
-2. Use Node.js 20+.
-3. Run the default install and build commands for pnpm.
-4. Configure only the optional environment variables you actually want enabled.
-
-## Project Structure
-
-```text
-docs/                                Product, privacy, architecture, and launch docs
-public/                              Static assets
-src/app/                             App Router routes, metadata, and API routes
-src/components/                      Shared layout and UI primitives
-src/data/                            Site navigation and tool directory data
-src/features/account-shell/          Auth-ready shell placeholders for future account work
-src/features/openapi-diff/           OpenAPI Diff UI, engine, test fixtures, and helpers
-src/lib/                             Shared metadata, analytics, security, and server utilities
-tests/e2e/                           Playwright end-to-end tests
-```
-
-## Docs
-
-- [docs/architecture.md](./docs/architecture.md)
-- [docs/privacy-model.md](./docs/privacy-model.md)
-- [docs/rule-catalog.md](./docs/rule-catalog.md)
-- [docs/resolved-decisions.md](./docs/resolved-decisions.md)
-- [docs/launch-checklist.md](./docs/launch-checklist.md)
-- [docs/future-roadmap.md](./docs/future-roadmap.md)
-- [docs/launch-content.md](./docs/launch-content.md)
+MIT — see [LICENSE](./LICENSE).

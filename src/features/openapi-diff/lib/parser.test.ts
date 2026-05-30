@@ -5,10 +5,7 @@ import {
   revisionSampleOpenApi31,
   unresolvedRefSample,
 } from "@/features/openapi-diff/fixtures";
-import {
-  analyzeOpenApiSpecs,
-  parseOpenApiSpec,
-} from "@/features/openapi-diff/lib/parser";
+import { analyzeOpenApiSpecs, parseOpenApiSpec } from "@/features/openapi-diff/lib/parser";
 import { createAnalysisSettings } from "@/features/openapi-diff/lib/analysis-settings";
 import {
   analysisProgressLabels,
@@ -48,9 +45,7 @@ describe("OpenAPI parser", () => {
   });
 
   it("returns YAML line and column details for malformed input", async () => {
-    const result = await parseOpenApiSpec(
-      createSpecInput("revision", malformedYamlSample),
-    );
+    const result = await parseOpenApiSpec(createSpecInput("revision", malformedYamlSample));
 
     expect(result.ok).toBe(false);
 
@@ -69,9 +64,7 @@ info:
   title: Future API
   version: 1.0.0
 paths: {}`;
-    const result = await parseOpenApiSpec(
-      createSpecInput("base", unsupportedVersionSpec),
-    );
+    const result = await parseOpenApiSpec(createSpecInput("base", unsupportedVersionSpec));
 
     expect(result.ok).toBe(true);
 
@@ -80,15 +73,13 @@ paths: {}`;
     }
 
     expect(result.parsed.version.family).toBe("unknown");
-    expect(
-      result.parsed.warnings.some((warning) => warning.code === "unsupported-version"),
-    ).toBe(true);
+    expect(result.parsed.warnings.some((warning) => warning.code === "unsupported-version")).toBe(
+      true,
+    );
   });
 
   it("reports unresolved refs as warnings", async () => {
-    const result = await parseOpenApiSpec(
-      createSpecInput("base", unresolvedRefSample),
-    );
+    const result = await parseOpenApiSpec(createSpecInput("base", unresolvedRefSample));
 
     expect(result.ok).toBe(true);
 
@@ -96,12 +87,8 @@ paths: {}`;
       return;
     }
 
-    expect(result.parsed.unresolvedRefs).toEqual([
-      "#/components/schemas/MissingAccountList",
-    ]);
-    expect(
-      result.parsed.warnings.some((warning) => warning.code === "unresolved-ref"),
-    ).toBe(true);
+    expect(result.parsed.unresolvedRefs).toEqual(["#/components/schemas/MissingAccountList"]);
+    expect(result.parsed.warnings.some((warning) => warning.code === "unresolved-ref")).toBe(true);
   });
 
   it("analyzes two valid specs without failing the worker-facing parser flow", async () => {
@@ -232,9 +219,7 @@ paths:
       expect.arrayContaining(["schema.type.changed"]),
     );
     expect(
-      result.result.warnings.some((warning) =>
-        warning.message.includes("Skipped remote $ref"),
-      ),
+      result.result.warnings.some((warning) => warning.message.includes("Skipped remote $ref")),
     ).toBe(false);
   });
 });

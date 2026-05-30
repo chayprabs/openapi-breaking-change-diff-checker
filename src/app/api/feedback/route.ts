@@ -16,10 +16,7 @@ import { consumeSharedRateLimit } from "@/lib/server/shared-rate-limit";
 
 export const dynamic = "force-dynamic";
 
-const FEEDBACK_RATE_LIMIT = Math.max(
-  1,
-  Number(process.env.FEEDBACK_RATE_LIMIT ?? 10),
-);
+const FEEDBACK_RATE_LIMIT = Math.max(1, Number(process.env.FEEDBACK_RATE_LIMIT ?? 10));
 const FEEDBACK_RATE_LIMIT_WINDOW_MS = Math.max(
   1_000,
   Number(process.env.FEEDBACK_RATE_LIMIT_WINDOW_MS ?? 60_000),
@@ -84,7 +81,7 @@ export async function POST(request: Request) {
       headers: {
         "Content-Type": "application/json",
         ...(process.env.FEEDBACK_WEBHOOK_SECRET
-          ? { "X-Authos-Feedback-Secret": process.env.FEEDBACK_WEBHOOK_SECRET }
+          ? { "X-OpenAPI Diff-Feedback-Secret": process.env.FEEDBACK_WEBHOOK_SECRET }
           : {}),
       },
       method: "POST",

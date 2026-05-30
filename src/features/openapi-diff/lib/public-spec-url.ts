@@ -53,23 +53,15 @@ export type ValidatedPublicSpecUrl = {
   url: URL;
 };
 
-export function isPublicSpecFetchError(
-  value: unknown,
-): value is PublicSpecFetchError {
+export function isPublicSpecFetchError(value: unknown): value is PublicSpecFetchError {
   return value instanceof PublicSpecFetchError;
 }
 
-export function validatePublicSpecUrl(
-  input: string,
-): ValidatedPublicSpecUrl {
+export function validatePublicSpecUrl(input: string): ValidatedPublicSpecUrl {
   const trimmed = input.trim();
 
   if (!trimmed) {
-    throw new PublicSpecFetchError(
-      "invalid-url",
-      "Enter a public http or https URL.",
-      400,
-    );
+    throw new PublicSpecFetchError("invalid-url", "Enter a public http or https URL.", 400);
   }
 
   let url: URL;
@@ -77,11 +69,7 @@ export function validatePublicSpecUrl(
   try {
     url = new URL(trimmed);
   } catch {
-    throw new PublicSpecFetchError(
-      "invalid-url",
-      "Enter a valid public http or https URL.",
-      400,
-    );
+    throw new PublicSpecFetchError("invalid-url", "Enter a valid public http or https URL.", 400);
   }
 
   if (url.protocol !== "http:" && url.protocol !== "https:") {
@@ -104,11 +92,7 @@ export function validatePublicSpecUrl(
     const port = Number(url.port);
 
     if (!Number.isInteger(port) || port < 1 || port > MAX_PORT) {
-      throw new PublicSpecFetchError(
-        "invalid-url",
-        "Enter a valid public http or https URL.",
-        400,
-      );
+      throw new PublicSpecFetchError("invalid-url", "Enter a valid public http or https URL.", 400);
     }
   }
 
@@ -122,10 +106,7 @@ export function validatePublicSpecUrl(
   return { url };
 }
 
-export function assertAllowedSpecContentType(
-  contentType: string | null,
-  url: string,
-) {
+export function assertAllowedSpecContentType(contentType: string | null, url: string) {
   if (!contentType) {
     return;
   }
@@ -158,11 +139,7 @@ export async function readResponseTextWithLimit(
   const contentLengthHeader = response.headers.get("content-length");
   const contentLength = contentLengthHeader ? Number(contentLengthHeader) : null;
 
-  if (
-    contentLength !== null &&
-    Number.isFinite(contentLength) &&
-    contentLength > maxBytes
-  ) {
+  if (contentLength !== null && Number.isFinite(contentLength) && contentLength > maxBytes) {
     throw new PublicSpecFetchError(
       "response-too-large",
       `The fetched document is larger than ${formatByteLimit(maxBytes)}.`,
@@ -224,9 +201,7 @@ export function getBlockedHostnameReason(hostname: string) {
     return "Internal hostnames without a public domain are blocked.";
   }
 
-  if (
-    BLOCKED_HOST_SUFFIXES.some((suffix) => hostname.endsWith(suffix))
-  ) {
+  if (BLOCKED_HOST_SUFFIXES.some((suffix) => hostname.endsWith(suffix))) {
     return "Private, localhost, and metadata-service URLs are blocked.";
   }
 

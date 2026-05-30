@@ -1,10 +1,6 @@
 export type WorkspacePanelId = "base" | "revision";
 
-export type OpenApiVersionFamily =
-  | "swagger-2.0"
-  | "openapi-3.0.x"
-  | "openapi-3.1.x"
-  | "unknown";
+export type OpenApiVersionFamily = "swagger-2.0" | "openapi-3.0.x" | "openapi-3.1.x" | "unknown";
 
 export type ParserIssueSource =
   | "diff"
@@ -101,12 +97,7 @@ export type OpenApiHttpMethod =
   | "put"
   | "trace";
 
-export type SchemaDiffDirection =
-  | "component"
-  | "parameter"
-  | "request"
-  | "response"
-  | "unknown";
+export type SchemaDiffDirection = "component" | "parameter" | "request" | "response" | "unknown";
 
 export type NormalizedExtensions = Record<string, JsonValue>;
 
@@ -578,10 +569,7 @@ export type DiffFinding = {
   whyItMatters: string;
 };
 
-export type DiffReportRecommendationCode =
-  | "blockRelease"
-  | "reviewBeforeRelease"
-  | "likelySafe";
+export type DiffReportRecommendationCode = "blockRelease" | "reviewBeforeRelease" | "likelySafe";
 
 export type DiffReportRecommendationLabel =
   | "Block release"

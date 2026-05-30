@@ -5,12 +5,7 @@ export type AnalyticsEvent = {
   properties?: Record<string, AnalyticsPropertyValue>;
 };
 
-export type AnalyticsProviderId =
-  | "disabled"
-  | "console"
-  | "custom"
-  | "plausible"
-  | "posthog";
+export type AnalyticsProviderId = "disabled" | "console" | "custom" | "plausible" | "posthog";
 
 export type AnalyticsAdapter = {
   enabled: boolean;
@@ -38,11 +33,8 @@ const VALID_PROVIDERS = new Set<AnalyticsProviderId>([
 
 declare global {
   interface Window {
-    __AUTHOS_ANALYTICS__?: {
-      track?: (
-        name: string,
-        properties?: Record<string, AnalyticsPropertyValue>,
-      ) => void;
+    __ODIFF_ANALYTICS__?: {
+      track?: (name: string, properties?: Record<string, AnalyticsPropertyValue>) => void;
     };
     plausible?: (
       name: string,
@@ -51,10 +43,7 @@ declare global {
       },
     ) => void;
     posthog?: {
-      capture?: (
-        name: string,
-        properties?: Record<string, AnalyticsPropertyValue>,
-      ) => void;
+      capture?: (name: string, properties?: Record<string, AnalyticsPropertyValue>) => void;
     };
   }
 }
@@ -95,7 +84,7 @@ export function createAnalyticsAdapter(
       enabled: true,
       provider,
       track(event) {
-        window.__AUTHOS_ANALYTICS__?.track?.(event.name, event.properties);
+        window.__ODIFF_ANALYTICS__?.track?.(event.name, event.properties);
       },
     };
   }
@@ -132,15 +121,15 @@ export function createDisabledAnalyticsAdapter(
 }
 
 export function getAnalyticsPageId(pathname: string): AnalyticsPageId {
-  if (pathname === "/") {
-    return "home";
+  if (pathname === "/" || pathname == "/tools/openapi-diff-breaking-changes") {
+    return "openapi_diff";
   }
 
   if (pathname === "/about") {
     return "about";
   }
 
-  if (pathname === "/privacy") {
+  if (pathname === "/privacy" || pathname === "/terms") {
     return "privacy";
   }
 
@@ -154,10 +143,6 @@ export function getAnalyticsPageId(pathname: string): AnalyticsPageId {
 
   if (pathname === "/tools/api-and-schema") {
     return "api_tools";
-  }
-
-  if (pathname === "/tools/openapi-diff-breaking-changes") {
-    return "openapi_diff";
   }
 
   return "unknown";

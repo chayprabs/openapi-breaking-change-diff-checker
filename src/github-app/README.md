@@ -1,6 +1,6 @@
-# Authos GitHub check integration
+# OpenAPI Diff GitHub check integration
 
-POST OpenAPI base and revision content to `/api/github/check` with header `x-authos-github-secret`
+POST OpenAPI base and revision content to `/api/github/check` with header `x-openapi-diff-github-secret`
 when `GITHUB_APP_WEBHOOK_SECRET` is configured.
 
 Example payload:

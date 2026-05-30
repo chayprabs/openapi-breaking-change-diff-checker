@@ -6,10 +6,7 @@ import { reportComments } from "@/lib/db/schema";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(
-  _request: Request,
-  context: { params: Promise<{ id: string }> },
-) {
+export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
   await ensureDatabaseReady();
   const comments = await db.select().from(reportComments).where(eq(reportComments.reportId, id));
@@ -17,10 +14,7 @@ export async function GET(
   return Response.json({ comments });
 }
 
-export async function POST(
-  request: Request,
-  context: { params: Promise<{ id: string }> },
-) {
+export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
   const session = await auth();
 
   if (!session?.user?.email) {

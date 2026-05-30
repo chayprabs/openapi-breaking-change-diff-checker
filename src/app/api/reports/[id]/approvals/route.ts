@@ -6,10 +6,7 @@ import { reportApprovals } from "@/lib/db/schema";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(
-  _request: Request,
-  context: { params: Promise<{ id: string }> },
-) {
+export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
   await ensureDatabaseReady();
   const approvals = await db.select().from(reportApprovals).where(eq(reportApprovals.reportId, id));
@@ -17,10 +14,7 @@ export async function GET(
   return Response.json({ approvals });
 }
 
-export async function POST(
-  request: Request,
-  context: { params: Promise<{ id: string }> },
-) {
+export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
   const session = await auth();
 
   if (!session?.user?.email) {
@@ -32,7 +26,10 @@ export async function POST(
   const status = body.status?.trim();
 
   if (!status || !["pending", "approved", "rejected"].includes(status)) {
-    return Response.json({ error: "status must be pending, approved, or rejected." }, { status: 400 });
+    return Response.json(
+      { error: "status must be pending, approved, or rejected." },
+      { status: 400 },
+    );
   }
 
   await ensureDatabaseReady();

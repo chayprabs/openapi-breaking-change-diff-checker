@@ -6,7 +6,7 @@
  * 2. VERCEL_URL (automatic on Vercel deployments)
  * 3. http://localhost:3000 (local dev)
  *
- * Note: https://authos.dev is a separate identity/SSO product (AuthOS). Do not point
+ * Note: https://example.com is a separate identity/SSO product (unrelated product). Do not point
  * this developer-tools site there unless you control that domain for this product.
  */
 export function getSiteUrl() {

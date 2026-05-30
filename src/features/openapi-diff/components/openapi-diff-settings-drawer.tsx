@@ -62,19 +62,13 @@ const HTTP_METHODS: readonly OpenApiHttpMethod[] = [
   "trace",
 ] as const;
 
-function RuleChip({
-  label,
-  onRemove,
-}: {
-  label: string;
-  onRemove: () => void;
-}) {
+function RuleChip({ label, onRemove }: { label: string; onRemove: () => void }) {
   return (
     <span className="border-line bg-panel-muted inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs">
-      <span className="font-medium text-foreground">{label}</span>
+      <span className="text-foreground font-medium">{label}</span>
       <button
         aria-label={`Remove ${label}`}
-        className="text-muted transition hover:text-foreground"
+        className="text-muted hover:text-foreground transition"
         onClick={onRemove}
         type="button"
       >
@@ -157,7 +151,7 @@ export function OpenApiDiffSettingsDrawer({
           </CardHeader>
           <CardContent className="space-y-4">
             <label className="space-y-2 text-sm">
-              <span className="block font-medium text-foreground">Profile</span>
+              <span className="text-foreground block font-medium">Profile</span>
               <select
                 aria-label="Compatibility profile"
                 className="border-line bg-panel w-full rounded-xl border px-3 py-2 text-sm"
@@ -175,9 +169,8 @@ export function OpenApiDiffSettingsDrawer({
             </label>
             <p className="text-muted text-sm leading-6">
               {
-                consumerProfileOptions.find(
-                  (option) => option.value === settings.consumerProfile,
-                )?.description
+                consumerProfileOptions.find((option) => option.value === settings.consumerProfile)
+                  ?.description
               }
             </p>
             <div className="flex flex-wrap gap-3">
@@ -204,7 +197,7 @@ export function OpenApiDiffSettingsDrawer({
           </CardHeader>
           <CardContent className="space-y-4">
             <label className="space-y-2 text-sm">
-              <span className="block font-medium text-foreground">Remote $ref policy</span>
+              <span className="text-foreground block font-medium">Remote $ref policy</span>
               <select
                 aria-label="Remote ref policy"
                 className="border-line bg-panel w-full rounded-xl border px-3 py-2 text-sm"
@@ -222,14 +215,13 @@ export function OpenApiDiffSettingsDrawer({
             </label>
             <p className="text-muted text-sm leading-6">
               {
-                remoteRefPolicyOptions.find(
-                  (option) => option.value === settings.remoteRefPolicy,
-                )?.description
+                remoteRefPolicyOptions.find((option) => option.value === settings.remoteRefPolicy)
+                  ?.description
               }
             </p>
             <p className="text-muted text-sm leading-6">
-              Authenticated URLs, localhost targets, private networks, and cloud metadata
-              endpoints stay blocked even when public remote refs are enabled.
+              Authenticated URLs, localhost targets, private networks, and cloud metadata endpoints
+              stay blocked even when public remote refs are enabled.
             </p>
           </CardContent>
         </Card>
@@ -248,8 +240,8 @@ export function OpenApiDiffSettingsDrawer({
               <span>Auto-run analysis after edits</span>
             </label>
             <p className="text-muted text-sm leading-6">
-              Off by default. When enabled, the workspace waits briefly after edits, then reruns
-              the worker analysis automatically. Large specs still fall back to manual runs.
+              Off by default. When enabled, the workspace waits briefly after edits, then reruns the
+              worker analysis automatically. Large specs still fall back to manual runs.
             </p>
             <label className="border-line bg-panel-muted inline-flex items-center gap-3 rounded-2xl border px-4 py-3 text-sm">
               <input
@@ -314,7 +306,7 @@ export function OpenApiDiffSettingsDrawer({
 
             <div className="grid gap-4 md:grid-cols-2">
               <label className="space-y-2 text-sm">
-                <span className="block font-medium text-foreground">Ignore path pattern</span>
+                <span className="text-foreground block font-medium">Ignore path pattern</span>
                 <div className="flex gap-3">
                   <input
                     className="border-line bg-panel min-w-0 flex-1 rounded-xl border px-3 py-2 text-sm"
@@ -341,7 +333,7 @@ export function OpenApiDiffSettingsDrawer({
               </label>
 
               <label className="space-y-2 text-sm">
-                <span className="block font-medium text-foreground">Ignore tag</span>
+                <span className="text-foreground block font-medium">Ignore tag</span>
                 <div className="flex gap-3">
                   <input
                     className="border-line bg-panel min-w-0 flex-1 rounded-xl border px-3 py-2 text-sm"
@@ -368,7 +360,7 @@ export function OpenApiDiffSettingsDrawer({
               </label>
 
               <label className="space-y-2 text-sm">
-                <span className="block font-medium text-foreground">Ignore operationId</span>
+                <span className="text-foreground block font-medium">Ignore operationId</span>
                 <div className="flex gap-3">
                   <input
                     className="border-line bg-panel min-w-0 flex-1 rounded-xl border px-3 py-2 text-sm"
@@ -395,12 +387,14 @@ export function OpenApiDiffSettingsDrawer({
               </label>
 
               <label className="space-y-2 text-sm">
-                <span className="block font-medium text-foreground">Ignore rule ID</span>
+                <span className="text-foreground block font-medium">Ignore rule ID</span>
                 <div className="flex gap-3">
                   <select
                     aria-label="Ignore rule ID"
                     className="border-line bg-panel min-w-0 flex-1 rounded-xl border px-3 py-2 text-sm"
-                    onChange={(event) => setSelectedRuleId(event.currentTarget.value as RuleId | "")}
+                    onChange={(event) =>
+                      setSelectedRuleId(event.currentTarget.value as RuleId | "")
+                    }
                     value={selectedRuleId}
                   >
                     <option value="">Select a rule...</option>
@@ -428,7 +422,7 @@ export function OpenApiDiffSettingsDrawer({
             </div>
 
             <div className="space-y-3">
-              <p className="text-sm font-medium text-foreground">Ignore methods</p>
+              <p className="text-foreground text-sm font-medium">Ignore methods</p>
               <div className="flex flex-wrap gap-2">
                 {HTTP_METHODS.map((method) => {
                   const ruleId = `method:${method}`;
@@ -499,7 +493,7 @@ export function OpenApiDiffSettingsDrawer({
               </Button>
             </div>
             <label className="space-y-2 text-sm">
-              <span className="block font-medium text-foreground">Paste settings JSON</span>
+              <span className="text-foreground block font-medium">Paste settings JSON</span>
               <textarea
                 className="border-line bg-panel min-h-40 w-full rounded-2xl border px-4 py-3 font-mono text-xs leading-6"
                 onChange={(event) => setImportText(event.currentTarget.value)}
@@ -508,10 +502,7 @@ export function OpenApiDiffSettingsDrawer({
               />
             </label>
             <div className="flex flex-wrap gap-3">
-              <Button
-                onClick={() => onImportSettingsJson(importText)}
-                variant="secondary"
-              >
+              <Button onClick={() => onImportSettingsJson(importText)} variant="secondary">
                 Apply pasted JSON
               </Button>
               <Button onClick={() => setImportText("")} variant="ghost">

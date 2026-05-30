@@ -83,9 +83,7 @@ export function createFindingsFilterOptions(
         .filter((method): method is OpenApiHttpMethod => Boolean(method)),
     ),
     paths: sortUnique(
-      rows
-        .map((row) => row.finding.path)
-        .filter((path): path is string => Boolean(path)),
+      rows.map((row) => row.finding.path).filter((path): path is string => Boolean(path)),
     ),
     ruleIds: sortUnique(rows.map((row) => row.finding.ruleId)),
     schemas: sortUnique(
@@ -185,9 +183,7 @@ export function createFindingsCsv(rows: readonly ReportFindingRow[]): string {
     row.finding.whyItMatters,
   ]);
 
-  return [headers, ...dataRows]
-    .map((cells) => cells.map(escapeCsvCell).join(","))
-    .join("\n");
+  return [headers, ...dataRows].map((cells) => cells.map(escapeCsvCell).join(",")).join("\n");
 }
 
 export function createReportFindingRows(report: DiffReport): ReportFindingRow[] {
@@ -218,10 +214,7 @@ export function createReportFindingRows(report: DiffReport): ReportFindingRow[] 
     const targetLabel =
       endpointLabel && schemaLabel
         ? `${endpointLabel} / ${schemaLabel}`
-        : endpointLabel ??
-          schemaLabel ??
-          finding.humanPath ??
-          "Global contract change";
+        : (endpointLabel ?? schemaLabel ?? finding.humanPath ?? "Global contract change");
     const metadata = ruleCatalog[finding.ruleId];
 
     return {
@@ -286,10 +279,7 @@ export function createReportMarkdown(
   return lines.join("\n");
 }
 
-export function createReportHtml(
-  report: DiffReport,
-  rows: readonly ReportFindingRow[],
-): string {
+export function createReportHtml(report: DiffReport, rows: readonly ReportFindingRow[]): string {
   const summary = report.summary;
   const summaryItems: Array<[string, string]> = [
     ["Recommendation", report.recommendation.label],
@@ -443,7 +433,8 @@ export function createReportHtml(
         <div class="summary-grid">
           ${summaryItems
             .map(
-              ([label, value]) => `<div class="summary-item"><strong>${escapeHtml(label)}</strong>${escapeHtml(value)}</div>`,
+              ([label, value]) =>
+                `<div class="summary-item"><strong>${escapeHtml(label)}</strong>${escapeHtml(value)}</div>`,
             )
             .join("")}
         </div>
@@ -722,11 +713,7 @@ function isSchemaRelatedFinding(finding: DiffFinding) {
 }
 
 function normalizeSearchTokens(search: string) {
-  return search
-    .trim()
-    .toLocaleLowerCase()
-    .split(/\s+/)
-    .filter(Boolean);
+  return search.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean);
 }
 
 function sortUnique<T extends string>(values: readonly T[]): T[] {

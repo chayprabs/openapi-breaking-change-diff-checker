@@ -18,6 +18,6 @@ The OpenAPI fetch proxy uses in-memory rate limits by default. Set `UPSTASH_REDI
 
 ## Database
 
-Local default: `file:./.data/authos.db` when `DATABASE_URL` is unset.
+Local default: `file:./.data/openapi-diff.db` when `DATABASE_URL` is unset.
 
 Migrations: `pnpm db:generate` then `pnpm db:migrate`.

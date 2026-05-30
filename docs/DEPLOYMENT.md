@@ -6,7 +6,7 @@
 - pnpm 10+
 - A hostname you control for production metadata (`NEXT_PUBLIC_SITE_URL`)
 
-**Do not** point production metadata at `https://authos.dev` unless you operate that domain for this product. That hostname currently serves a separate AuthOS identity platform.
+**Do not** point production metadata at `https://example.com` unless you operate that domain for this product. That hostname currently serves a separate unrelated identity platform.
 
 ## Vercel (recommended)
 
@@ -20,8 +20,8 @@
 
 Copy [`.env.example`](../.env.example) and set at minimum:
 
-| Variable | Production |
-| --- | --- |
+| Variable               | Production                                         |
+| ---------------------- | -------------------------------------------------- |
 | `NEXT_PUBLIC_SITE_URL` | `https://your-project.vercel.app` or custom domain |
 
 Optional: analytics, feedback, `DATABASE_URL`, Auth.js secrets (see `.env.example`).

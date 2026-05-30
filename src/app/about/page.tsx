@@ -6,7 +6,7 @@ import { buildPageMetadata } from "@/lib/metadata";
 export const metadata = buildPageMetadata({
   title: "About",
   description:
-    "Authos builds privacy-aware developer tools, starting with OpenAPI compatibility review and contract risk reporting.",
+    "OpenAPI Diff builds privacy-aware developer tools, starting with OpenAPI compatibility review and contract risk reporting.",
   path: "/about",
 });
 
@@ -21,30 +21,31 @@ const principles = [
   },
   {
     title: "Deterministic workflow over AI magic",
-    body: "Authos does not rely on AI APIs for the launch diff workflow. Parsing, normalization, classification, redaction, and exports are deterministic so teams can reason about the result and test it properly.",
+    body: "OpenAPI Diff does not rely on AI APIs for the launch diff workflow. Parsing, normalization, classification, redaction, and exports are deterministic so teams can reason about the result and test it properly.",
   },
 ];
 
 export default function AboutPage() {
   return (
     <PageShell
-      eyebrow="About Authos"
+      eyebrow="About OpenAPI Diff"
       title="A launch-ready developer-tools shell starting with API compatibility"
-      description="Authos starts with OpenAPI contract review and exportable release reporting, then expands outward into adjacent developer workflows without losing the privacy and no-login defaults that make the first tool useful."
+      description="OpenAPI Diff starts with OpenAPI contract review and exportable release reporting, then expands outward into adjacent developer workflows without losing the privacy and no-login defaults that make the first tool useful."
     >
       <Section
         eyebrow="Naming"
-        title="Authos developer tools vs authos.dev"
-        description="This site is the Authos developer-tools product (OpenAPI compatibility and related workflows). It is not the AuthOS identity platform hosted at authos.dev."
+        title="OpenAPI Diff developer tools vs unrelated third-party domains"
+        description="This site is the OpenAPI Diff developer-tools product (OpenAPI compatibility and related workflows). It is not the unrelated identity platform hosted at unrelated third-party domains."
       >
         <Panel
           title="Choose your own production domain"
           description="Set NEXT_PUBLIC_SITE_URL to the hostname you deploy on. Canonical URLs, Open Graph, and sitemaps use that value."
         >
           <p className="text-muted text-sm leading-6">
-            If you see another product called AuthOS at authos.dev, that is a separate codebase and
-            team. This repository ships browser-based contract review tools and optional account
-            features when DATABASE_URL and Auth.js credentials are configured.
+            If you see another product called unrelated product at unrelated third-party domains,
+            that is a separate codebase and team. This repository ships browser-based contract
+            review tools and optional account features when DATABASE_URL and Auth.js credentials are
+            configured.
           </p>
         </Panel>
       </Section>

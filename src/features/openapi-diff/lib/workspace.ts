@@ -3,8 +3,7 @@ import type { SpecInputFormat } from "@/features/openapi-diff/types";
 export const SPEC_SIZE_WARNING_BYTES = 5 * 1024 * 1024;
 export const SPEC_SIZE_HARD_LIMIT_BYTES = 10 * 1024 * 1024;
 export const OPENAPI_SPEC_ACCEPT = ".yaml,.yml,.json";
-export const OPENAPI_WORKSPACE_SETTINGS_STORAGE_KEY =
-  "authos.openapi-diff.workspace.settings";
+export const OPENAPI_WORKSPACE_SETTINGS_STORAGE_KEY = "odiff.openapi-diff.workspace.settings";
 
 const textEncoder = new TextEncoder();
 
@@ -32,10 +31,7 @@ export function formatBytes(bytes: number) {
   return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
 }
 
-export function inferSpecFormat(
-  content: string,
-  filename?: string,
-): SpecInputFormat {
+export function inferSpecFormat(content: string, filename?: string): SpecInputFormat {
   const lowerFilename = filename?.toLowerCase();
 
   if (lowerFilename?.endsWith(".json")) {

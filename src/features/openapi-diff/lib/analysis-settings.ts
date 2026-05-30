@@ -43,7 +43,8 @@ export const consumerProfileOptions = [
     value: "mobileClient",
   },
   {
-    description: "Less strict for additive output changes, still strict for removals and narrowing.",
+    description:
+      "Less strict for additive output changes, still strict for removals and narrowing.",
     label: "Tolerant client",
     value: "tolerantClient",
   },
@@ -111,9 +112,7 @@ export function createAnalysisSettings(
     ...cloneAnalysisSettings(defaultAnalysisSettings),
     ...overrides,
     ...(overrides.exportFormats ? { exportFormats: [...overrides.exportFormats] } : {}),
-    ...(overrides.failOnSeverities
-      ? { failOnSeverities: [...overrides.failOnSeverities] }
-      : {}),
+    ...(overrides.failOnSeverities ? { failOnSeverities: [...overrides.failOnSeverities] } : {}),
     ...(overrides.customRedactionRules
       ? {
           customRedactionRules: overrides.customRedactionRules.map((rule) => ({ ...rule })),
@@ -133,8 +132,7 @@ export function createAnalysisSettings(
       : {}),
     ...(overrides.treatEnumAdditionsAsDangerous !== undefined
       ? {
-          treatEnumAdditionsAsDangerous:
-            overrides.treatEnumAdditionsAsDangerous,
+          treatEnumAdditionsAsDangerous: overrides.treatEnumAdditionsAsDangerous,
         }
       : {}),
   };
@@ -163,10 +161,7 @@ export function removeIgnoreRule(
   return nextSettings;
 }
 
-export function hasIgnoreRuleSource(
-  settings: AnalysisSettings,
-  source: IgnoreRuleSource,
-) {
+export function hasIgnoreRuleSource(settings: AnalysisSettings, source: IgnoreRuleSource) {
   return settings.ignoreRules.some((rule) => rule.source === source);
 }
 
@@ -175,7 +170,9 @@ export function serializeAnalysisSettings(settings: AnalysisSettings) {
 }
 
 export function getConsumerProfileOption(profile: ConsumerProfile) {
-  return consumerProfileOptions.find((option) => option.value === profile) ?? consumerProfileOptions[0];
+  return (
+    consumerProfileOptions.find((option) => option.value === profile) ?? consumerProfileOptions[0]
+  );
 }
 
 export function formatConsumerProfileLabel(profile: ConsumerProfile) {

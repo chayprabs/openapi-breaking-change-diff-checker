@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createAnalysisSettings } from "@/features/openapi-diff/lib/analysis-settings";
 import {
-  CI_SNIPPET_PARITY_NOTE_AUTHOS,
+  CI_SNIPPET_PARITY_NOTE_BUILTIN,
   CI_SNIPPET_PARITY_NOTE_OASDIFF,
   createCiSnippetBundle,
   createDefaultCiPaths,
@@ -42,17 +42,21 @@ describe("CI snippets", () => {
     expect(bundle.snippet).toContain("output-to-file: 'artifacts/api-diff.md'");
     expect(bundle.snippet).toContain("fail-on: ERR");
     expect(bundle.settingsSummary).toContain("Profile: SDK strict.");
-    expect(bundle.settingsSummary).toContain("Browser remote-ref policy: Allow public remote refs.");
-    expect(bundle.settingsSummary).toContain("Browser enum handling: enum additions stay dangerous.");
+    expect(bundle.settingsSummary).toContain(
+      "Browser remote-ref policy: Allow public remote refs.",
+    );
+    expect(bundle.settingsSummary).toContain(
+      "Browser enum handling: enum additions stay dangerous.",
+    );
     expect(bundle.settingsSummary).toContain(
       "Browser ignore rules configured: 1. Recreate them in the chosen OSS engine separately if you need the same gate.",
     );
   });
 
-  it("generates an Authos engine GitHub Actions snippet", () => {
+  it("generates an built-in engine GitHub Actions snippet", () => {
     const bundle = createCiSnippetBundle({
       baseSpecPath: "openapi/base.yaml",
-      engine: "authos",
+      engine: "builtin",
       failBuildOnBreaking: true,
       reportOutputPath: "reports/openapi-diff.md",
       revisionSpecPath: "openapi/revision.yaml",
@@ -60,22 +64,22 @@ describe("CI snippets", () => {
       target: "github",
     });
 
-    expect(bundle.engineLabel).toBe("authos");
-    expect(bundle.parityNote).toBe(CI_SNIPPET_PARITY_NOTE_AUTHOS);
+    expect(bundle.engineLabel).toBe("builtin");
+    expect(bundle.parityNote).toBe(CI_SNIPPET_PARITY_NOTE_BUILTIN);
     expect(bundle.snippet).toContain("pnpm openapi-diff");
     expect(bundle.snippet).toContain("--fail-on breaking");
   });
 
-  it("downloads a GitHub workflow file for the Authos engine", () => {
+  it("downloads a GitHub workflow file for the built-in engine", () => {
     const download = createGitHubWorkflowDownload({
       ...createDefaultCiPaths(),
-      engine: "authos",
+      engine: "builtin",
       failBuildOnBreaking: true,
       settings: createAnalysisSettings(),
       target: "github",
     });
 
-    expect(download.fileName).toBe(".github/workflows/authos-openapi-diff.yml");
+    expect(download.fileName).toBe(".github/workflows/openapi-diff-builtin.yml");
     expect(download.content).toContain("pnpm openapi-diff");
   });
 

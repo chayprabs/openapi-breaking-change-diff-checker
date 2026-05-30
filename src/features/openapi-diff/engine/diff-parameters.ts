@@ -210,7 +210,10 @@ function diffMatchedParameter(
   operationDeprecated = false,
 ): DiffFinding[] {
   const findings: DiffFinding[] = [];
-  const baseEvidence = createEvidenceLocation(baseParameter.evidence.originPath, baseParameter.evidence);
+  const baseEvidence = createEvidenceLocation(
+    baseParameter.evidence.originPath,
+    baseParameter.evidence,
+  );
   const revisionEvidence = createEvidenceLocation(
     revisionParameter.evidence.originPath,
     revisionParameter.evidence,

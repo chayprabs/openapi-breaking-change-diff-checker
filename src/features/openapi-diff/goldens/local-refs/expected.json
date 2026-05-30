@@ -10,9 +10,7 @@
         "key": "/accounts/{accountId}::get",
         "method": "get",
         "path": "/accounts/{accountId}",
-        "ruleIds": [
-          "schema.type.changed"
-        ]
+        "ruleIds": ["schema.type.changed"]
       }
     ],
     "affectedSchemas": [
@@ -22,29 +20,19 @@
         "humanPaths": [
           "GET /accounts/{accountId} response 200 application/json Account.profile.state"
         ],
-        "jsonPointers": [
-          "#/components/schemas/Profile/properties/state"
-        ],
+        "jsonPointers": ["#/components/schemas/Profile/properties/state"],
         "key": "profile",
         "label": "Profile",
-        "ruleIds": [
-          "schema.type.changed"
-        ]
+        "ruleIds": ["schema.type.changed"]
       },
       {
         "findingCount": 1,
         "highestSeverity": "breaking",
-        "humanPaths": [
-          "GET /accounts/{accountId} parameter path:accountId schema"
-        ],
-        "jsonPointers": [
-          "#/components/parameters/AccountId/schema"
-        ],
+        "humanPaths": ["GET /accounts/{accountId} parameter path:accountId schema"],
+        "jsonPointers": ["#/components/parameters/AccountId/schema"],
         "key": "schema",
         "label": "schema",
-        "ruleIds": [
-          "schema.type.changed"
-        ]
+        "ruleIds": ["schema.type.changed"]
       }
     ],
     "baseline": {
@@ -102,13 +90,9 @@
     "executiveSummary": "This comparison found 2 breaking and 0 dangerous changes across 1 affected endpoint and 2 affected schemas. Existing consumers can fail without coordination, so the recommendation is to block release.",
     "findings": [
       {
-        "afterValue": [
-          "integer"
-        ],
+        "afterValue": ["integer"],
         "baseSeverity": "breaking",
-        "beforeValue": [
-          "string"
-        ],
+        "beforeValue": ["string"],
         "category": "schema",
         "classificationContext": {
           "schemaDirection": "parameter"
@@ -118,9 +102,7 @@
             "jsonPointer": "#/components/parameters/AccountId/schema",
             "node": {
               "originPath": "#/paths/~1accounts~1{accountId}/get/parameters/0/schema",
-              "refChain": [
-                "#/components/parameters/AccountId"
-              ],
+              "refChain": ["#/components/parameters/AccountId"],
               "sourcePath": "#/components/parameters/AccountId/schema"
             }
           },
@@ -128,9 +110,7 @@
             "jsonPointer": "#/components/parameters/AccountId/schema",
             "node": {
               "originPath": "#/paths/~1accounts~1{accountId}/get/parameters/0/schema",
-              "refChain": [
-                "#/components/parameters/AccountId"
-              ],
+              "refChain": ["#/components/parameters/AccountId"],
               "sourcePath": "#/components/parameters/AccountId/schema"
             }
           }
@@ -151,13 +131,9 @@
         "operationDeprecated": false
       },
       {
-        "afterValue": [
-          "integer"
-        ],
+        "afterValue": ["integer"],
         "baseSeverity": "breaking",
-        "beforeValue": [
-          "string"
-        ],
+        "beforeValue": ["string"],
         "category": "schema",
         "classificationContext": {
           "schemaDirection": "response"
@@ -167,10 +143,7 @@
             "jsonPointer": "#/components/schemas/Profile/properties/state",
             "node": {
               "originPath": "#/paths/~1accounts~1{accountId}/get/responses/200/content/application~1json/schema/properties/profile/properties/state",
-              "refChain": [
-                "#/components/schemas/Account",
-                "#/components/schemas/Profile"
-              ],
+              "refChain": ["#/components/schemas/Account", "#/components/schemas/Profile"],
               "sourcePath": "#/components/schemas/Profile/properties/state"
             }
           },
@@ -178,10 +151,7 @@
             "jsonPointer": "#/components/schemas/Profile/properties/state",
             "node": {
               "originPath": "#/paths/~1accounts~1{accountId}/get/responses/200/content/application~1json/schema/properties/profile/properties/state",
-              "refChain": [
-                "#/components/schemas/Account",
-                "#/components/schemas/Profile"
-              ],
+              "refChain": ["#/components/schemas/Account", "#/components/schemas/Profile"],
               "sourcePath": "#/components/schemas/Profile/properties/state"
             }
           }
@@ -218,9 +188,7 @@
       "customRedactionRules": [],
       "consumerProfile": "publicApi",
       "exportFormats": [],
-      "failOnSeverities": [
-        "breaking"
-      ],
+      "failOnSeverities": ["breaking"],
       "ignoreRules": [],
       "includeCategories": [
         "docs",

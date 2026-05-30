@@ -26,10 +26,12 @@ export function diffOperationResponses(
   const operationId = revisionOperation.operationId ?? baseOperation.operationId;
   const operationTags = [...new Set([...baseOperation.tags, ...revisionOperation.tags])];
   const operationDeprecated = baseOperation.deprecated || revisionOperation.deprecated;
-  const allStatusCodes = [...new Set([
-    ...Object.keys(baseOperation.responses),
-    ...Object.keys(revisionOperation.responses),
-  ])].sort((left, right) => left.localeCompare(right));
+  const allStatusCodes = [
+    ...new Set([
+      ...Object.keys(baseOperation.responses),
+      ...Object.keys(revisionOperation.responses),
+    ]),
+  ].sort((left, right) => left.localeCompare(right));
 
   for (const statusCode of allStatusCodes) {
     const baseResponse = baseOperation.responses[statusCode];
@@ -37,30 +39,33 @@ export function diffOperationResponses(
 
     if (!baseResponse && revisionResponse) {
       findings.push(
-        createFinding(statusCode === "default" ? "response.default.added" : "response.status.added", {
-          afterValue: createResponseSnapshot(revisionResponse),
-          beforeValue: null,
-          evidence: {
-            revision: createEvidenceLocation(
-              revisionResponse.evidence.originPath,
-              revisionResponse.evidence,
-            ),
+        createFinding(
+          statusCode === "default" ? "response.default.added" : "response.status.added",
+          {
+            afterValue: createResponseSnapshot(revisionResponse),
+            beforeValue: null,
+            evidence: {
+              revision: createEvidenceLocation(
+                revisionResponse.evidence.originPath,
+                revisionResponse.evidence,
+              ),
+            },
+            jsonPointer: revisionResponse.evidence.originPath,
+            message:
+              statusCode === "default"
+                ? `${operationLabel} now documents a default response.`
+                : `${operationLabel} now documents the "${statusCode}" response.`,
+            method: revisionOperation.method,
+            operationDeprecated,
+            operationId,
+            path: revisionOperation.path,
+            tags: operationTags,
+            title:
+              statusCode === "default"
+                ? `${operationLabel}: default response added`
+                : `${operationLabel}: response status added`,
           },
-          jsonPointer: revisionResponse.evidence.originPath,
-          message:
-            statusCode === "default"
-              ? `${operationLabel} now documents a default response.`
-              : `${operationLabel} now documents the "${statusCode}" response.`,
-          method: revisionOperation.method,
-          operationDeprecated,
-          operationId,
-          path: revisionOperation.path,
-          tags: operationTags,
-          title:
-            statusCode === "default"
-              ? `${operationLabel}: default response added`
-              : `${operationLabel}: response status added`,
-        }),
+        ),
       );
       continue;
     }
@@ -99,7 +104,10 @@ export function diffOperationResponses(
       continue;
     }
 
-    const baseEvidence = createEvidenceLocation(baseResponse.evidence.originPath, baseResponse.evidence);
+    const baseEvidence = createEvidenceLocation(
+      baseResponse.evidence.originPath,
+      baseResponse.evidence,
+    );
     const revisionEvidence = createEvidenceLocation(
       revisionResponse.evidence.originPath,
       revisionResponse.evidence,
@@ -126,10 +134,9 @@ export function diffOperationResponses(
       );
     }
 
-    const allMediaTypes = [...new Set([
-      ...Object.keys(baseResponse.content),
-      ...Object.keys(revisionResponse.content),
-    ])].sort((left, right) => left.localeCompare(right));
+    const allMediaTypes = [
+      ...new Set([...Object.keys(baseResponse.content), ...Object.keys(revisionResponse.content)]),
+    ].sort((left, right) => left.localeCompare(right));
 
     for (const mediaType of allMediaTypes) {
       const baseMediaType = baseResponse.content[mediaType];
@@ -165,7 +172,10 @@ export function diffOperationResponses(
             afterValue: null,
             beforeValue: createResponseMediaTypeSnapshot(baseMediaType),
             evidence: {
-              base: createEvidenceLocation(baseMediaType.evidence.originPath, baseMediaType.evidence),
+              base: createEvidenceLocation(
+                baseMediaType.evidence.originPath,
+                baseMediaType.evidence,
+              ),
             },
             jsonPointer: baseMediaType.evidence.originPath,
             message: `${operationLabel} no longer documents "${mediaType}" for the "${statusCode}" response.`,

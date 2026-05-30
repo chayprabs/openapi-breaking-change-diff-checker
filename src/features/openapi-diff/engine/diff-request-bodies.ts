@@ -73,7 +73,10 @@ export function diffOperationRequestBody(
         afterValue: null,
         beforeValue: createRequestBodySnapshot(baseRequestBody),
         evidence: {
-          base: createEvidenceLocation(baseRequestBody.evidence.originPath, baseRequestBody.evidence),
+          base: createEvidenceLocation(
+            baseRequestBody.evidence.originPath,
+            baseRequestBody.evidence,
+          ),
         },
         jsonPointer: baseRequestBody.evidence.originPath,
         message: `${operationLabel} no longer accepts the request body documented in the base spec.`,
@@ -93,7 +96,10 @@ export function diffOperationRequestBody(
     return findings;
   }
 
-  const baseEvidence = createEvidenceLocation(baseRequestBody.evidence.originPath, baseRequestBody.evidence);
+  const baseEvidence = createEvidenceLocation(
+    baseRequestBody.evidence.originPath,
+    baseRequestBody.evidence,
+  );
   const revisionEvidence = createEvidenceLocation(
     revisionRequestBody.evidence.originPath,
     revisionRequestBody.evidence,
@@ -129,10 +135,12 @@ export function diffOperationRequestBody(
     );
   }
 
-  const allMediaTypes = [...new Set([
-    ...Object.keys(baseRequestBody.content),
-    ...Object.keys(revisionRequestBody.content),
-  ])].sort((left, right) => left.localeCompare(right));
+  const allMediaTypes = [
+    ...new Set([
+      ...Object.keys(baseRequestBody.content),
+      ...Object.keys(revisionRequestBody.content),
+    ]),
+  ].sort((left, right) => left.localeCompare(right));
 
   for (const mediaType of allMediaTypes) {
     const baseMediaType = baseRequestBody.content[mediaType];

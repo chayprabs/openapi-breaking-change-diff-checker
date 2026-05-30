@@ -4,13 +4,13 @@ import { createClient, type Client } from "@libsql/client";
 import { drizzle, type LibSQLDatabase } from "drizzle-orm/libsql";
 import * as schema from "@/lib/db/schema";
 
-type AuthosDatabase = LibSQLDatabase<typeof schema>;
+type AppDatabase = LibSQLDatabase<typeof schema>;
 
 let client: Client | null = null;
-let database: AuthosDatabase | null = null;
+let database: AppDatabase | null = null;
 
 function getDatabaseUrl() {
-  return process.env.DATABASE_URL ?? "file:./.data/authos.db";
+  return process.env.DATABASE_URL ?? "file:./.data/openapi-diff.db";
 }
 
 function ensureDatabaseDirectory(databaseUrl: string) {
@@ -45,7 +45,7 @@ export function getDb() {
   return database;
 }
 
-export const db = new Proxy({} as AuthosDatabase, {
+export const db = new Proxy({} as AppDatabase, {
   get(_target, property, receiver) {
     return Reflect.get(getDb(), property, receiver);
   },

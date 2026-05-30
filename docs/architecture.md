@@ -2,7 +2,7 @@
 
 ## Overview
 
-Authos is a Next.js App Router site with a reusable developer-tools shell and one launch tool: **OpenAPI Diff**.
+OpenAPI Diff is a Next.js App Router site with a reusable developer-tools shell and one launch tool: **OpenAPI Diff**.
 
 The OpenAPI Diff workflow is designed around a local-first pipeline:
 

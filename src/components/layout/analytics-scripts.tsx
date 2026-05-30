@@ -7,9 +7,7 @@ import { getConfiguredAnalyticsProvider } from "@/lib/analytics-core";
  * after these scripts initialize.
  */
 export function AnalyticsScripts() {
-  const provider = getConfiguredAnalyticsProvider(
-    process.env.NEXT_PUBLIC_ANALYTICS_PROVIDER,
-  );
+  const provider = getConfiguredAnalyticsProvider(process.env.NEXT_PUBLIC_ANALYTICS_PROVIDER);
 
   if (provider === "plausible") {
     const domain = process.env.NEXT_PUBLIC_PLAUSIBLE_DOMAIN?.trim();
@@ -35,13 +33,12 @@ export function AnalyticsScripts() {
       return null;
     }
 
-    const apiHost =
-      process.env.NEXT_PUBLIC_POSTHOG_HOST?.trim() || "https://us.i.posthog.com";
+    const apiHost = process.env.NEXT_PUBLIC_POSTHOG_HOST?.trim() || "https://us.i.posthog.com";
 
     return (
       <>
         <Script src={`${apiHost}/static/array.js`} strategy="afterInteractive" />
-        <Script id="authos-posthog-init" strategy="afterInteractive">
+        <Script id="odiff-posthog-init" strategy="afterInteractive">
           {`posthog.init(${JSON.stringify(apiKey)}, { api_host: ${JSON.stringify(apiHost)}, capture_pageview: false });`}
         </Script>
       </>

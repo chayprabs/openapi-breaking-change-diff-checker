@@ -202,9 +202,7 @@
       "customRedactionRules": [],
       "consumerProfile": "publicApi",
       "exportFormats": [],
-      "failOnSeverities": [
-        "breaking"
-      ],
+      "failOnSeverities": ["breaking"],
       "ignoreRules": [],
       "includeCategories": [
         "docs",

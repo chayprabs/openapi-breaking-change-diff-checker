@@ -11,10 +11,7 @@ import { consumeSharedRateLimit } from "@/lib/server/shared-rate-limit";
 
 export const dynamic = "force-dynamic";
 
-const GITHUB_CHECK_RATE_LIMIT = Math.max(
-  1,
-  Number(process.env.GITHUB_CHECK_RATE_LIMIT ?? 30),
-);
+const GITHUB_CHECK_RATE_LIMIT = Math.max(1, Number(process.env.GITHUB_CHECK_RATE_LIMIT ?? 30));
 const GITHUB_CHECK_RATE_LIMIT_WINDOW_MS = Math.max(
   1_000,
   Number(process.env.GITHUB_CHECK_RATE_LIMIT_WINDOW_MS ?? 60_000),
@@ -47,7 +44,7 @@ export async function POST(request: Request) {
   }
 
   if (configuredSecret) {
-    const secret = request.headers.get("x-authos-github-secret");
+    const secret = request.headers.get("x-builtin-github-secret");
 
     if (secret !== configuredSecret) {
       return jsonResponse({ error: "Unauthorized" }, { status: 401 });

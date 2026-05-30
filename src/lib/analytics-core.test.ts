@@ -16,15 +16,16 @@ describe("analytics core", () => {
   it("recognizes supported providers and page identifiers", () => {
     expect(getConfiguredAnalyticsProvider("plausible")).toBe("plausible");
     expect(getConfiguredAnalyticsProvider("posthog")).toBe("posthog");
-    expect(getAnalyticsPageId("/tools/openapi-diff-breaking-changes")).toBe("openapi_diff");
-    expect(getAnalyticsPageId("/login")).toBe("login");
+    expect(getAnalyticsPageId("/")).toBe("openapi_diff");
+    expect(getAnalyticsPageId("/privacy")).toBe("privacy");
+    expect(getAnalyticsPageId("/terms")).toBe("privacy");
     expect(getAnalyticsPageId("/missing")).toBe("unknown");
   });
 
   it("classifies referrers without leaking the original URL", () => {
-    expect(getReferrerType("https://authos.dev", "")).toBe("none");
-    expect(getReferrerType("https://authos.dev", "https://authos.dev/tools")).toBe("internal");
-    expect(getReferrerType("https://authos.dev", "https://example.com/path")).toBe("external");
+    expect(getReferrerType("https://example.com", "")).toBe("none");
+    expect(getReferrerType("https://example.com", "https://example.com/tools")).toBe("internal");
+    expect(getReferrerType("https://example.com", "https://other.example/path")).toBe("external");
   });
 
   it("exposes a stable disabled adapter shape", () => {

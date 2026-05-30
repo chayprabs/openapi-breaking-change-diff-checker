@@ -38,10 +38,7 @@ function createParsedSpec(label: string): ParsedSpec {
   };
 }
 
-function createFinding(
-  id: string,
-  overrides: Partial<DiffFinding> = {},
-): DiffFinding {
+function createFinding(id: string, overrides: Partial<DiffFinding> = {}): DiffFinding {
   return {
     afterValue: null,
     baseSeverity: "safe",
@@ -110,8 +107,8 @@ function createReport(findings: DiffFinding[]): DiffReport {
         parameters: activeFindings.filter((finding) => finding.category === "parameter").length,
         paths: activeFindings.filter((finding) => finding.category === "path").length,
         responses: activeFindings.filter((finding) => finding.category === "response").length,
-        schemas: activeFindings.filter((finding) =>
-          finding.category === "schema" || finding.category === "enum",
+        schemas: activeFindings.filter(
+          (finding) => finding.category === "schema" || finding.category === "enum",
         ).length,
         security: activeFindings.filter((finding) => finding.category === "security").length,
       },
@@ -199,10 +196,7 @@ describe("report explorer helpers", () => {
     const orderedRows = filterAndSortFindingRows(rows, filters);
     const csv = createFindingsCsv(orderedRows);
 
-    expect(orderedRows.map((row) => row.finding.id)).toEqual([
-      "breaking-item",
-      "safe-item",
-    ]);
+    expect(orderedRows.map((row) => row.finding.id)).toEqual(["breaking-item", "safe-item"]);
     expect(csv).toContain(
       '"Severity","Ignored","Ignored By","Change","Endpoint/Schema","Rule","Category"',
     );

@@ -6,10 +6,7 @@ import {
   unresolvedRefSample,
 } from "@/features/openapi-diff/fixtures";
 import { normalizeOpenApiDocument } from "@/features/openapi-diff/engine/normalize";
-import {
-  analyzeOpenApiSpecs,
-  parseOpenApiSpec,
-} from "@/features/openapi-diff/lib/parser";
+import { analyzeOpenApiSpecs, parseOpenApiSpec } from "@/features/openapi-diff/lib/parser";
 import type { SpecInput } from "@/features/openapi-diff/types";
 
 function createSpecInput(
@@ -50,9 +47,7 @@ describe("normalizeOpenApiDocument", () => {
     expect(responseSchema).toBeDefined();
     expect(profileSchema).toBeDefined();
     expect(responseSchema?.refKind).toBe("local");
-    expect(responseSchema?.evidence.originalPointer).toBe(
-      "#/components/schemas/Account",
-    );
+    expect(responseSchema?.evidence.originalPointer).toBe("#/components/schemas/Account");
     expect(responseSchema?.evidence.sourcePath).toBe("#/components/schemas/Account");
     expect(profileSchema?.refKind).toBe("local");
     expect(profileSchema?.evidence.originalPointer).toBe("#/components/schemas/Profile");
@@ -87,14 +82,14 @@ components:
           $ref: "#/components/schemas/A"
 `;
     const result = await normalizeSpec("base", circularSpec);
-    const circularNode = result.model.paths["/nodes"]?.operations.get?.responses["200"]?.content[
-      "application/json"
-    ]?.schema?.properties.b?.properties.a;
+    const circularNode =
+      result.model.paths["/nodes"]?.operations.get?.responses["200"]?.content["application/json"]
+        ?.schema?.properties.b?.properties.a;
 
     expect(circularNode?.refKind).toBe("circular");
-    expect(
-      result.warnings.some((warning) => warning.code === "normalize.circular-local-ref"),
-    ).toBe(true);
+    expect(result.warnings.some((warning) => warning.code === "normalize.circular-local-ref")).toBe(
+      true,
+    );
   });
 
   it("merges path-level and operation-level parameters by effective key", async () => {
@@ -136,11 +131,7 @@ paths:
     const result = await normalizeSpec("base", mergeSpec);
     const parameters = result.model.paths["/users/{id}"]?.operations.get?.parameters;
 
-    expect(Object.keys(parameters ?? {})).toEqual([
-      "path:id",
-      "query:locale",
-      "query:search",
-    ]);
+    expect(Object.keys(parameters ?? {})).toEqual(["path:id", "query:locale", "query:search"]);
     expect(parameters?.["query:locale"]?.required).toBe(true);
     expect(parameters?.["query:locale"]?.description).toBe("Operation locale");
   });
@@ -148,9 +139,8 @@ paths:
   it("handles missing components gracefully", async () => {
     const result = await normalizeSpec("base", unresolvedRefSample);
     const responseSchema =
-      result.model.paths["/accounts"]?.operations.get?.responses["200"]?.content[
-        "application/json"
-      ]?.schema;
+      result.model.paths["/accounts"]?.operations.get?.responses["200"]?.content["application/json"]
+        ?.schema;
 
     expect(responseSchema?.refKind).toBe("unresolved");
     expect(
@@ -184,12 +174,13 @@ paths:
       throw new Error("Expected analyzeOpenApiSpecs to succeed.");
     }
 
+    expect(result.result.normalized.base.paths["/accounts/{accountId}"]?.operations.get?.key).toBe(
+      "get /accounts/{accountId}",
+    );
     expect(
-      result.result.normalized.base.paths["/accounts/{accountId}"]?.operations.get?.key,
-    ).toBe("get /accounts/{accountId}");
-    expect(
-      result.result.normalized.revision.paths["/accounts/{accountId}"]?.operations.get
-        ?.responses["200"]?.content["application/json"]?.schema?.key,
+      result.result.normalized.revision.paths["/accounts/{accountId}"]?.operations.get?.responses[
+        "200"
+      ]?.content["application/json"]?.schema?.key,
     ).toBe("#/components/schemas/Account");
     expect(() => JSON.stringify(result.result.normalized.base)).not.toThrow();
     expect(() => JSON.stringify(result.result.normalized.revision)).not.toThrow();

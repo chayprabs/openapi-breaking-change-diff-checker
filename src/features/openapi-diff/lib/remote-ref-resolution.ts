@@ -1,7 +1,4 @@
-import {
-  parse as parseJson,
-  type ParseError,
-} from "jsonc-parser";
+import { parse as parseJson, type ParseError } from "jsonc-parser";
 import { parseAllDocuments } from "yaml";
 import { fetchPublicSpecTextViaProxy } from "@/features/openapi-diff/lib/public-spec-fetch-client";
 import { PublicSpecFetchError } from "@/features/openapi-diff/lib/public-spec-url";
@@ -164,17 +161,18 @@ export async function resolvePublicRemoteRefs(
         };
       }
 
-      return resolveValue(
-        mergeResolvedTarget(target, resolvedSiblings),
-        context,
-        [...refTrail, absoluteRef],
-      );
+      return resolveValue(mergeResolvedTarget(target, resolvedSiblings), context, [
+        ...refTrail,
+        absoluteRef,
+      ]);
     }
 
     let absoluteRef: string;
 
     try {
-      absoluteRef = context.documentUrl ? new URL(ref, context.documentUrl).toString() : new URL(ref).toString();
+      absoluteRef = context.documentUrl
+        ? new URL(ref, context.documentUrl).toString()
+        : new URL(ref).toString();
     } catch {
       addWarning(
         "remote-ref.invalid-url",
@@ -337,10 +335,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function mergeResolvedTarget(
-  target: unknown,
-  siblings: Record<string, unknown>,
-) {
+function mergeResolvedTarget(target: unknown, siblings: Record<string, unknown>) {
   if (!Object.keys(siblings).length) {
     return cloneValue(target);
   }
@@ -380,11 +375,7 @@ function parseRemoteDocument(url: string, content: string) {
   const firstDocument = documents[0];
 
   if (!firstDocument) {
-    throw new PublicSpecFetchError(
-      "fetch-failed",
-      `The fetched document at ${url} is empty.`,
-      502,
-    );
+    throw new PublicSpecFetchError("fetch-failed", `The fetched document at ${url} is empty.`, 502);
   }
 
   if (firstDocument.errors.length > 0) {
@@ -400,11 +391,7 @@ function parseRemoteDocument(url: string, content: string) {
   const parsed = firstDocument.toJSON();
 
   if (parsed === null || parsed === undefined) {
-    throw new PublicSpecFetchError(
-      "fetch-failed",
-      `The fetched document at ${url} is empty.`,
-      502,
-    );
+    throw new PublicSpecFetchError("fetch-failed", `The fetched document at ${url} is empty.`, 502);
   }
 
   return parsed;

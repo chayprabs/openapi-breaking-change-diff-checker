@@ -20,7 +20,7 @@ export function SaveReportButton({ report, title = "OpenAPI diff report" }: Save
   if (!session?.user) {
     return (
       <p className="text-muted text-sm leading-6">
-        <Link className="font-medium text-foreground underline" href="/login">
+        <Link className="text-foreground font-medium underline" href="/login">
           Sign in
         </Link>{" "}
         to save redacted reports to your account.

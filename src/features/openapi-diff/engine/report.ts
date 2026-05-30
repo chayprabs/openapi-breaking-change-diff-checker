@@ -9,10 +9,7 @@ import {
   createAnalysisSettings,
   formatConsumerProfileLabel,
 } from "@/features/openapi-diff/lib/analysis-settings";
-import {
-  getIgnoreRuleLabel,
-  matchesIgnoreRule,
-} from "@/features/openapi-diff/lib/ignore-rules";
+import { getIgnoreRuleLabel, matchesIgnoreRule } from "@/features/openapi-diff/lib/ignore-rules";
 import type {
   AnalysisSettings,
   ConsumerProfile,
@@ -119,10 +116,7 @@ const reportRecommendationLabels = {
   blockRelease: "Block release",
   likelySafe: "Likely safe",
   reviewBeforeRelease: "Review before release",
-} as const satisfies Record<
-  DiffReportRecommendation["code"],
-  DiffReportRecommendation["label"]
->;
+} as const satisfies Record<DiffReportRecommendation["code"], DiffReportRecommendation["label"]>;
 const sdkImpactRuleIds = new Set<RuleId>([
   "operationId.changed",
   "parameter.schema.changed",
@@ -149,15 +143,16 @@ const sdkImpactRuleIds = new Set<RuleId>([
   "schema.writeOnly.changed",
 ]);
 
-const jsonValueSchema: z.ZodType<JsonValue> = z.lazy((): z.ZodType<JsonValue> =>
-  z.union([
-    z.null(),
-    z.boolean(),
-    z.number(),
-    z.string(),
-    z.array(jsonValueSchema),
-    z.record(z.string(), jsonValueSchema),
-  ]),
+const jsonValueSchema: z.ZodType<JsonValue> = z.lazy(
+  (): z.ZodType<JsonValue> =>
+    z.union([
+      z.null(),
+      z.boolean(),
+      z.number(),
+      z.string(),
+      z.array(jsonValueSchema),
+      z.record(z.string(), jsonValueSchema),
+    ]),
 );
 
 const parserIssueSchema = z.object({
@@ -501,9 +496,7 @@ export function buildReport(
 
 export { diffReportSchema };
 
-function buildAffectedEndpoints(
-  findings: readonly DiffFinding[],
-): DiffReportAffectedEndpoint[] {
+function buildAffectedEndpoints(findings: readonly DiffFinding[]): DiffReportAffectedEndpoint[] {
   const groups = new Map<string, DiffReportAffectedEndpoint>();
 
   for (const finding of findings) {
@@ -516,10 +509,7 @@ function buildAffectedEndpoints(
 
     if (current) {
       current.findingCount += 1;
-      current.highestSeverity = pickHigherSeverity(
-        current.highestSeverity,
-        finding.severity,
-      );
+      current.highestSeverity = pickHigherSeverity(current.highestSeverity, finding.severity);
       current.ruleIds = sortUniqueValues<RuleId>([...current.ruleIds, finding.ruleId]);
       continue;
     }
@@ -539,9 +529,7 @@ function buildAffectedEndpoints(
   return [...groups.values()].sort(compareAffectedEndpoints);
 }
 
-function buildAffectedSchemas(
-  findings: readonly DiffFinding[],
-): DiffReportAffectedSchema[] {
+function buildAffectedSchemas(findings: readonly DiffFinding[]): DiffReportAffectedSchema[] {
   const groups = new Map<string, DiffReportAffectedSchema>();
 
   for (const finding of findings) {
@@ -556,18 +544,12 @@ function buildAffectedSchemas(
 
     if (current) {
       current.findingCount += 1;
-      current.highestSeverity = pickHigherSeverity(
-        current.highestSeverity,
-        finding.severity,
-      );
+      current.highestSeverity = pickHigherSeverity(current.highestSeverity, finding.severity);
       current.humanPaths = sortUniqueStrings([
         ...current.humanPaths,
         ...(finding.humanPath ? [finding.humanPath] : []),
       ]);
-      current.jsonPointers = sortUniqueStrings([
-        ...current.jsonPointers,
-        finding.jsonPointer,
-      ]);
+      current.jsonPointers = sortUniqueStrings([...current.jsonPointers, finding.jsonPointer]);
       current.ruleIds = sortUniqueValues<RuleId>([...current.ruleIds, finding.ruleId]);
       continue;
     }
@@ -642,14 +624,20 @@ function buildMigrationNotes(findings: readonly DiffFinding[]) {
   }
 
   if (findings.some((finding) => finding.severity === "breaking")) {
-    return ["Coordinate a versioning or compatibility rollout plan before shipping the breaking changes in this report."];
+    return [
+      "Coordinate a versioning or compatibility rollout plan before shipping the breaking changes in this report.",
+    ];
   }
 
   if (findings.some((finding) => finding.severity === "dangerous")) {
-    return ["Review client rollout notes, SDK regeneration, and staged release steps before shipping the dangerous changes in this report."];
+    return [
+      "Review client rollout notes, SDK regeneration, and staged release steps before shipping the dangerous changes in this report.",
+    ];
   }
 
-  return ["No special migration work is suggested beyond routine verification for the detected safe and informational changes."];
+  return [
+    "No special migration work is suggested beyond routine verification for the detected safe and informational changes.",
+  ];
 }
 
 function buildRecommendation(summary: DiffReportSummary): DiffReportRecommendation {
@@ -679,10 +667,7 @@ function buildRecommendation(summary: DiffReportSummary): DiffReportRecommendati
   };
 }
 
-function buildIgnoreWarnings(
-  findings: readonly DiffFinding[],
-  settings: AnalysisSettings,
-) {
+function buildIgnoreWarnings(findings: readonly DiffFinding[], settings: AnalysisSettings) {
   if (!findings.length || settings.ignoreRules.length === 0) {
     return [];
   }
@@ -700,14 +685,9 @@ function buildIgnoreWarnings(
     }
 
     const ruleLabel = getIgnoreRuleLabel(ignoreRule);
-    const matchedBreaking = matchedFindings.filter(
-      (finding) => finding.severity === "breaking",
-    );
+    const matchedBreaking = matchedFindings.filter((finding) => finding.severity === "breaking");
 
-    if (
-      breakingFindings.length > 0 &&
-      matchedBreaking.length === breakingFindings.length
-    ) {
+    if (breakingFindings.length > 0 && matchedBreaking.length === breakingFindings.length) {
       warnings.push(
         `${ruleLabel} hides all breaking findings in the current report. Review the Ignored tab before treating this diff as safe.`,
       );
@@ -715,8 +695,7 @@ function buildIgnoreWarnings(
 
     if (
       matchedFindings.length === findings.length ||
-      (findings.length >= 5 &&
-        matchedFindings.length / findings.length >= 0.6) ||
+      (findings.length >= 5 && matchedFindings.length / findings.length >= 0.6) ||
       matchedFindings.length >= 12
     ) {
       warnings.push(
@@ -752,19 +731,14 @@ function buildRiskScore(
   return Math.min(100, Math.round(score));
 }
 
-function buildSdkImpactSummary(
-  findings: readonly DiffFinding[],
-  consumerProfile: ConsumerProfile,
-) {
+function buildSdkImpactSummary(findings: readonly DiffFinding[], consumerProfile: ConsumerProfile) {
   const sdkFindings = findings.filter(isSdkRelevantFinding);
 
   if (!sdkFindings.length) {
     return "No strong SDK regeneration signals were detected from the current findings.";
   }
 
-  const titles = sortUniqueStrings(
-    sdkFindings.map((finding) => finding.title),
-  ).slice(0, 3);
+  const titles = sortUniqueStrings(sdkFindings.map((finding) => finding.title)).slice(0, 3);
   const impactLevel = sdkFindings.some((finding) => finding.severity === "breaking")
     ? "high"
     : sdkFindings.some((finding) => finding.severity === "dangerous")

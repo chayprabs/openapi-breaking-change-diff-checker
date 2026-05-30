@@ -1,8 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  buildAppContentSecurityPolicy,
-  getAppSecurityHeaders,
-} from "@/lib/security/headers";
+import { buildAppContentSecurityPolicy, getAppSecurityHeaders } from "@/lib/security/headers";
 
 describe("app security headers", () => {
   it("builds a workable CSP for the editor, worker, and export flows", () => {

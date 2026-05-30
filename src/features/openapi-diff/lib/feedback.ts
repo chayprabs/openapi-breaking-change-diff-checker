@@ -56,7 +56,7 @@ export function createOpenApiDiffFeedbackPayload(input: {
     ...(input.email ? { email: input.email } : {}),
     kind: input.kind,
     message: input.message.trim(),
-    page: "/tools/openapi-diff-breaking-changes",
+    page: "/",
     rating: input.rating,
     ...(input.includeReportMetadata && input.report
       ? { reportMetadata: createFeedbackReportMetadata(input.report) }

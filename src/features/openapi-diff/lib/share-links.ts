@@ -1,7 +1,4 @@
-import {
-  compressToEncodedURIComponent,
-  decompressFromEncodedURIComponent,
-} from "lz-string";
+import { compressToEncodedURIComponent, decompressFromEncodedURIComponent } from "lz-string";
 import { diffReportSchema } from "@/features/openapi-diff/engine/report";
 import {
   cloneAnalysisSettings,
@@ -16,12 +13,9 @@ import {
   type WorkspaceMobileTab,
 } from "@/features/openapi-diff/lib/ui-state";
 import { TOOL_VERSION } from "@/lib/tool-version";
-import type {
-  AnalysisSettings,
-  DiffReport,
-} from "@/features/openapi-diff/types";
+import type { AnalysisSettings, DiffReport } from "@/features/openapi-diff/types";
 
-const SHARE_HASH_MODE_KEY = "authos-share";
+const SHARE_HASH_MODE_KEY = "odiff-share";
 const SHARE_HASH_PAYLOAD_KEY = "payload";
 const SHARE_HASH_VERSION_KEY = "v";
 const SHARE_VERSION = 1;
@@ -136,9 +130,10 @@ export function parseShareStateFromUrl(urlLike: string | URL): ParsedShareState 
   let url: URL;
 
   try {
-    url = typeof urlLike === "string"
-      ? new URL(urlLike, "https://authos.local")
-      : new URL(urlLike.toString());
+    url =
+      typeof urlLike === "string"
+        ? new URL(urlLike, "https://odiff.local")
+        : new URL(urlLike.toString());
   } catch {
     return {
       message: "The shared link could not be parsed.",
@@ -189,12 +184,8 @@ export function parseShareStateFromUrl(urlLike: string | URL): ParsedShareState 
   };
 }
 
-function createShareUrl(
-  baseUrl: string,
-  mode: "report" | "settings",
-  payload: string,
-): string {
-  const shareUrl = new URL(baseUrl, "https://authos.local");
+function createShareUrl(baseUrl: string, mode: "report" | "settings", payload: string): string {
+  const shareUrl = new URL(baseUrl, "https://odiff.local");
   const hashParams = new URLSearchParams();
 
   hashParams.set(SHARE_HASH_MODE_KEY, mode);
@@ -287,10 +278,7 @@ function parseReportSharePayload(encodedPayload: string): ParsedShareState {
 }
 
 function parseShareableWorkspaceUiState(value: unknown): ShareableWorkspaceUiState {
-  const parsed =
-    typeof value === "object" && value !== null && !Array.isArray(value)
-      ? value
-      : {};
+  const parsed = typeof value === "object" && value !== null && !Array.isArray(value) ? value : {};
 
   return {
     activeMobileTab: parseWorkspaceMobileTab(

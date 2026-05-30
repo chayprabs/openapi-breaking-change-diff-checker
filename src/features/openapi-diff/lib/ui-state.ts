@@ -38,7 +38,11 @@ export type ReportExplorerUiState = {
   redactBeforeExport: boolean;
 };
 
-const WORKSPACE_MOBILE_TABS = ["base", "revision", "results"] as const satisfies readonly WorkspaceMobileTab[];
+const WORKSPACE_MOBILE_TABS = [
+  "base",
+  "revision",
+  "results",
+] as const satisfies readonly WorkspaceMobileTab[];
 const REPORT_EXPLORER_TABS = [
   "summary",
   "endpoints",
@@ -55,7 +59,7 @@ const CI_SNIPPET_TARGETS = [
   "gitlab",
   "local",
 ] as const satisfies readonly CiSnippetTarget[];
-const CI_SNIPPET_ENGINES = ["authos", "oasdiff"] as const satisfies readonly CiSnippetEngine[];
+const CI_SNIPPET_ENGINES = ["builtin", "oasdiff"] as const satisfies readonly CiSnippetEngine[];
 const REPORT_EXPORT_FORMATS = [
   "html",
   "json",
@@ -79,22 +83,8 @@ const DIFF_CATEGORIES = [
   "schema",
   "security",
 ] as const;
-const DIFF_SEVERITIES = [
-  "breaking",
-  "dangerous",
-  "safe",
-  "info",
-] as const;
-const HTTP_METHODS = [
-  "delete",
-  "get",
-  "head",
-  "options",
-  "patch",
-  "post",
-  "put",
-  "trace",
-] as const;
+const DIFF_SEVERITIES = ["breaking", "dangerous", "safe", "info"] as const;
+const HTTP_METHODS = ["delete", "get", "head", "options", "patch", "post", "put", "trace"] as const;
 const RULE_ID_LOOKUP = new Set<RuleId>(ruleIds);
 
 export function createDefaultReportExplorerUiState(): ReportExplorerUiState {
@@ -106,7 +96,7 @@ export function createDefaultReportExplorerUiState(): ReportExplorerUiState {
     ciFailBuildOnBreaking: true,
     ciReportOutputPath: ciDefaults.reportOutputPath,
     ciRevisionSpecPath: ciDefaults.revisionSpecPath,
-    ciEngine: "authos",
+    ciEngine: "builtin",
     ciTarget: "github",
     exportPreviewFormat: "markdown",
     filters: createDefaultFindingsExplorerFilters(),
@@ -116,9 +106,7 @@ export function createDefaultReportExplorerUiState(): ReportExplorerUiState {
   };
 }
 
-export function cloneReportExplorerUiState(
-  state: ReportExplorerUiState,
-): ReportExplorerUiState {
+export function cloneReportExplorerUiState(state: ReportExplorerUiState): ReportExplorerUiState {
   return {
     activeTab: state.activeTab,
     ciBaseSpecPath: state.ciBaseSpecPath,
@@ -164,14 +152,8 @@ export function parseReportExplorerUiState(value: unknown): ReportExplorerUiStat
       typeof value.ciFailBuildOnBreaking === "boolean"
         ? value.ciFailBuildOnBreaking
         : defaults.ciFailBuildOnBreaking,
-    ciReportOutputPath: parseNonEmptyString(
-      value.ciReportOutputPath,
-      defaults.ciReportOutputPath,
-    ),
-    ciRevisionSpecPath: parseNonEmptyString(
-      value.ciRevisionSpecPath,
-      defaults.ciRevisionSpecPath,
-    ),
+    ciReportOutputPath: parseNonEmptyString(value.ciReportOutputPath, defaults.ciReportOutputPath),
+    ciRevisionSpecPath: parseNonEmptyString(value.ciRevisionSpecPath, defaults.ciRevisionSpecPath),
     ciEngine:
       typeof value.ciEngine === "string" &&
       CI_SNIPPET_ENGINES.includes(value.ciEngine as CiSnippetEngine)

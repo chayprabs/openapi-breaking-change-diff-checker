@@ -283,7 +283,10 @@ function diffSchemaNode(options: DiffSchemaNodeOptions): DiffFinding[] {
         baseSchema,
         beforeValue: baseSchema.defaultValue ?? null,
         humanPath: options.humanPath,
-        jsonPointer: appendJsonPointer(getPrimaryJsonPointer(baseSchema, revisionSchema), "default"),
+        jsonPointer: appendJsonPointer(
+          getPrimaryJsonPointer(baseSchema, revisionSchema),
+          "default",
+        ),
         message: `${options.humanPath} changed its documented default value.`,
         method: options.method,
         operationId: options.operationId,
@@ -317,14 +320,7 @@ function diffSchemaNode(options: DiffSchemaNodeOptions): DiffFinding[] {
       options.operationId,
     ),
   );
-  findings.push(
-    ...diffAdditionalProperties(
-      baseSchema,
-      revisionSchema,
-      options,
-      nextAncestors,
-    ),
-  );
+  findings.push(...diffAdditionalProperties(baseSchema, revisionSchema, options, nextAncestors));
   findings.push(
     ...diffCompositionKeyword(
       "allOf",
@@ -387,14 +383,10 @@ function diffSchemaNode(options: DiffSchemaNodeOptions): DiffFinding[] {
     ),
   );
   findings.push(
-    ...diffObjectProperties(
-      baseSchema,
-      revisionSchema,
-      {
-        ...options,
-        ancestorPairs: nextAncestors,
-      },
-    ),
+    ...diffObjectProperties(baseSchema, revisionSchema, {
+      ...options,
+      ancestorPairs: nextAncestors,
+    }),
   );
 
   if (baseSchema.items && revisionSchema.items) {
@@ -698,7 +690,13 @@ function diffConstraints(
 ): DiffFinding[] {
   const findings: DiffFinding[] = [];
 
-  for (const constraintKey of ["maximum", "minimum", "maxLength", "minLength", "pattern"] as const) {
+  for (const constraintKey of [
+    "maximum",
+    "minimum",
+    "maxLength",
+    "minLength",
+    "pattern",
+  ] as const) {
     const baseValue = baseSchema.constraints[constraintKey] ?? null;
     const revisionValue = revisionSchema.constraints[constraintKey] ?? null;
 
@@ -713,7 +711,10 @@ function diffConstraints(
         beforeValue: baseValue,
         humanPath,
         idSuffix: constraintKey,
-        jsonPointer: appendJsonPointer(getPrimaryJsonPointer(baseSchema, revisionSchema), constraintKey),
+        jsonPointer: appendJsonPointer(
+          getPrimaryJsonPointer(baseSchema, revisionSchema),
+          constraintKey,
+        ),
         message: describeConstraintMessage(humanPath, constraintKey, baseValue, revisionValue),
         method,
         operationId,
@@ -751,7 +752,10 @@ function diffDiscriminator(
       baseSchema,
       beforeValue: baseDiscriminator,
       humanPath,
-      jsonPointer: appendJsonPointer(getPrimaryJsonPointer(baseSchema, revisionSchema), "discriminator"),
+      jsonPointer: appendJsonPointer(
+        getPrimaryJsonPointer(baseSchema, revisionSchema),
+        "discriminator",
+      ),
       message: `${humanPath} changed discriminator behavior. Clients that deserialize polymorphic payloads may need updated dispatch logic.`,
       method,
       operationId,
@@ -838,10 +842,9 @@ function diffObjectProperties(
   options: DiffSchemaNodeOptions,
 ): DiffFinding[] {
   const findings: DiffFinding[] = [];
-  const propertyNames = [...new Set([
-    ...Object.keys(baseSchema.properties),
-    ...Object.keys(revisionSchema.properties),
-  ])].sort((left, right) => left.localeCompare(right));
+  const propertyNames = [
+    ...new Set([...Object.keys(baseSchema.properties), ...Object.keys(revisionSchema.properties)]),
+  ].sort((left, right) => left.localeCompare(right));
   const baseRequired = new Set(baseSchema.required);
   const revisionRequired = new Set(revisionSchema.required);
 
@@ -981,7 +984,10 @@ function diffReadWriteOnlyFlags(
         baseSchema,
         beforeValue: baseSchema.readOnly,
         humanPath,
-        jsonPointer: appendJsonPointer(getPrimaryJsonPointer(baseSchema, revisionSchema), "readOnly"),
+        jsonPointer: appendJsonPointer(
+          getPrimaryJsonPointer(baseSchema, revisionSchema),
+          "readOnly",
+        ),
         message: revisionSchema.readOnly
           ? `${humanPath} is now marked readOnly. Clients may need to stop sending it in write operations.`
           : `${humanPath} is no longer marked readOnly. Request and response expectations may have changed for shared models.`,
@@ -1003,7 +1009,10 @@ function diffReadWriteOnlyFlags(
         baseSchema,
         beforeValue: baseSchema.writeOnly,
         humanPath,
-        jsonPointer: appendJsonPointer(getPrimaryJsonPointer(baseSchema, revisionSchema), "writeOnly"),
+        jsonPointer: appendJsonPointer(
+          getPrimaryJsonPointer(baseSchema, revisionSchema),
+          "writeOnly",
+        ),
         message: revisionSchema.writeOnly
           ? `${humanPath} is now marked writeOnly. Clients may stop seeing it in responses and may need to treat it as input-only.`
           : `${humanPath} is no longer marked writeOnly. Clients may now receive it in responses or see shared-model behavior change.`,
@@ -1064,10 +1073,7 @@ function getComparableTypeList(schema: NormalizedSchema) {
   return schema.type.filter((entry) => entry !== "null");
 }
 
-function getPrimaryJsonPointer(
-  baseSchema?: NormalizedSchema,
-  revisionSchema?: NormalizedSchema,
-) {
+function getPrimaryJsonPointer(baseSchema?: NormalizedSchema, revisionSchema?: NormalizedSchema) {
   return revisionSchema?.evidence.sourcePath ?? baseSchema?.evidence.sourcePath ?? "#";
 }
 
@@ -1188,7 +1194,9 @@ function stableJsonValue(value: JsonValue | null) {
   return JSON.stringify(value);
 }
 
-function toAdditionalPropertiesValue(value: boolean | NormalizedSchema | undefined): JsonValue | null {
+function toAdditionalPropertiesValue(
+  value: boolean | NormalizedSchema | undefined,
+): JsonValue | null {
   if (typeof value === "boolean") {
     return value;
   }

@@ -7,19 +7,13 @@ import { consumeSharedRateLimit } from "@/lib/server/shared-rate-limit";
 
 export const dynamic = "force-dynamic";
 
-const SHARE_READ_RATE_LIMIT = Math.max(
-  1,
-  Number(process.env.SHARE_READ_RATE_LIMIT ?? 60),
-);
+const SHARE_READ_RATE_LIMIT = Math.max(1, Number(process.env.SHARE_READ_RATE_LIMIT ?? 60));
 const SHARE_READ_RATE_LIMIT_WINDOW_MS = Math.max(
   1_000,
   Number(process.env.SHARE_READ_RATE_LIMIT_WINDOW_MS ?? 60_000),
 );
 
-export async function GET(
-  request: Request,
-  context: { params: Promise<{ token: string }> },
-) {
+export async function GET(request: Request, context: { params: Promise<{ token: string }> }) {
   const rateLimit = await consumeSharedRateLimit(
     `share-read:${getClientIpAddress(request.headers)}`,
     {

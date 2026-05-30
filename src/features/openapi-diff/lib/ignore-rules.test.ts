@@ -12,10 +12,7 @@ import {
   matchesIgnoreRule,
   matchesPathPattern,
 } from "@/features/openapi-diff/lib/ignore-rules";
-import type {
-  ConsumerProfile,
-  DiffFinding,
-} from "@/features/openapi-diff/types";
+import type { ConsumerProfile, DiffFinding } from "@/features/openapi-diff/types";
 
 function createFinding(overrides: Partial<DiffFinding> = {}): DiffFinding {
   return {
@@ -53,74 +50,42 @@ describe("ignore rules", () => {
       operationDeprecated: true,
     });
 
+    expect(matchesIgnoreRule(createDocsOnlyIgnoreRule(), docsFinding, "publicApi")).toBe(true);
+    expect(matchesIgnoreRule(createDocsOnlyIgnoreRule(), deprecatedFinding, "publicApi")).toBe(
+      false,
+    );
     expect(
-      matchesIgnoreRule(createDocsOnlyIgnoreRule(), docsFinding, "publicApi"),
+      matchesIgnoreRule(createDeprecatedEndpointIgnoreRule(), deprecatedFinding, "publicApi"),
     ).toBe(true);
-    expect(
-      matchesIgnoreRule(createDocsOnlyIgnoreRule(), deprecatedFinding, "publicApi"),
-    ).toBe(false);
-    expect(
-      matchesIgnoreRule(
-        createDeprecatedEndpointIgnoreRule(),
-        deprecatedFinding,
-        "publicApi",
-      ),
-    ).toBe(true);
-    expect(
-      matchesIgnoreRule(createDeprecatedEndpointIgnoreRule(), docsFinding, "publicApi"),
-    ).toBe(false);
+    expect(matchesIgnoreRule(createDeprecatedEndpointIgnoreRule(), docsFinding, "publicApi")).toBe(
+      false,
+    );
   });
 
   it("matches finding, rule, method, operationId, path, and tag rules precisely", () => {
     const finding = createFinding();
 
+    expect(matchesIgnoreRule(createFindingIgnoreRule(finding), finding, "publicApi")).toBe(true);
     expect(
-      matchesIgnoreRule(createFindingIgnoreRule(finding), finding, "publicApi"),
+      matchesIgnoreRule(createRuleIdIgnoreRule("parameter.required.added"), finding, "publicApi"),
     ).toBe(true);
-    expect(
-      matchesIgnoreRule(
-        createRuleIdIgnoreRule("parameter.required.added"),
-        finding,
-        "publicApi",
-      ),
-    ).toBe(true);
-    expect(
-      matchesIgnoreRule(createMethodIgnoreRule("get"), finding, "publicApi"),
-    ).toBe(true);
-    expect(
-      matchesIgnoreRule(
-        createOperationIdIgnoreRule("listUsers"),
-        finding,
-        "publicApi",
-      ),
-    ).toBe(true);
-    expect(
-      matchesIgnoreRule(createPathPatternIgnoreRule("/users"), finding, "publicApi"),
-    ).toBe(true);
-    expect(
-      matchesIgnoreRule(createTagIgnoreRule("users"), finding, "publicApi"),
-    ).toBe(true);
+    expect(matchesIgnoreRule(createMethodIgnoreRule("get"), finding, "publicApi")).toBe(true);
+    expect(matchesIgnoreRule(createOperationIdIgnoreRule("listUsers"), finding, "publicApi")).toBe(
+      true,
+    );
+    expect(matchesIgnoreRule(createPathPatternIgnoreRule("/users"), finding, "publicApi")).toBe(
+      true,
+    );
+    expect(matchesIgnoreRule(createTagIgnoreRule("users"), finding, "publicApi")).toBe(true);
 
-    expect(
-      matchesIgnoreRule(createMethodIgnoreRule("post"), finding, "publicApi"),
-    ).toBe(false);
-    expect(
-      matchesIgnoreRule(
-        createOperationIdIgnoreRule("fetchUsers"),
-        finding,
-        "publicApi",
-      ),
-    ).toBe(false);
-    expect(
-      matchesIgnoreRule(
-        createPathPatternIgnoreRule("/admin/*"),
-        finding,
-        "publicApi",
-      ),
-    ).toBe(false);
-    expect(
-      matchesIgnoreRule(createTagIgnoreRule("admin"), finding, "publicApi"),
-    ).toBe(false);
+    expect(matchesIgnoreRule(createMethodIgnoreRule("post"), finding, "publicApi")).toBe(false);
+    expect(matchesIgnoreRule(createOperationIdIgnoreRule("fetchUsers"), finding, "publicApi")).toBe(
+      false,
+    );
+    expect(matchesIgnoreRule(createPathPatternIgnoreRule("/admin/*"), finding, "publicApi")).toBe(
+      false,
+    );
+    expect(matchesIgnoreRule(createTagIgnoreRule("admin"), finding, "publicApi")).toBe(false);
   });
 
   it("honors consumer-profile scoping and returns matched rule metadata", () => {
@@ -134,14 +99,11 @@ describe("ignore rules", () => {
     expect(matchesIgnoreRule(scopedRule, finding, "publicApi")).toBe(false);
     expect(matchesIgnoreRule(scopedRule, finding, "sdkStrict")).toBe(true);
 
-    expect(
-      getMatchingIgnoreRules(finding, "sdkStrict", [scopedRule, pathRule]),
-    ).toEqual([
+    expect(getMatchingIgnoreRules(finding, "sdkStrict", [scopedRule, pathRule])).toEqual([
       {
         id: "ruleId:parameter.required.added",
         label: "Rule parameter.required.added",
-        reason:
-          'Ignore findings produced by the "Required parameter added" rule.',
+        reason: 'Ignore findings produced by the "Required parameter added" rule.',
         source: "ruleId",
       },
       {

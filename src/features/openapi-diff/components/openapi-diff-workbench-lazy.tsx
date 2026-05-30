@@ -16,8 +16,8 @@ export const OpenApiDiffWorkbenchLazy = dynamic(
         description="Preparing the in-browser OpenAPI editor surface."
       >
         <p className="text-muted text-sm leading-7">
-          The input workspace uses a client-side code editor, so it loads after
-          the rest of the tool shell is ready.
+          The input workspace uses a client-side code editor, so it loads after the rest of the tool
+          shell is ready.
         </p>
       </Panel>
     ),

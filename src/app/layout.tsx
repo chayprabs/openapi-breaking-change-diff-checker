@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
 import { AppProviders } from "@/components/layout/app-providers";
-import { IBM_Plex_Mono, IBM_Plex_Sans } from "next/font/google";
 import { AnalyticsScripts } from "@/components/layout/analytics-scripts";
-import { SiteFooter } from "@/components/layout/site-footer";
-import { SiteHeader } from "@/components/layout/site-header";
+import { MinimalFooter } from "@/components/layout/minimal-footer";
+import { MinimalTopBar } from "@/components/layout/minimal-top-bar";
+import { SeoIntroBar } from "@/components/layout/seo-intro-bar";
+import { siteConfig } from "@/data/site";
 import { getSiteUrl } from "@/lib/site-url";
+import { IBM_Plex_Mono, IBM_Plex_Sans } from "next/font/google";
 import "./globals.css";
 
 const plexSans = IBM_Plex_Sans({
@@ -24,13 +26,19 @@ const plexMono = IBM_Plex_Mono({
 export const metadata: Metadata = {
   metadataBase: new URL(getSiteUrl()),
   title: {
-    default: "Authos",
-    template: "%s | Authos",
+    default: siteConfig.name,
+    template: `%s | ${siteConfig.name}`,
   },
-  description:
-    "Developer tools for contract-aware teams, starting with OpenAPI breaking-change diffing and contract risk reporting.",
-  applicationName: "Authos",
-  keywords: ["Authos", "OpenAPI", "API diff", "breaking changes", "developer tools"],
+  description: siteConfig.description,
+  applicationName: siteConfig.name,
+  keywords: [
+    "OpenAPI",
+    "Swagger",
+    "API diff",
+    "breaking changes",
+    "OpenAPI compatibility",
+    "semantic diff",
+  ],
 };
 
 export default function RootLayout({
@@ -40,14 +48,13 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${plexSans.variable} ${plexMono.variable} h-full antialiased`}>
-      <body className="bg-background text-foreground min-h-full">
+      <body className="bg-background text-foreground flex min-h-full flex-col">
         <AnalyticsScripts />
         <AppProviders>
-          <div className="flex min-h-screen flex-col">
-            <SiteHeader />
-            <main className="flex-1">{children}</main>
-            <SiteFooter />
-          </div>
+          <MinimalTopBar />
+          <SeoIntroBar />
+          <main className="flex-1">{children}</main>
+          <MinimalFooter />
         </AppProviders>
       </body>
     </html>

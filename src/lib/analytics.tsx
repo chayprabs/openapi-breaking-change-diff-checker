@@ -11,9 +11,7 @@ import {
   type AnalyticsAdapter,
 } from "@/lib/analytics-core";
 
-const AnalyticsContext = createContext<AnalyticsAdapter>(
-  createDisabledAnalyticsAdapter(),
-);
+const AnalyticsContext = createContext<AnalyticsAdapter>(createDisabledAnalyticsAdapter());
 
 type AnalyticsProviderProps = {
   children: ReactNode;
@@ -31,9 +29,9 @@ export function AnalyticsProvider({ children }: AnalyticsProviderProps) {
     const hash = window.location.hash;
     let shareMode = "none";
 
-    if (hash.includes("authos-share=report")) {
+    if (hash.includes("odiff-share=report")) {
       shareMode = "report";
-    } else if (hash.includes("authos-share=settings")) {
+    } else if (hash.includes("odiff-share=settings")) {
       shareMode = "settings";
     }
 
@@ -48,11 +46,7 @@ export function AnalyticsProvider({ children }: AnalyticsProviderProps) {
     });
   }, [analytics, pathname]);
 
-  return (
-    <AnalyticsContext.Provider value={analytics}>
-      {children}
-    </AnalyticsContext.Provider>
-  );
+  return <AnalyticsContext.Provider value={analytics}>{children}</AnalyticsContext.Provider>;
 }
 
 export function useAnalytics() {

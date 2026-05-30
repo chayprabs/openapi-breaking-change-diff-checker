@@ -6,7 +6,7 @@ import { buildPageMetadata } from "@/lib/metadata";
 export const metadata = buildPageMetadata({
   title: "Component Lab",
   description:
-    "Development-only component lab for Authos UI primitives and developer-tool helpers.",
+    "Development-only component lab for OpenAPI Diff UI primitives and developer-tool helpers.",
 });
 
 export const dynamic = "force-dynamic";
@@ -20,7 +20,7 @@ export default function DevComponentsPage() {
     <PageShell
       breadcrumbs={[{ href: "/", label: "Home" }, { label: "Component Lab" }]}
       eyebrow="Development"
-      title="Authos component lab"
+      title="OpenAPI Diff component lab"
       description="A lightweight in-app showcase for reusable UI primitives and developer-tool components. This route is available only in development."
     >
       <DevComponentsShowcase />

@@ -34,11 +34,7 @@ type RedactionPattern = {
   reason: string;
   regex: RegExp;
   getCanonicalValue: (match: string, captures: string[]) => string | null;
-  getReplacement: (
-    match: string,
-    captures: string[],
-    placeholder: string,
-  ) => string;
+  getReplacement: (match: string, captures: string[], placeholder: string) => string;
 };
 
 type MutableRedactionMatch = RedactionMatch;
@@ -57,8 +53,7 @@ const GENERIC_TOKEN_PATTERN =
   /\b(?=[A-Za-z0-9._~+\-/=]{24,}\b)(?=[A-Za-z0-9._~+\-/=]*[A-Za-z])(?=[A-Za-z0-9._~+\-/=]*\d)[A-Za-z0-9._~+\-/=]{24,}\b/g;
 const INTERNAL_DOMAIN_PATTERN =
   /\b(?:localhost|(?:(?:[a-z0-9-]+\.)+(?:cluster\.local|corp|home|internal|intranet|lan|local|svc(?:\.cluster\.local)?|test)))\b/gi;
-const JWT_PATTERN =
-  /\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\b/g;
+const JWT_PATTERN = /\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\b/g;
 const PRIVATE_IP_PATTERN =
   /\b(?:10(?:\.\d{1,3}){3}|127(?:\.\d{1,3}){3}|169\.254(?:\.\d{1,3}){2}|172\.(?:1[6-9]|2\d|3[0-1])(?:\.\d{1,3}){2}|192\.168(?:\.\d{1,3}){2})\b/g;
 const PRIVATE_KEY_PATTERN =
@@ -212,10 +207,7 @@ export function redactTextSources(
         left.localeCompare(right),
       ),
       redactedSource: options.redactedSource ?? "OpenAPI diff export",
-      replacements: redactedSources.reduce(
-        (total, source) => total + source.replacements,
-        0,
-      ),
+      replacements: redactedSources.reduce((total, source) => total + source.replacements, 0),
       warnings: [...state.warnings],
     },
     sources: redactedSources,
@@ -265,11 +257,13 @@ function applyPatternsToValue(
 
     nextValue = nextValue.replace(regex, (...args: unknown[]) => {
       const match = typeof args[0] === "string" ? args[0] : "";
-      const offset = typeof args[args.length - 2] === "number" ? (args[args.length - 2] as number) : 0;
-      const input = typeof args[args.length - 1] === "string" ? (args[args.length - 1] as string) : nextValue;
-      const captures = args.slice(1, -2).map((valuePart) =>
-        typeof valuePart === "string" ? valuePart : "",
-      );
+      const offset =
+        typeof args[args.length - 2] === "number" ? (args[args.length - 2] as number) : 0;
+      const input =
+        typeof args[args.length - 1] === "string" ? (args[args.length - 1] as string) : nextValue;
+      const captures = args
+        .slice(1, -2)
+        .map((valuePart) => (typeof valuePart === "string" ? valuePart : ""));
       const canonicalValue = pattern.getCanonicalValue(match, captures);
 
       if (!canonicalValue || shouldSkipRedactionValue(pattern.kind, canonicalValue)) {
@@ -305,10 +299,7 @@ function applyPatternsToValue(
   };
 }
 
-function buildRedactionPatterns(
-  settings: ActiveRedactionSettings,
-  state: RedactionState,
-) {
+function buildRedactionPatterns(settings: ActiveRedactionSettings, state: RedactionState) {
   const patterns = [...BUILT_IN_PATTERNS.slice(0, 6)];
 
   if (settings.redactServerUrls) {
@@ -410,9 +401,7 @@ function isSupportedRegexFlags(flags?: string) {
 }
 
 function makeAfterSnippet(beforeSnippet: string, match: string, replacement: string) {
-  return beforeSnippet.includes(match)
-    ? beforeSnippet.replace(match, replacement)
-    : replacement;
+  return beforeSnippet.includes(match) ? beforeSnippet.replace(match, replacement) : replacement;
 }
 
 function makeContextSnippet(source: string, offset: number, length: number) {
@@ -443,7 +432,9 @@ function normalizeRedactionSettings(
 }
 
 function normalizeRegexFlags(flags?: string) {
-  return [...new Set((flags ?? "").trim().split(""))].sort((left, right) => left.localeCompare(right)).join("");
+  return [...new Set((flags ?? "").trim().split(""))]
+    .sort((left, right) => left.localeCompare(right))
+    .join("");
 }
 
 function normalizeStructuredValue(value: string | undefined) {
@@ -493,10 +484,7 @@ function recordReplacement(
   });
 }
 
-function shouldSkipRedactionValue(
-  kind: RedactionPlaceholderKind,
-  value: string,
-) {
+function shouldSkipRedactionValue(kind: RedactionPlaceholderKind, value: string) {
   const trimmedValue = value.trim();
 
   if (
@@ -536,7 +524,5 @@ function looksLikeUrl(value: string) {
 }
 
 function looksLikeUuid(value: string) {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
-    value,
-  );
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 }

@@ -14,7 +14,8 @@ export const ruleCatalog = {
     saferAlternative:
       "Document the new path clearly and keep existing paths stable so clients can adopt the addition on their own timeline.",
     example: {
-      before: "paths:\n  /accounts:\n    get:\n      responses:\n        '200': { description: OK }",
+      before:
+        "paths:\n  /accounts:\n    get:\n      responses:\n        '200': { description: OK }",
       after:
         "paths:\n  /accounts:\n    get:\n      responses:\n        '200': { description: OK }\n  /accounts/search:\n    get:\n      responses:\n        '200': { description: OK }",
     },
@@ -41,8 +42,7 @@ export const ruleCatalog = {
     category: "operation",
     defaultSeverity: "safe",
     title: "Operation added",
-    explanation:
-      "A new HTTP method is available on a path in the candidate specification.",
+    explanation: "A new HTTP method is available on a path in the candidate specification.",
     whyItMatters:
       "New operations are usually additive, but they still affect generated SDKs, documentation, and rollout expectations.",
     saferAlternative:
@@ -126,8 +126,7 @@ export const ruleCatalog = {
     category: "parameter",
     defaultSeverity: "breaking",
     title: "Parameter became required",
-    explanation:
-      "A parameter that previously could be omitted must now be supplied by callers.",
+    explanation: "A parameter that previously could be omitted must now be supplied by callers.",
     whyItMatters:
       "Existing requests may begin failing validation because clients are unaware that the parameter is now mandatory.",
     saferAlternative:
@@ -142,8 +141,7 @@ export const ruleCatalog = {
     category: "parameter",
     defaultSeverity: "safe",
     title: "Parameter became optional",
-    explanation:
-      "A parameter that was required in the baseline version can now be omitted.",
+    explanation: "A parameter that was required in the baseline version can now be omitted.",
     whyItMatters:
       "Relaxing a requirement is usually backward compatible, though it can still affect generated validation logic and docs.",
     saferAlternative:
@@ -205,8 +203,7 @@ export const ruleCatalog = {
     category: "parameter",
     defaultSeverity: "dangerous",
     title: "Parameter style changed",
-    explanation:
-      "The serialization style for a parameter changed between versions.",
+    explanation: "The serialization style for a parameter changed between versions.",
     whyItMatters:
       "Even when the name and schema stay the same, style changes can alter the actual wire format clients must send.",
     saferAlternative:
@@ -221,8 +218,7 @@ export const ruleCatalog = {
     category: "parameter",
     defaultSeverity: "dangerous",
     title: "Parameter explode changed",
-    explanation:
-      "The explode behavior for a parameter changed between versions.",
+    explanation: "The explode behavior for a parameter changed between versions.",
     whyItMatters:
       "Explode changes can affect how arrays and objects are encoded on the wire, which may break existing callers.",
     saferAlternative:
@@ -241,8 +237,7 @@ export const ruleCatalog = {
       "Only the descriptive text for a parameter changed without necessarily altering the structural contract.",
     whyItMatters:
       "Docs changes are usually safe, but they can still signal updated semantics or rollout guidance.",
-    saferAlternative:
-      "Keep parameter docs precise and aligned with the actual runtime behavior.",
+    saferAlternative: "Keep parameter docs precise and aligned with the actual runtime behavior.",
     example: {
       before: "description: Account region.",
       after: "description: Account region used for rollout targeting.",
@@ -253,8 +248,7 @@ export const ruleCatalog = {
     category: "parameter",
     defaultSeverity: "info",
     title: "Parameter examples changed",
-    explanation:
-      "The example values shown for a parameter changed between versions.",
+    explanation: "The example values shown for a parameter changed between versions.",
     whyItMatters:
       "Example changes do not usually break clients, but they can still signal changed usage guidance or intended formats.",
     saferAlternative:
@@ -289,8 +283,7 @@ export const ruleCatalog = {
       "The candidate operation now accepts a request body, but callers are not required to send it.",
     whyItMatters:
       "This is usually additive, though generated clients and validators may still need updates to expose the new payload shape.",
-    saferAlternative:
-      "Keep omission valid while documenting the new payload contract clearly.",
+    saferAlternative: "Keep omission valid while documenting the new payload contract clearly.",
     example: {
       before: "# no requestBody",
       after: "requestBody:\n  required: false",
@@ -317,8 +310,7 @@ export const ruleCatalog = {
     category: "requestBody",
     defaultSeverity: "breaking",
     title: "Request body became required",
-    explanation:
-      "The candidate operation still has a request body, but callers must now send it.",
+    explanation: "The candidate operation still has a request body, but callers must now send it.",
     whyItMatters:
       "Existing requests that omitted the body may start failing validation or server-side checks.",
     saferAlternative:
@@ -333,12 +325,10 @@ export const ruleCatalog = {
     category: "requestBody",
     defaultSeverity: "safe",
     title: "Request body became optional",
-    explanation:
-      "The candidate operation relaxes the requirement to send the request body.",
+    explanation: "The candidate operation relaxes the requirement to send the request body.",
     whyItMatters:
       "Relaxing the body requirement is usually backward compatible, though generated docs and validators may still change.",
-    saferAlternative:
-      "Document the relaxed requirement so consumers know omission is now valid.",
+    saferAlternative: "Document the relaxed requirement so consumers know omission is now valid.",
     example: {
       before: "required: true",
       after: "required: false",
@@ -366,8 +356,7 @@ export const ruleCatalog = {
     category: "requestBody",
     defaultSeverity: "safe",
     title: "Request media type added",
-    explanation:
-      "The candidate operation accepts an additional request body media type.",
+    explanation: "The candidate operation accepts an additional request body media type.",
     whyItMatters:
       "This is usually additive, though clients and gateways may need documentation updates to use the new content type.",
     saferAlternative:
@@ -383,14 +372,14 @@ export const ruleCatalog = {
     category: "requestBody",
     defaultSeverity: "breaking",
     title: "Request schema changed",
-    explanation:
-      "The request body schema changed for a media type that exists in both versions.",
+    explanation: "The request body schema changed for a media type that exists in both versions.",
     whyItMatters:
       "Payload shape changes can immediately break writers, validators, SDKs, and server-side assumptions.",
     saferAlternative:
       "Introduce a new media type or versioned payload shape instead of changing the existing request schema in place.",
     example: {
-      before: "content:\n  application/json:\n    schema:\n      type: object\n      properties:\n        creditLimit:\n          type: integer",
+      before:
+        "content:\n  application/json:\n    schema:\n      type: object\n      properties:\n        creditLimit:\n          type: integer",
       after:
         "content:\n  application/json:\n    schema:\n      type: object\n      properties:\n        creditLimit:\n          type: string",
     },
@@ -416,8 +405,7 @@ export const ruleCatalog = {
     category: "response",
     defaultSeverity: "dangerous",
     title: "Response status added",
-    explanation:
-      "The candidate operation documents an additional concrete response status code.",
+    explanation: "The candidate operation documents an additional concrete response status code.",
     whyItMatters:
       "Additive response statuses can still surprise strict clients that branch only on a known set of outcomes.",
     saferAlternative:
@@ -448,8 +436,7 @@ export const ruleCatalog = {
     category: "response",
     defaultSeverity: "dangerous",
     title: "Default response added",
-    explanation:
-      "The candidate operation now documents a default response fallback.",
+    explanation: "The candidate operation now documents a default response fallback.",
     whyItMatters:
       "A new default response can expand the set of possible outputs that strict consumers need to handle.",
     saferAlternative:
@@ -499,14 +486,14 @@ export const ruleCatalog = {
     category: "response",
     defaultSeverity: "breaking",
     title: "Response schema changed",
-    explanation:
-      "The response schema changed for a media type that exists in both versions.",
+    explanation: "The response schema changed for a media type that exists in both versions.",
     whyItMatters:
       "Output shape changes can break deserialization, rendering, validation, and generated client models.",
     saferAlternative:
       "Introduce a new media type or versioned response shape instead of changing the existing schema in place.",
     example: {
-      before: "content:\n  application/json:\n    schema:\n      type: object\n      properties:\n        creditLimit:\n          type: integer",
+      before:
+        "content:\n  application/json:\n    schema:\n      type: object\n      properties:\n        creditLimit:\n          type: integer",
       after:
         "content:\n  application/json:\n    schema:\n      type: object\n      properties:\n        creditLimit:\n          type: string",
     },
@@ -595,8 +582,7 @@ export const ruleCatalog = {
     category: "schema",
     defaultSeverity: "dangerous",
     title: "Schema format changed",
-    explanation:
-      "The schema format changed while the underlying type may still be the same.",
+    explanation: "The schema format changed while the underlying type may still be the same.",
     whyItMatters:
       "Format changes can affect validation, code generation, and how clients parse or serialize values.",
     saferAlternative:
@@ -643,8 +629,7 @@ export const ruleCatalog = {
     category: "schema",
     defaultSeverity: "dangerous",
     title: "Schema nullability changed",
-    explanation:
-      "The candidate schema changed whether `null` is an allowed value.",
+    explanation: "The candidate schema changed whether `null` is an allowed value.",
     whyItMatters:
       "Nullability changes can break serializers, validators, SDK types, and stored assumptions about presence versus explicit null.",
     saferAlternative:
@@ -659,8 +644,7 @@ export const ruleCatalog = {
     category: "schema",
     defaultSeverity: "dangerous",
     title: "Schema default changed",
-    explanation:
-      "The default value documented for the schema changed between versions.",
+    explanation: "The default value documented for the schema changed between versions.",
     whyItMatters:
       "Even though defaults are not always enforced at runtime, generators and client code can still bake them into behavior.",
     saferAlternative:
@@ -691,8 +675,7 @@ export const ruleCatalog = {
     category: "schema",
     defaultSeverity: "breaking",
     title: "Additional properties became more restrictive",
-    explanation:
-      "The candidate schema became stricter about unknown object properties.",
+    explanation: "The candidate schema became stricter about unknown object properties.",
     whyItMatters:
       "Clients that send or tolerate undeclared fields can start failing validation once additional properties become restricted.",
     saferAlternative:
@@ -707,8 +690,7 @@ export const ruleCatalog = {
     category: "schema",
     defaultSeverity: "dangerous",
     title: "oneOf composition changed",
-    explanation:
-      "The candidate schema changed the `oneOf` composition at this node.",
+    explanation: "The candidate schema changed the `oneOf` composition at this node.",
     whyItMatters:
       "Composition changes can be hard to reason about automatically and often affect validation, narrowing logic, and generated union types.",
     saferAlternative:
@@ -723,8 +705,7 @@ export const ruleCatalog = {
     category: "schema",
     defaultSeverity: "dangerous",
     title: "anyOf composition changed",
-    explanation:
-      "The candidate schema changed the `anyOf` composition at this node.",
+    explanation: "The candidate schema changed the `anyOf` composition at this node.",
     whyItMatters:
       "Composition changes can alter validation semantics and generated client models in ways that are not always obvious.",
     saferAlternative:
@@ -739,15 +720,16 @@ export const ruleCatalog = {
     category: "schema",
     defaultSeverity: "dangerous",
     title: "allOf composition changed",
-    explanation:
-      "The candidate schema changed the `allOf` composition at this node.",
+    explanation: "The candidate schema changed the `allOf` composition at this node.",
     whyItMatters:
       "Composition changes can alter inherited constraints and combined object shape in ways that are hard to assess automatically.",
     saferAlternative:
       "Version or document structural composition changes so consumers understand the new combined contract.",
     example: {
-      before: "allOf:\n  - $ref: '#/components/schemas/Base'\n  - $ref: '#/components/schemas/Legacy'",
-      after: "allOf:\n  - $ref: '#/components/schemas/Base'\n  - $ref: '#/components/schemas/Current'",
+      before:
+        "allOf:\n  - $ref: '#/components/schemas/Base'\n  - $ref: '#/components/schemas/Legacy'",
+      after:
+        "allOf:\n  - $ref: '#/components/schemas/Base'\n  - $ref: '#/components/schemas/Current'",
     },
   },
   "schema.discriminator.changed": {
@@ -755,8 +737,7 @@ export const ruleCatalog = {
     category: "schema",
     defaultSeverity: "dangerous",
     title: "Discriminator changed",
-    explanation:
-      "The candidate schema changed discriminator behavior or mapping.",
+    explanation: "The candidate schema changed discriminator behavior or mapping.",
     whyItMatters:
       "Polymorphic client models and serializers often rely on a stable discriminator, so changes can break deserialization or type narrowing.",
     saferAlternative:
@@ -771,8 +752,7 @@ export const ruleCatalog = {
     category: "schema",
     defaultSeverity: "dangerous",
     title: "readOnly changed",
-    explanation:
-      "The candidate schema changed whether a property is marked readOnly.",
+    explanation: "The candidate schema changed whether a property is marked readOnly.",
     whyItMatters:
       "readOnly affects request/response expectations and generated models, so changing it can alter how clients send or consume the field.",
     saferAlternative:
@@ -787,8 +767,7 @@ export const ruleCatalog = {
     category: "schema",
     defaultSeverity: "dangerous",
     title: "writeOnly changed",
-    explanation:
-      "The candidate schema changed whether a property is marked writeOnly.",
+    explanation: "The candidate schema changed whether a property is marked writeOnly.",
     whyItMatters:
       "writeOnly affects request/response expectations and generated models, so changing it can alter whether clients expect to send or receive the field.",
     saferAlternative:
@@ -929,8 +908,7 @@ export const ruleCatalog = {
     category: "metadata",
     defaultSeverity: "info",
     title: "Operation tags changed",
-    explanation:
-      "The set of tags attached to an operation changed between versions.",
+    explanation: "The set of tags attached to an operation changed between versions.",
     whyItMatters:
       "Tag changes are usually documentation or organization updates, but they can still affect generated docs navigation and internal grouping.",
     saferAlternative:
@@ -945,8 +923,7 @@ export const ruleCatalog = {
     category: "metadata",
     defaultSeverity: "info",
     title: "Operation deprecated",
-    explanation:
-      "The candidate specification newly marks an operation as deprecated.",
+    explanation: "The candidate specification newly marks an operation as deprecated.",
     whyItMatters:
       "Deprecation does not break clients immediately, but it signals that consumers should plan a migration.",
     saferAlternative:
@@ -961,8 +938,7 @@ export const ruleCatalog = {
     category: "metadata",
     defaultSeverity: "info",
     title: "Operation deprecation removed",
-    explanation:
-      "The candidate specification no longer marks an operation as deprecated.",
+    explanation: "The candidate specification no longer marks an operation as deprecated.",
     whyItMatters:
       "Removing a deprecation flag is usually good news, but it still changes the lifecycle signal consumers may rely on.",
     saferAlternative:

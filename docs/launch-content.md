@@ -10,7 +10,7 @@
 
 ### Draft 1
 
-Shipping the first Authos tool today: OpenAPI Diff.
+Shipping the first OpenAPI Diff tool today: OpenAPI Diff.
 
 Paste two OpenAPI or Swagger specs, run a semantic diff in the browser, review breaking changes, redact sensitive values, and export Markdown / HTML / JSON without login.
 
@@ -34,7 +34,7 @@ OpenAPI Diff compares paths, operations, parameters, responses, schemas, enums, 
 
 One thing I wanted from API tooling: confidence without uploading sensitive specs by default.
 
-Authos OpenAPI Diff keeps paste/upload analysis local, disables analytics by default, and only allows metadata-safe event hooks when configured.
+OpenAPI Diff OpenAPI Diff keeps paste/upload analysis local, disables analytics by default, and only allows metadata-safe event hooks when configured.
 
 ### Draft 5
 
@@ -48,11 +48,11 @@ Next up: more compatibility and release-safety workflows around it.
 
 ### Title
 
-Show HN: Authos OpenAPI Diff, a local-first OpenAPI breaking-change checker
+Show HN: OpenAPI Diff OpenAPI Diff, a local-first OpenAPI breaking-change checker
 
 ### Body
 
-I launched the first tool in a broader developer-tools site called Authos.
+I launched the first tool in a broader developer-tools site called OpenAPI Diff.
 
 The first workflow is OpenAPI Diff:
 

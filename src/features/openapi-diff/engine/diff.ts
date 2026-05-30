@@ -3,11 +3,12 @@ import {
   diffOperationDetailsAcrossPaths,
   diffPathsAndOperations,
 } from "@/features/openapi-diff/engine/diff-paths";
-import { getDiffReportWarnings, sortDiffFindings } from "@/features/openapi-diff/engine/diff-support";
-import { buildReport } from "@/features/openapi-diff/engine/report";
 import {
-  createAnalysisSettings,
-} from "@/features/openapi-diff/lib/analysis-settings";
+  getDiffReportWarnings,
+  sortDiffFindings,
+} from "@/features/openapi-diff/engine/diff-support";
+import { buildReport } from "@/features/openapi-diff/engine/report";
+import { createAnalysisSettings } from "@/features/openapi-diff/lib/analysis-settings";
 import type {
   AnalysisSettings,
   DiffFinding,
@@ -25,14 +26,9 @@ type BuildOpenApiDiffReportOptions = {
   settings?: AnalysisSettings;
 };
 
-export function buildOpenApiDiffReport(
-  options: BuildOpenApiDiffReportOptions,
-): DiffReport {
+export function buildOpenApiDiffReport(options: BuildOpenApiDiffReportOptions): DiffReport {
   const settings = createAnalysisSettings(options.settings);
-  const rawFindings = collectOpenApiDiffFindings(
-    options.baseModel,
-    options.revisionModel,
-  );
+  const rawFindings = collectOpenApiDiffFindings(options.baseModel, options.revisionModel);
   const classifiedFindings = classifyOpenApiDiffFindings(rawFindings, settings);
 
   return buildReport(options.baseline, options.candidate, classifiedFindings, settings, {
@@ -47,8 +43,8 @@ export function collectOpenApiDiffFindings(
 ): DiffFinding[] {
   return attachOperationContextToFindings(
     [
-    ...diffPathsAndOperations(baseModel, revisionModel),
-    ...diffOperationDetailsAcrossPaths(baseModel, revisionModel),
+      ...diffPathsAndOperations(baseModel, revisionModel),
+      ...diffOperationDetailsAcrossPaths(baseModel, revisionModel),
     ],
     baseModel,
     revisionModel,
@@ -80,18 +76,18 @@ export function attachOperationContextToFindings(
       return finding;
     }
 
-    const tags = [...new Set([
-      ...(finding.tags ?? []),
-      ...(baseOperation?.tags ?? []),
-      ...(revisionOperation?.tags ?? []),
-    ])].sort((left, right) => left.localeCompare(right));
+    const tags = [
+      ...new Set([
+        ...(finding.tags ?? []),
+        ...(baseOperation?.tags ?? []),
+        ...(revisionOperation?.tags ?? []),
+      ]),
+    ].sort((left, right) => left.localeCompare(right));
     const operationDeprecated =
       finding.operationDeprecated ??
       Boolean(baseOperation?.deprecated || revisionOperation?.deprecated);
     const operationId =
-      finding.operationId ??
-      revisionOperation?.operationId ??
-      baseOperation?.operationId;
+      finding.operationId ?? revisionOperation?.operationId ?? baseOperation?.operationId;
 
     return {
       ...finding,

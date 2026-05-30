@@ -68,7 +68,9 @@ export function AccountMenu() {
             {session?.user ? (
               <>
                 <div className="space-y-1">
-                  <p className="font-semibold text-foreground">{session.user.name ?? "Signed in"}</p>
+                  <p className="text-foreground font-semibold">
+                    {session.user.name ?? "Signed in"}
+                  </p>
                   <p className="text-muted text-sm">{session.user.email}</p>
                 </div>
                 <div className="flex flex-wrap gap-3">

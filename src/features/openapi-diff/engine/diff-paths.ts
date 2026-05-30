@@ -42,10 +42,9 @@ export function diffPathsAndOperations(
   revisionModel: NormalizedOpenApiModel,
 ): DiffFinding[] {
   const findings: DiffFinding[] = [];
-  const allPaths = [...new Set([
-    ...Object.keys(baseModel.paths),
-    ...Object.keys(revisionModel.paths),
-  ])].sort((left, right) => left.localeCompare(right));
+  const allPaths = [
+    ...new Set([...Object.keys(baseModel.paths), ...Object.keys(revisionModel.paths)]),
+  ].sort((left, right) => left.localeCompare(right));
 
   for (const path of allPaths) {
     const basePathItem = baseModel.paths[path];
@@ -133,10 +132,9 @@ export function diffOperationDetailsAcrossPaths(
   revisionModel: NormalizedOpenApiModel,
 ): DiffFinding[] {
   const findings: DiffFinding[] = [];
-  const sharedPaths = [...new Set([
-    ...Object.keys(baseModel.paths),
-    ...Object.keys(revisionModel.paths),
-  ])].sort((left, right) => left.localeCompare(right));
+  const sharedPaths = [
+    ...new Set([...Object.keys(baseModel.paths), ...Object.keys(revisionModel.paths)]),
+  ].sort((left, right) => left.localeCompare(right));
 
   for (const path of sharedPaths) {
     const basePathItem = baseModel.paths[path];
@@ -155,12 +153,7 @@ export function diffOperationDetailsAcrossPaths(
       }
 
       findings.push(
-        ...diffOperationDetails(
-          baseModel,
-          revisionModel,
-          baseOperation,
-          revisionOperation,
-        ),
+        ...diffOperationDetails(baseModel, revisionModel, baseOperation, revisionOperation),
       );
     }
   }

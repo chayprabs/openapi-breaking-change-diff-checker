@@ -14,7 +14,7 @@ export function LoginActions() {
   if (session?.user) {
     return (
       <div className="space-y-3">
-        <p className="text-sm text-foreground">
+        <p className="text-foreground text-sm">
           Signed in as {session.user.email ?? session.user.name ?? "your account"}.
         </p>
         <Link

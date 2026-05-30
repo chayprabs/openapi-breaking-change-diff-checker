@@ -7,9 +7,7 @@ type ContentSecurityPolicyOptions = {
   isDevelopment?: boolean;
 };
 
-export function buildAppContentSecurityPolicy(
-  options: ContentSecurityPolicyOptions = {},
-) {
+export function buildAppContentSecurityPolicy(options: ContentSecurityPolicyOptions = {}) {
   const isDevelopment = options.isDevelopment ?? process.env.NODE_ENV !== "production";
   const scriptSrc = ["'self'", "'unsafe-inline'"];
 

@@ -10,9 +10,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { createAnalysisSettings } from "../src/features/openapi-diff/lib/analysis-settings";
 import { analyzeOpenApiSpecs } from "../src/features/openapi-diff/lib/parser";
-import {
-  createReportExportBundle,
-} from "../src/features/openapi-diff/lib/report-export";
+import { createReportExportBundle } from "../src/features/openapi-diff/lib/report-export";
 import { createReportFindingRows } from "../src/features/openapi-diff/lib/report-explorer";
 import { createSpecInput } from "../src/features/openapi-diff/test-support/openapi-diff-test-harness";
 import type { DiffReport, DiffSeverity } from "../src/features/openapi-diff/types";
@@ -30,7 +28,7 @@ type CliOptions = {
 };
 
 function printHelp() {
-  console.log(`Authos OpenAPI Diff (CLI)
+  console.log(`OpenAPI Diff (CLI)
 
 Compare two OpenAPI/Swagger specs with the in-repo semantic engine.
 
@@ -196,9 +194,7 @@ function formatOutput(format: CliFormat, report: DiffReport) {
     redactBeforeExport: false,
   });
 
-  return format === "markdown"
-    ? bundle.artifacts.markdown.content
-    : bundle.artifacts.html.content;
+  return format === "markdown" ? bundle.artifacts.markdown.content : bundle.artifacts.html.content;
 }
 
 async function main() {
@@ -212,9 +208,7 @@ async function main() {
     const settings = options.settingsPath
       ? readSettingsFile(options.settingsPath)
       : createAnalysisSettings({
-          ...(options.consumerProfile
-            ? { consumerProfile: options.consumerProfile as never }
-            : {}),
+          ...(options.consumerProfile ? { consumerProfile: options.consumerProfile as never } : {}),
           ...(options.failOn.length > 0 ? { failOnSeverities: options.failOn } : {}),
         });
 

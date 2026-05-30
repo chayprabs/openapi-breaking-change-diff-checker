@@ -6,13 +6,14 @@ import { teamIgnoreRules } from "@/lib/db/schema";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(
-  _request: Request,
-  context: { params: Promise<{ orgId: string }> },
-) {
+export async function GET(_request: Request, context: { params: Promise<{ orgId: string }> }) {
   const { orgId } = await context.params;
   await ensureDatabaseReady();
-  const rows = await db.select().from(teamIgnoreRules).where(eq(teamIgnoreRules.orgId, orgId)).limit(1);
+  const rows = await db
+    .select()
+    .from(teamIgnoreRules)
+    .where(eq(teamIgnoreRules.orgId, orgId))
+    .limit(1);
   const row = rows[0];
 
   return Response.json({
@@ -21,10 +22,7 @@ export async function GET(
   });
 }
 
-export async function PUT(
-  request: Request,
-  context: { params: Promise<{ orgId: string }> },
-) {
+export async function PUT(request: Request, context: { params: Promise<{ orgId: string }> }) {
   const session = await auth();
 
   if (!session?.user?.email) {

@@ -28,13 +28,7 @@ describe("redaction engine", () => {
 
     expect(result.inspection.detectedSecrets).toBe(true);
     expect(result.inspection.redactedKeys).toEqual(
-      expect.arrayContaining([
-        "EMAIL",
-        "INTERNAL_DOMAIN",
-        "PRIVATE_IP",
-        "SERVER_URL",
-        "TOKEN",
-      ]),
+      expect.arrayContaining(["EMAIL", "INTERNAL_DOMAIN", "PRIVATE_IP", "SERVER_URL", "TOKEN"]),
     );
     expect(baseRedacted?.redactedValue).toContain("<SERVER_URL_1>");
     expect(baseRedacted?.redactedValue).toContain("<EMAIL_1>");
@@ -82,9 +76,7 @@ components:
     expect(withoutOptionalRedaction.sources[0]?.redactedValue).toContain(
       "https://public.example.com/v1",
     );
-    expect(withoutOptionalRedaction.sources[0]?.redactedValue).toContain(
-      "sample-session-value",
-    );
+    expect(withoutOptionalRedaction.sources[0]?.redactedValue).toContain("sample-session-value");
     expect(withOptionalRedaction.sources[0]?.redactedValue).toContain("<SERVER_URL_1>");
     expect(withOptionalRedaction.sources[0]?.redactedValue).toContain("<EXAMPLE_1>");
   });

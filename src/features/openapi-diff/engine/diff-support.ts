@@ -273,7 +273,10 @@ export function createSchemaSnapshot(schema: NormalizedSchema | undefined): Json
     properties: Object.fromEntries(
       Object.keys(schema.properties)
         .sort((left, right) => left.localeCompare(right))
-        .map((propertyName) => [propertyName, createSchemaSnapshot(schema.properties[propertyName])]),
+        .map((propertyName) => [
+          propertyName,
+          createSchemaSnapshot(schema.properties[propertyName]),
+        ]),
     ),
     readOnly: schema.readOnly,
     refKind: schema.refKind,
@@ -391,21 +394,15 @@ function cloneFindingContext(context: DiffFindingContext): DiffFindingContext {
   };
 }
 
-function cloneEvidenceLocation(
-  location: DiffFindingEvidenceLocation,
-): DiffFindingEvidenceLocation {
+function cloneEvidenceLocation(location: DiffFindingEvidenceLocation): DiffFindingEvidenceLocation {
   return {
     jsonPointer: location.jsonPointer,
     node: {
       originPath: location.node.originPath,
       refChain: [...location.node.refChain],
       sourcePath: location.node.sourcePath,
-      ...(location.node.originalPointer
-        ? { originalPointer: location.node.originalPointer }
-        : {}),
-      ...(location.node.resolvedPointer
-        ? { resolvedPointer: location.node.resolvedPointer }
-        : {}),
+      ...(location.node.originalPointer ? { originalPointer: location.node.originalPointer } : {}),
+      ...(location.node.resolvedPointer ? { resolvedPointer: location.node.resolvedPointer } : {}),
     },
   };
 }

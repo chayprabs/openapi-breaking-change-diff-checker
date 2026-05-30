@@ -26,13 +26,14 @@ describe("public spec URL validation", () => {
 
 describe("fetchPublicSpecText", () => {
   it("blocks redirects to private IP targets", async () => {
-    const fetchImpl = vi.fn(async () =>
-      new Response(null, {
-        headers: {
-          location: "http://127.0.0.1/internal.yaml",
-        },
-        status: 302,
-      }),
+    const fetchImpl = vi.fn(
+      async () =>
+        new Response(null, {
+          headers: {
+            location: "http://127.0.0.1/internal.yaml",
+          },
+          status: 302,
+        }),
     );
 
     await expect(
@@ -47,13 +48,14 @@ describe("fetchPublicSpecText", () => {
   });
 
   it("rejects oversized responses", async () => {
-    const fetchImpl = vi.fn(async () =>
-      new Response("x".repeat(2_048), {
-        headers: {
-          "content-type": "text/plain; charset=utf-8",
-        },
-        status: 200,
-      }),
+    const fetchImpl = vi.fn(
+      async () =>
+        new Response("x".repeat(2_048), {
+          headers: {
+            "content-type": "text/plain; charset=utf-8",
+          },
+          status: 200,
+        }),
     );
 
     await expect(

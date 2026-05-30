@@ -1,8 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  baseSampleOpenApi31,
-  revisionSampleOpenApi31,
-} from "@/features/openapi-diff/fixtures";
+import { baseSampleOpenApi31, revisionSampleOpenApi31 } from "@/features/openapi-diff/fixtures";
 import { buildOpenApiDiffReport } from "@/features/openapi-diff/engine/diff";
 import { normalizeOpenApiDocument } from "@/features/openapi-diff/engine/normalize";
 import { parseOpenApiSpec } from "@/features/openapi-diff/lib/parser";
@@ -270,9 +267,7 @@ paths:
           description: ok
 `,
     );
-    const finding = report.findings.find(
-      (entry) => entry.ruleId === "docs.description.changed",
-    );
+    const finding = report.findings.find((entry) => entry.ruleId === "docs.description.changed");
 
     expect(finding).toMatchObject({
       afterValue: "Returns the user list with rollout guidance.",

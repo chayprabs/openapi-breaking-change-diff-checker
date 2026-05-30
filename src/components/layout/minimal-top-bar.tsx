@@ -52,24 +52,27 @@ function GlobeIcon() {
 const socialLinks = [
   {
     href: siteConfig.githubUrl,
-    label: "View source on GitHub",
+    label: "GitHub repository",
+    shortLabel: "GitHub",
     icon: <GitHubIcon />,
   },
   {
     href: siteConfig.twitterUrl,
     label: "Chaitanya on X",
+    shortLabel: "X",
     icon: <XIcon />,
   },
   {
     href: siteConfig.websiteUrl,
-    label: "Chaitanya's website",
+    label: "Personal website",
+    shortLabel: "Site",
     icon: <GlobeIcon />,
   },
 ] as const;
 
 export function MinimalTopBar() {
   return (
-    <header className="border-line bg-white/95 sticky top-0 z-30 border-b backdrop-blur-sm">
+    <header className="border-line sticky top-0 z-30 border-b bg-white/95 backdrop-blur-sm">
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
         <Link href="/" className="text-lg font-semibold tracking-tight text-slate-900">
           {siteConfig.name}
@@ -84,7 +87,7 @@ export function MinimalTopBar() {
               className="text-muted hover:text-foreground inline-flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-sm transition-colors hover:bg-slate-100"
             >
               {link.icon}
-              <span className="sr-only sm:not-sr-only">{link.label.split(" ")[0]}</span>
+              <span className="sr-only sm:not-sr-only">{link.shortLabel}</span>
               <ExternalIcon label="Opens in new tab" />
             </a>
           ))}

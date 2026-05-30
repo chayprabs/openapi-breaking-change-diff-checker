@@ -1,9 +1,4 @@
-import {
-  existsSync,
-  readdirSync,
-  readFileSync,
-  writeFileSync,
-} from "node:fs";
+import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
@@ -41,9 +36,7 @@ describe("OpenAPI golden scenarios", () => {
   });
 
   it("stores the required fixture scenarios on disk", () => {
-    expect(scenarioDirectories).toEqual(
-      expect.arrayContaining([...REQUIRED_SCENARIOS]),
-    );
+    expect(scenarioDirectories).toEqual(expect.arrayContaining([...REQUIRED_SCENARIOS]));
     expect(scenarioDirectories.length).toBeGreaterThanOrEqual(10);
   });
 
@@ -77,8 +70,8 @@ describe("OpenAPI golden scenarios", () => {
         );
       }
 
-      expect(normalizeGoldenSnapshot(serialized)).toBe(
-        normalizeGoldenSnapshot(readFileSync(expectedPath, "utf8")),
+      expect(JSON.parse(normalizeGoldenSnapshot(serialized))).toEqual(
+        JSON.parse(normalizeGoldenSnapshot(readFileSync(expectedPath, "utf8"))),
       );
     });
   }
@@ -100,9 +93,7 @@ function normalizeGoldenSnapshot(value: string) {
   return value.replace(/\r\n/g, "\n");
 }
 
-function serializeGoldenResult(
-  result: Awaited<ReturnType<typeof analyzeOpenApiSpecs>>,
-) {
+function serializeGoldenResult(result: Awaited<ReturnType<typeof analyzeOpenApiSpecs>>) {
   if (!result.ok) {
     return JSON.stringify(
       {

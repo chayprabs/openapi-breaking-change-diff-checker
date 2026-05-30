@@ -16,10 +16,7 @@ const SAMPLE_REVISION = `required_checks:
 export default function ReleaseGateAuditorPage() {
   return (
     <ToolShell
-      breadcrumbs={[
-        { href: "/tools", label: "Tools" },
-        { label: "Release Gate Auditor" },
-      ]}
+      breadcrumbs={[{ href: "/tools", label: "Tools" }, { label: "Release Gate Auditor" }]}
       badges={["DevOps", "Live"]}
       eyebrow="Tool 05"
       title="Release Gate Auditor"
